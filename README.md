@@ -193,7 +193,43 @@ uploads from the same bank parse without re-inference:
 
 ## Deployment
 
-Any Node host works; Vercel pairs most simply with Supabase.
+### GitHub Pages (configured)
+
+The app builds to a **fully static export**, so GitHub Pages can host it. Every route is
+prerendered at build time — there is no server at runtime.
+
+`.github/workflows/deploy-pages.yml` runs on every push to `main`: tests, typecheck and build must
+all pass before anything publishes, so a red suite cannot reach the live page. Pull requests run the
+same verification but **never deploy**.
+
+**One-time setup** (repository admin, cannot be done from code):
+
+> **Settings → Pages → Build and deployment → Source: GitHub Actions**
+
+Without that, the deploy job fails — the workflow cannot enable Pages for you. Once set, the site
+appears at `https://<user>.github.io/<repo>/` and the run summary links to it.
+
+Notes specific to Pages:
+
+- `basePath` is derived from the repository name, because a project site is served from a sub-path.
+  Local development is unaffected and still runs at `/`.
+- `trailingSlash: true` emits `route/index.html` instead of `route.html`; Pages does no extension
+  rewriting, so without it every route but the home page would 404.
+- `public/.nojekyll` stops Jekyll from stripping Next's `_next/` asset directory.
+- **Pages cannot set response headers**, so the security headers this app previously declared are
+  gone rather than silently ineffective. See the comment in `next.config.mjs`.
+- `NEXT_PUBLIC_SUPABASE_*` are read from repository **variables** and are optional: with them unset
+  the site renders the seeded dataset, which is all it shows today anyway.
+
+> **A public repository means a public site.** That is harmless while the app displays only the §11
+> reference data. Before real financial data is wired up, decide deliberately whether a public
+> static host is right — a static site has no server boundary, so row-level security becomes the
+> only thing protecting your data.
+
+### Any Node host
+
+Vercel or a plain Node server also work, and can set real security headers. Remove
+`output: 'export'` from `next.config.mjs` to get a server build back, then:
 
 ```bash
 npm run build && npm start

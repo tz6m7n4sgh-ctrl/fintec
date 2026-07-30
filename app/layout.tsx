@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   title: 'Readiness — finance & termination planning',
   description:
     'Personal finance and termination-readiness planning for a UAE private-sector employee.',
-  manifest: '/manifest.webmanifest',
+  // Relative so it resolves correctly under a GitHub Pages sub-path.
+  manifest: 'manifest.webmanifest',
   applicationName: 'Readiness',
   appleWebApp: { capable: true, title: 'Readiness', statusBarStyle: 'default' },
   // Financial data must never be indexed or cached by a crawler.
