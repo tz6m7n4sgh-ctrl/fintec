@@ -58,6 +58,25 @@ jobs:
           test -f out/.nojekyll || { echo "::error::out/.nojekyll missing — Jekyll would strip _next/"; exit 1; }
           echo "Exported $(find out -name index.html | wc -l) pages"
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        # Runs against the exact artefact about to be deployed, served under the
+        # same sub-path GitHub Pages will use — so a broken asset path or a
+        # sub-path routing regression fails here rather than in production.
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
       - name: Upload Pages artifact
         # Only the run that will deploy needs the artifact.
         if: github.event_name != 'pull_request'

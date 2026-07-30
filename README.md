@@ -15,15 +15,17 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 
 | Area | Status |
 |---|---|
-| Calculation engine (§5) | **Done** — 72 unit tests, every §11 acceptance row and edge case passes |
+| Calculation engine (§5) | **Done** — every §11 acceptance row and edge case passes |
 | Cash projection with lump-sum cheques | **Done** — reports the real zero-crossing, not just flat-burn runway |
 | Readiness scoring (/18) | **Done** — explicit rubric, per-criterion explanations |
 | All ten screens | **Done** — server-rendered, light/dark, desktop/mobile |
+| Automated tests | **Done** — 82 unit + 96 end-to-end, run in CI against the deployed artefact |
+| Deployment | **Done** — static export to GitHub Pages (needs Pages enabled once, see below) |
 | Database schema + RLS | **Done and applied** — 13 tables, RLS enabled *and* forced, 0 security advisories |
 | Private statements bucket | **Done** — namespaced per user id |
 | Authentication (email/OTP + passkeys) | **Not built** — next step |
 | Writing/reading live data | **Not built** — screens read the §11 seed dataset |
-| Statement ingestion job | **Not built** — pipeline designed, blocked on OQ-1 |
+| Statement ingestion job | **Not built** — pipeline designed; OQ-1 decided (Claude Cowork parses every statement) |
 | Email / web-push reminders | **Not built** — schema and preferences table exist |
 
 The app is honest about this: the dashboard shows a **"Seeded data"** banner, and Settings reports
@@ -40,7 +42,7 @@ npm run dev                    # http://localhost:3000
 ```
 
 ```bash
-npm test                       # 72 unit tests (engine, projection, readiness)
+npm test                       # 82 unit tests (engine, projection, readiness, formatting)
 npm run typecheck              # tsc --noEmit
 npm run build                  # production build
 ```
@@ -259,14 +261,38 @@ broken number (§11 edge case).
 ## Testing
 
 ```bash
-npm test
+npm test          # 82 unit tests
+npm run build     # required before e2e — the suite tests the real export
+npm run test:e2e  # 96 end-to-end tests (desktop + mobile)
 ```
+
+### Unit tests
 
 | File | Covers |
 |---|---|
 | `lib/engine/uae.test.ts` | Every §11 row; all four edge cases; runway band boundaries at 2.99/3.00/5.99/6.00; basic-vs-gross; budget auto rows; cheque window boundaries; timezone handling |
 | `lib/engine/projection.test.ts` | Double-count rule; zero-crossing vs flat runway; combined lump sums; pending/duplicate exclusion |
 | `lib/engine/readiness.test.ts` | Band thresholds; per-criterion scores; ineligible ILOE; unlimited runway; heavy debt |
+| `lib/format/money.test.ts` | en-AE formatting; negative-zero normalisation; `Unlimited` runway; true minus sign |
+
+### End-to-end tests
+
+`e2e/app.spec.ts` runs against the **built static export**, served the way a static host serves it —
+including under a sub-path when `NEXT_PUBLIC_BASE_PATH` is set. So CI exercises the exact artefact
+it deploys, and a broken asset path fails the build rather than production.
+
+Covered on all ten screens, in both a desktop and a mobile viewport: HTTP 200, exactly one `h1`,
+stylesheet actually applied, legal footer present, no horizontal overflow, and **zero console errors
+or failed requests**. Plus: the §11 figures on the dashboard, status badges carrying a text label
+rather than colour alone, every stat tile having a real destination, chart hover detail for months
+that carry no visible label, the report's figures and PDF export, the calendar's three pinned
+deadlines with countdowns, dark mode, and that every interactive control has an accessible name and
+every table a header cell.
+
+Several assertions pin specific defects found by looking at rendered pages: a stat tile whose
+caption counted a different set of cheques than its figure summed, the same scenario reading "OK" on
+one screen and "Tight" on another, a zero deduction rendering as `-0.00`, and a `<title>` hydration
+failure introduced while adding the chart hover layer.
 
 Reference figures asserted: service 7.332 years · gratuity **87,479** · leave 6,000 ·
 settlement **93,479** · ILOE 9,000/**27,000** · resources **220,479** · burn 23,000 ·
@@ -290,7 +316,9 @@ ILOE deadline **30 Oct 2026**.
 
 1. **No authentication yet** — so no live data. This is the next build step, and it unblocks
    persistence, the review inbox and reminders.
-2. **OQ-1 unresolved** — gates the ingestion epic (7 user stories).
+2. ~~OQ-1 unresolved~~ **Closed** — Claude Cowork parses every statement, with no deterministic
+   no-LLM path. The 7 ingestion stories are unblocked but still unbuilt, and every uploaded
+   statement is read by an LLM (disclosed in-app on the Statements screen).
 3. **Readiness rubric is a proposal** (OQ-2) — the point split is explicit in
    `lib/engine/readiness.ts` so it can be argued with.
 4. **Recurrence expansion** is computed for schedule totals, but single-occurrence overrides are not

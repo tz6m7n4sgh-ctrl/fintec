@@ -83,7 +83,7 @@ The app consolidates income and scheduled outflows, computes UAE-accurate end-of
 ### 5.3 Assumptions
 - A-1 The user provides accurate profile inputs (basic vs gross salary, dates, leave balances, ILOE status).
 - A-2 UAE rules are current as of **July 2026**; the app presents information, **not** legal/financial advice (legal footer always visible).
-- A-3 The user is comfortable with statement contents being parsed by Claude Cowork (an LLM), pending confirmation of open question OQ-1.
+- A-3 **Confirmed 30 Jul 2026 (OQ-1 closed):** the user accepts that statement contents are parsed by Claude Cowork (an LLM). No deterministic no-LLM path will be built, so this is an accepted privacy trade rather than an open assumption.
 - A-4 The user has at least one modern browser supporting WebAuthn and (for push) an installable PWA.
 - A-5 Email is the guaranteed reminder channel; web push is best-effort (subject to OS/browser permission, esp. iOS).
 
@@ -166,7 +166,7 @@ Business-level "what," each traceable to Stage 1 functional requirements.
 |---|---|---|---|
 | RB-1 | Engine gives a legally wrong figure the user acts on. | Financial loss / disputes. | Centralized dated constants; §11 test suite must pass; legal footer + "verify with MOHRE" on the report. |
 | RB-2 | Statement mis-parsed by the LLM (wrong amount/sign). | Wrong runway/budget. | Everything lands `pending` for human confirmation; balance-continuity checks flag suspect rows. |
-| RB-3 | Financial data reaches an LLM (Claude Cowork). | Privacy concern. | Private bucket, least-privilege access, in-app disclosure; optional deterministic-only path pending OQ-1. |
+| RB-3 | Financial data reaches an LLM (Claude Cowork). | Privacy concern. | **Accepted risk** (OQ-1 closed in favour of Cowork-for-everything; no deterministic-only path). Residual controls: private bucket, least-privilege access, in-app disclosure, and mandatory human confirmation before any parsed row counts. |
 | RB-4 | A reminder fails to reach the user, a cheque bounces. | Legal/financial jeopardy. | Dual-channel (email guaranteed + push best-effort), 7 & 2-day lead, prominent cheque styling, dashboard exposure tile. |
 | RB-5 | Timezone error fires deadlines on the wrong day. | Missed deadline. | All date math in Asia/Dubai; boundary tests. |
 | RB-6 | Biometric auth unsupported on the user's device/browser. | Lockout / friction. | Email/OTP always available as recoverable path; passkey never the sole factor. |
@@ -186,7 +186,7 @@ Business-level "what," each traceable to Stage 1 functional requirements.
 
 These need your input; each is detailed in `stage-1-requirements.md` §9.
 
-- **OQ-1** — Accept Claude Cowork parsing every statement, or keep a deterministic no-LLM path for sensitive files? *(Privacy vs coverage.)*
+- ~~**OQ-1**~~ **CLOSED 30 Jul 2026** — Decided in favour of **Claude Cowork parsing every statement**. Privacy surface traded for format coverage; recorded as accepted risk RB-3.
 - **OQ-3** — Confirm the good/warning/critical runway boundaries (`≥6 good, 3≤r<6 warning, r<3 critical`).
 - **OQ-5** — Accept email as the guaranteed reminder channel with push best-effort (iOS needs the PWA installed)?
 - **OQ-7** — Use a Vercel default domain until you provide your own?

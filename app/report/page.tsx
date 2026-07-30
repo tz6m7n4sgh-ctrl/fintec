@@ -136,15 +136,15 @@ export default async function ReportPage() {
         <div className="tbl-wrap">
           <table>
             <tbody>
-              <tr><td>Cash savings</td><td className="r mono">{money(m.profile.cashSavings)}</td></tr>
-              <tr><td>Other liquid assets</td><td className="r mono">{money(m.profile.otherLiquidAssets)}</td></tr>
-              <tr><td>Final settlement</td><td className="r mono">{money(r.settlement.finalSettlement)}</td></tr>
-              <tr><td>ILOE total</td><td className="r mono">{money(r.iloe.iloeTotal)}</td></tr>
-              <tr className="tot-row"><td>Total resources</td><td className="r mono">{money(r.runway.totalResources)}</td></tr>
-              <tr><td>Survival spending per month</td><td className="r mono">{money(r.runway.survivalSpend)}</td></tr>
-              <tr><td>Less side income</td><td className="r mono">{money(m.profile.monthlySideIncome)}</td></tr>
-              <tr className="tot-row"><td>Net monthly burn</td><td className="r mono">{money(r.runway.netMonthlyBurn)}</td></tr>
-              <tr className="tot-row"><td>Runway</td><td className="r mono">{months(r.runway.runwayMonths)} months</td></tr>
+              <tr><th scope="row" className="rowhead">Cash savings</th><td className="r mono">{money(m.profile.cashSavings)}</td></tr>
+              <tr><th scope="row" className="rowhead">Other liquid assets</th><td className="r mono">{money(m.profile.otherLiquidAssets)}</td></tr>
+              <tr><th scope="row" className="rowhead">Final settlement</th><td className="r mono">{money(r.settlement.finalSettlement)}</td></tr>
+              <tr><th scope="row" className="rowhead">ILOE total</th><td className="r mono">{money(r.iloe.iloeTotal)}</td></tr>
+              <tr className="tot-row"><th scope="row" className="rowhead">Total resources</th><td className="r mono">{money(r.runway.totalResources)}</td></tr>
+              <tr><th scope="row" className="rowhead">Survival spending per month</th><td className="r mono">{money(r.runway.survivalSpend)}</td></tr>
+              <tr><th scope="row" className="rowhead">Less side income</th><td className="r mono">{money(m.profile.monthlySideIncome)}</td></tr>
+              <tr className="tot-row"><th scope="row" className="rowhead">Net monthly burn</th><td className="r mono">{money(r.runway.netMonthlyBurn)}</td></tr>
+              <tr className="tot-row"><th scope="row" className="rowhead">Runway</th><td className="r mono">{months(r.runway.runwayMonths)} months</td></tr>
             </tbody>
           </table>
         </div>
@@ -167,7 +167,9 @@ export default async function ReportPage() {
             <tbody>
               {s.criteria.map((c) => (
                 <tr key={c.key}>
-                  <td className="payee">{c.label}<span className="sub">{c.detail}</span></td>
+                  <th scope="row" className="rowhead payee">
+                    {c.label}<span className="sub">{c.detail}</span>
+                  </th>
                   <td className="r mono amt">{c.score} / {c.max}</td>
                 </tr>
               ))}

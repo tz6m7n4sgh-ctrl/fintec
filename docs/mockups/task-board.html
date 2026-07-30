@@ -206,27 +206,33 @@
   </div>
 
   <div class="note">
-    <b>What changed in this update.</b> The application was built and merged to <code>main</code>,
-    so <b>47 of 51 stories advanced</b> at least one stage. The four that did not are the three
-    authentication stories and the reminder-delivery story.
+    <b>What changed in this update.</b> A polish pass: an end-to-end test suite, accessibility
+    fixes and chart work — plus <b>OQ-1 is now closed</b>.
     <ul>
-      <li><b>9 reached Verified</b> — the calculation engine, cash projection, scenarios and
-        localisation, all asserted by the 82-test suite.</li>
-      <li><b>17 reached Shipped</b> — screens that run in the app and were checked in a real
-        browser across light, dark and mobile, but have no automated UI test.</li>
-      <li><b>Authentication is the bottleneck.</b> The 11 stories still at <i>Designed</i> are
-        mostly waiting on sign-in: without a signed-in user there is no row to write, so
-        editing, confirming, exporting and reminders all stall behind it.</li>
+      <li><b>8 stories moved Shipped → Verified.</b> A 96-test Playwright suite now asserts their
+        acceptance criteria across desktop and mobile, so they no longer rest on my having looked
+        at them.</li>
+      <li><b>7 ingestion stories are unblocked.</b> OQ-1 was decided in favour of Claude Cowork
+        parsing every statement. They stay at <i>Designed</i> — the decision removed the blocker,
+        it did not build the feature.</li>
+      <li><b>Blocked count fell from 11 to 4</b> (OQ-5 ×2, OQ-2, OQ-4).</li>
     </ul>
   </div>
 
   <div class="note warn">
-    <b>Why some stories did not move.</b> A screen existing is not the same as a story being done.
-    Where a card shows <i>Prototyped</i> rather than <i>Shipped</i>, the data is displayed and the
-    logic works, but the story's core verb — <i>edit</i>, <i>confirm</i>, <i>upload</i>, <i>export</i>
-    — is still a disabled control. <b>11 stories remain blocked</b> on open questions;
-    <b>OQ-1</b> alone blocks the 7 ingestion stories and is still the single most valuable answer
-    available.
+    <b>Three defects the new tests caught or pinned.</b>
+    <ul>
+      <li><b>21 unlabelled inputs.</b> The profile form's labels were positioned next to their
+        inputs but never associated with them, so every field announced as unnamed. Also fixed:
+        four unnamed filter controls and four tables with no header cells.</li>
+      <li><b>A hydration failure I introduced.</b> Adding chart hover tooltips broke the page with
+        React error #418 — a <code>&lt;title&gt;</code> built from several JSX children emits
+        comment separators React cannot reconcile. The suite caught it within a minute of the
+        change; a test now guards it.</li>
+      <li><b>Earlier regressions, now pinned:</b> the cheque tile whose caption counted a different
+        set than its figure summed, the scenario reading "OK" on one screen and "Tight" on another,
+        and the zero deduction that rendered as "-0.00".</li>
+    </ul>
   </div>
 
   <div class="controls">
@@ -290,7 +296,7 @@ const EPICS = {
 // prev = stage at the last board update, used to mark what advanced.
 const S = [
   // ---------------- calculation engine ----------------
-  { id:'US-01', epic:'eng', pri:'Must', reached:4, prev:1, t:'Service period and end-of-service gratuity',
+  { id:'US-01', epic:'eng', pri:'Must', reached:4, prev:4, t:'Service period and end-of-service gratuity',
     as:'As the user, I want gratuity computed to UAE law from my basic salary and service length, so I can verify what my employer owes me.',
     ac:['serviceYears ≈ 7.332 for start 01 Jun 2019 → last day 30 Sep 2026 (365.25 divisor)',
         'gratuity = AED 87,479 (21 days ×5yr + 30 days × remainder, at basic/30)',
@@ -298,26 +304,26 @@ const S = [
         'Basic salary only — never gross'],
     note:'Implemented in lib/engine/uae.ts as pure functions. Every listed figure is asserted in uae.test.ts, including all three edge cases. Legal constants live in one RULES block.',
     trace:'FR-J1 · BR-2 · §5.1–5.2 · §11' },
-  { id:'US-02', epic:'eng', pri:'Must', reached:4, prev:1, t:'Leave encashment and notice pay in lieu',
+  { id:'US-02', epic:'eng', pri:'Must', reached:4, prev:4, t:'Leave encashment and notice pay in lieu',
     as:'As the user, I want unused leave and waived notice priced correctly, because they use different salary bases.',
     ac:['leaveEncashment = unusedLeaveDays × basic/30 → AED 6,000 for 12 days',
         'noticePayInLieu = noticeDaysPaidInLieu × GROSS/30','The two bases are never mixed up'],
     note:'Shipped and tested. A dedicated test raises gross to 99,999 and confirms gratuity is unchanged, so the basic/gross split cannot silently regress.',
     trace:'FR-J1 · §5.3' },
-  { id:'US-03', epic:'eng', pri:'Must', reached:4, prev:1, t:'Final settlement total',
+  { id:'US-03', epic:'eng', pri:'Must', reached:4, prev:4, t:'Final settlement total',
     as:'As the user, I want one itemised settlement figure I can hold my employer to.',
     ac:['finalSettlement = gratuity + leave + noticeInLieu + otherOwed − owedToEmployer',
         'Equals AED 93,479 for the reference profile','Employer 14-day payment window surfaced'],
     note:'Shipped, tested, and itemised line-by-line on the termination report with the basis for each line shown.',
     trace:'FR-J1 · FR-G1 · BR-2 · §5.3' },
-  { id:'US-04', epic:'eng', pri:'Must', reached:4, prev:1, t:'ILOE eligibility and benefit estimate',
+  { id:'US-04', epic:'eng', pri:'Must', reached:4, prev:4, t:'ILOE eligibility and benefit estimate',
     as:'As the user, I want to know whether I qualify for unemployment insurance and how much it pays.',
     ac:['Eligible only if subscribed ≥12 consecutive months AND involuntary/non-disciplinary',
         'monthlyBenefit = min(60% × avgBasic6m, category cap) → AED 9,000; total AED 27,000',
         'Edge: avgBasic 40,000 → 20,000/mo (Category B cap binds, not 24,000)'],
     note:'Shipped and tested, including the Category A/B boundary at exactly 16,000 and both ineligibility routes (not subscribed, voluntary exit).',
     trace:'FR-J1 · BR-3 · §5.4' },
-  { id:'US-05', epic:'eng', pri:'Must', reached:4, prev:1, t:'Runway and 3/6/9/12-month scenarios',
+  { id:'US-05', epic:'eng', pri:'Must', reached:4, prev:4, t:'Runway and 3/6/9/12-month scenarios',
     as:'As the user, I want to know how many months my money lasts and where I fall short.',
     ac:['totalResources = savings + liquid + finalSettlement + iloeTotal → AED 220,479',
         'netMonthlyBurn = max(survivalSpend − sideIncome, 0) → 23,000; runway ≈ 9.6',
@@ -325,7 +331,7 @@ const S = [
         'Edge: sideIncome ≥ survival spend → runway ∞, UI shows "Unlimited"'],
     note:'Shipped and tested. The infinite-runway case is covered end to end: burn floors at zero, scenarios stay flat instead of turning into NaN, and the UI renders "Unlimited".',
     trace:'FR-J1 · FR-A5 · BR-1 · BR-5 · §5.5' },
-  { id:'US-06', epic:'eng', pri:'Must', reached:4, prev:1, t:'Key deadline dates and cheque exposure windows',
+  { id:'US-06', epic:'eng', pri:'Must', reached:4, prev:4, t:'Key deadline dates and cheque exposure windows',
     as:'As the user, I want every legal date computed for me so I cannot miscount a deadline.',
     ac:['settlementDue = lastDay + 14d → 14 Oct 2026','iloeDeadline = lastDay + 30d → 30 Oct 2026',
         'visaGraceEnd = lastDay + visaGraceDays','cheques6m / cheques12m summed over their windows',
@@ -334,58 +340,58 @@ const S = [
     trace:'FR-J1 · FR-B3 · §5.6 · R-7' },
 
   // ---------------- dashboard ----------------
-  { id:'US-07', epic:'dash', pri:'Must', reached:3, prev:1, t:'Hero runway with accessible status',
+  { id:'US-07', epic:'dash', pri:'Must', reached:4, prev:3, t:'Hero runway with accessible status',
     as:'As the user, I open the app and immediately see how long my money lasts.',
     ac:['Runway in months, status-coloured ≥6 good / 3–6 warning / <3 critical',
         'Always paired with an icon AND a text label — never colour alone',
         'Boundary convention ≥6 good, 3≤r<6 warning, r<3 critical (OQ-3)'],
-    note:'Shipped. The band logic is unit-tested at 2.99/3.00/5.99/6.00, but "icon and label always present" is enforced by a shared component rather than an automated assertion — hence Shipped, not Verified.',
+    note:'Shipped. The band logic is unit-tested at 2.99/3.00/5.99/6.00, but "icon and label always present" is enforced by a shared component rather than an automated assertion — hence Shipped, not Verified. Now Verified: e2e asserts the badge carries a text label, not colour alone, and the band logic is unit-tested at 2.99/3.00/5.99/6.00.',
     trace:'FR-A1 · BR-1 · NFR-4 · C-2' },
-  { id:'US-08', epic:'dash', pri:'Must', reached:3, prev:1, t:'Stat tiles that trace back to their inputs',
+  { id:'US-08', epic:'dash', pri:'Must', reached:4, prev:3, t:'Stat tiles that trace back to their inputs',
     as:'As the user, I want to tap any figure and land on the screen where its inputs live.',
     ac:['Tiles: total resources, final settlement, ILOE total, net monthly burn, cheques next 6 months',
         'Every tile navigates to its source screen','No AED figure is a dead end'],
-    note:'Shipped. The StatTile component requires an href, so a tile cannot be added without a destination. Building this surfaced a real bug: the cheque tile counted all future cheques while its amount covered only the 6-month window.',
+    note:'Shipped. The StatTile component requires an href, so a tile cannot be added without a destination. Building this surfaced a real bug: the cheque tile counted all future cheques while its amount covered only the 6-month window. Now Verified: e2e asserts all five tiles exist and every one has a real href, so no AED figure can become a dead end. Also caught the caption/figure mismatch on the cheque tile.',
     trace:'FR-A2 · BR-11 · NFR-5' },
-  { id:'US-09', epic:'dash', pri:'Must', reached:4, prev:1, t:'Cash projection with lump-sum cheque overlay',
+  { id:'US-09', epic:'dash', pri:'Must', reached:4, prev:4, t:'Cash projection with lump-sum cheque overlay',
     as:'As the user, I want to see when my balance actually hits zero, including cheque lump sums.',
     ac:['18 months from expectedLastDay, starting at totalResources','Zero line marked; below-zero months shaded',
         'Cheques subtracted as lump sums only when includedInBudget = false (no double counting)',
         'Single y-axis; key points labelled directly'],
     note:'Shipped and tested. projection.test.ts asserts the double-count rule and that the real zero-crossing (month 7) is earlier than the flat-burn runway (9.6 months). The chart labels both so they cannot silently disagree.',
     trace:'FR-A3 · NFR-4 · G-1' },
-  { id:'US-10', epic:'dash', pri:'Must', reached:4, prev:1, t:'Scenario cards with OK/SHORTFALL status',
+  { id:'US-10', epic:'dash', pri:'Must', reached:4, prev:4, t:'Scenario cards with OK/SHORTFALL status',
     as:'As the user, I want the 3/6/9/12-month outcomes at a glance.',
     ac:['Four cards showing resources remaining','Status OK or SHORTFALL with icon + label',
         'scenario(12) shows SHORTFALL for the reference profile'],
     note:'Shipped and tested. Rendering the pages caught the same scenario reading "OK" on the dashboard and "Tight" on the report — the verdict is now one shared helper used by both.',
     trace:'FR-A5 · §5.5' },
-  { id:'US-11', epic:'dash', pri:'Should', reached:3, prev:1, t:'Current vs survival spending comparison',
+  { id:'US-11', epic:'dash', pri:'Should', reached:3, prev:3, t:'Current vs survival spending comparison',
     as:'As the user, I want to see which categories I could cut and by how much.',
     ac:['Per-category current and survival amounts','Auto rows (school, debt) visibly read-only','Totals shown for both columns'],
     note:'Shipped as a two-series bar chart with a legend, sorted by current spend. Totals (28,700 / 23,000) are asserted in uae.test.ts.',
     trace:'FR-A4 · FR-D1 · BR-5' },
-  { id:'US-12', epic:'dash', pri:'Should', reached:3, prev:1, t:'Actual month-over-month spending trend',
+  { id:'US-12', epic:'dash', pri:'Should', reached:3, prev:3, t:'Actual month-over-month spending trend',
     as:'As the user, I want to see what I really spent, not just what I planned.',
     ac:['Single-series line from confirmed ingested transactions','No legend needed for one series; endpoints labelled','Only confirmed transactions count'],
     note:'Shipped; monthlyActuals() is tested including exclusion of pending and duplicate rows. Not Verified because the data still comes from the seed — real ingestion is blocked on OQ-1.',
     trace:'FR-A4 · FR-F2 · NFR-4' },
-  { id:'US-13', epic:'dash', pri:'Should', reached:3, prev:1, t:'Derived insights in plain language',
+  { id:'US-13', epic:'dash', pri:'Should', reached:3, prev:3, t:'Derived insights in plain language',
     as:'As the user, I want the app to tell me what the numbers mean, not just show them.',
     ac:['Fixed-cost share of survival budget','Cheque-heavy months flagged against monthly burn','Actual-vs-plan gap called out'],
     note:'Shipped. Every insight is computed from the model rather than written as copy, so the sentences stay true when the inputs change; each one hides itself when it no longer applies.',
     trace:'FR-A4' },
 
   // ---------------- calendar ----------------
-  { id:'US-14', epic:'cal', pri:'Must', reached:3, prev:1, t:'Month grid and agenda of all obligations',
+  { id:'US-14', epic:'cal', pri:'Must', reached:3, prev:3, t:'Month grid and agenda of all obligations',
     as:'As the user, I want one calendar holding every outflow.',
     ac:['Month grid + agenda list','EMIs, school terms and bills all appear','Month and agenda views available'],
     note:'Shipped. The grid is Monday-first and opens on the month containing the last working day, which is where the deadlines cluster. Below 760px it degrades to a dot view and the agenda carries the detail.',
     trace:'FR-B1' },
-  { id:'US-15', epic:'cal', pri:'Must', reached:3, prev:1, t:'Cheques visually prominent',
+  { id:'US-15', epic:'cal', pri:'Must', reached:4, prev:3, t:'Cheques visually prominent',
     as:'As the user, I need cheques to stand out because bouncing one has legal consequences.',
     ac:['Cheque entries styled distinctly from bills and EMIs','Distinction carried by icon + label, not colour alone','Legend present'],
-    note:'Shipped. Cheques use the reserved critical colour plus a ◆ marker and appear in the legend, so the distinction survives a colourblind or greyscale reading.',
+    note:'Shipped. Cheques use the reserved critical colour plus a ◆ marker and appear in the legend, so the distinction survives a colourblind or greyscale reading. Now Verified: e2e asserts cheque entries render with their own styling and that the legend explains the marking, so the distinction is not colour-only.',
     trace:'FR-B1 · BR-4 · R-5' },
   { id:'US-16', epic:'cal', pri:'Must', reached:1, prev:1, t:'Cheque and school-fee reminders, 7 and 2 days ahead',
     as:'As the user, I want to be told to fund the account before a cheque lands.',
@@ -393,127 +399,127 @@ const S = [
         'Delivered by email AND web push','Email is the guaranteed channel; push best-effort (OQ-5)'],
     note:'Not built. The calendar shows the 7- and 2-day funding markers, and notification_prefs / notification_log tables exist with a uniqueness index that makes sending idempotent — but nothing sends yet. Needs auth (to know who to notify) and VAPID keys.',
     trace:'FR-B2 · BR-4 · D3 · R-4', blocked:'OQ-5' },
-  { id:'US-17', epic:'cal', pri:'Must', reached:3, prev:1, t:'Legal deadlines pinned with countdowns',
+  { id:'US-17', epic:'cal', pri:'Must', reached:4, prev:3, t:'Legal deadlines pinned with countdowns',
     as:'As the user, I want the settlement, ILOE and visa dates impossible to miss.',
     ac:['settlementDue, iloeDeadline, visaGraceEnd pinned','Live countdown badge each','ILOE marked as a hard deadline','Escalation contacts as tel: links'],
-    note:'Shipped. Countdowns compute from today in Asia/Dubai, so they do not drift by a day for a user in another timezone. MOHRE and ILOE numbers are tappable.',
+    note:'Shipped. Countdowns compute from today in Asia/Dubai, so they do not drift by a day for a user in another timezone. MOHRE and ILOE numbers are tappable. Now Verified: e2e asserts all three deadlines are pinned, in order, each with a live day countdown.',
     trace:'FR-B3 · BR-4 · §5.6' },
-  { id:'US-18', epic:'cal', pri:'Must', reached:1, prev:0, t:'Auto mark-paid from a confirmed transaction',
+  { id:'US-18', epic:'cal', pri:'Must', reached:1, prev:1, t:'Auto mark-paid from a confirmed transaction',
     as:'As the user, I want the calendar to keep itself current once I confirm a matching transaction.',
     ac:['Entry auto-marked paid when a matched transaction is confirmed','Manual mark-paid also available','Un-matching reverts the status'],
     note:'Designed only. transactions.matched_scheduled_payment_id and the payment status enum are in place, and the review inbox displays proposed matches, but confirming requires persistence.',
     trace:'FR-B4 · FR-L6' },
 
   // ---------------- schedule & obligations ----------------
-  { id:'US-19', epic:'sched', pri:'Must', reached:2, prev:1, t:'Loans and mortgage CRUD feeding the budget',
+  { id:'US-19', epic:'sched', pri:'Must', reached:2, prev:2, t:'Loans and mortgage CRUD feeding the budget',
     as:'As the user, I want my debts in one place and their monthly total flowing into the budget automatically.',
     ac:['CRUD for carLoan/mortgage/personalLoan/creditCard/other','Σ monthlyPayment feeds the read-only budget row','Identical in current and survival columns','Section total shown'],
     note:'Read side shipped with totals, and monthlyDebtService() is tested feeding the auto row. Create/edit/delete are not built — they need persistence.',
     trace:'FR-E1 · FR-D2 · §4.4' },
-  { id:'US-20', epic:'sched', pri:'Must', reached:2, prev:1, t:'School fees CRUD with annual-to-monthly spread',
+  { id:'US-20', epic:'sched', pri:'Must', reached:2, prev:2, t:'School fees CRUD with annual-to-monthly spread',
     as:'As the user, I want termly school fees reflected as a monthly budget figure and as calendar dates.',
     ac:['CRUD per child/school/term with due date and amount','Annual total ÷ 12 feeds the read-only budget row','Cheque-paid terms link to the cheque record'],
     note:'Read side shipped; monthlySchoolFees() is tested at 36,000 ÷ 12 = 3,000. Editing pending persistence.',
     trace:'FR-E1 · FR-D2 · §4.5' },
-  { id:'US-21', epic:'sched', pri:'Must', reached:2, prev:1, t:'Scheduled payments and post-dated cheques CRUD',
+  { id:'US-21', epic:'sched', pri:'Must', reached:2, prev:2, t:'Scheduled payments and post-dated cheques CRUD',
     as:'As the user, I want every scheduled payment recorded with its type, account and recurrence.',
     ac:['Fields: dueDate, payee, purpose, amount, account, type, recurrence, includedInBudget, status',
         'includedInBudget visible so double counting is auditable','Totals and filters by type/account/status'],
     note:'Read side shipped with the In-budget column made deliberately visible. The database enforces the companion rule: an in-budget payment cannot exist without naming its budget line. Editing and filters pending.',
     trace:'FR-E1 · §4.6 · G-1' },
-  { id:'US-22', epic:'sched', pri:'Should', reached:2, prev:0, t:'Recurrence expansion and single-occurrence overrides',
+  { id:'US-22', epic:'sched', pri:'Should', reached:2, prev:2, t:'Recurrence expansion and single-occurrence overrides',
     as:'As the user, I want recurring items generated forward, and I want to edit one occurrence without breaking the series.',
     ac:['Occurrences generated 18 months forward, matching the projection horizon (OQ-4)','Editing one occurrence does not alter the series','Series edit applies to future occurrences only'],
     note:'Partly built: occurrence expansion drives the 12-month schedule total, but it lives in the page rather than the tested engine, and single-occurrence overrides do not exist. Should move into lib/engine with tests.',
     trace:'FR-E1 · G-3 · OQ-4', blocked:'OQ-4' },
 
   // ---------------- budget ----------------
-  { id:'US-23', epic:'bud', pri:'Must', reached:2, prev:0, t:'Editable current vs survival budget',
+  { id:'US-23', epic:'bud', pri:'Must', reached:2, prev:2, t:'Editable current vs survival budget',
     as:'As the user, I want to build a survival budget and watch my runway respond.',
     ac:['Editable current and survival amount per category','Totals recompute live; runway updates immediately','Seeded with the §4.3 category list'],
     note:'Displayed with both columns, a difference column and totals, and the totals are tested. Editing is not built, so the "watch runway respond" half of the story is outstanding — the core reason this is not Shipped.',
     trace:'FR-D1 · BR-5' },
-  { id:'US-24', epic:'bud', pri:'Must', reached:3, prev:1, t:'Read-only auto rows linked to their source',
+  { id:'US-24', epic:'bud', pri:'Must', reached:3, prev:3, t:'Read-only auto rows linked to their source',
     as:'As the user, I want computed rows protected from accidental editing.',
     ac:['School fees and Loan & mortgage rows are read-only','Each links to the screen that owns the data','Marked visibly as automatic'],
     note:'Shipped, and defended in two places: applyAutoRows() forces editable:false (tested), and a database check constraint rejects an auto row marked editable. A second index allows only one auto row per source, so auto values cannot double-count.',
     trace:'FR-D2 · NFR-5' },
-  { id:'US-25', epic:'bud', pri:'Should', reached:3, prev:0, t:'Budget vs actual column',
+  { id:'US-25', epic:'bud', pri:'Should', reached:3, prev:3, t:'Budget vs actual column',
     as:'As the user, I want to see plan against reality per category.',
     ac:['Actual column fed by confirmed categorised transactions','Variance shown per category','Only confirmed transactions count'],
     note:'Shipped as an Actual/month column averaged over the months of confirmed data. Pending and duplicate rows are excluded, which is unit-tested.',
     trace:'FR-D3 · BR-6' },
 
   // ---------------- profile & income ----------------
-  { id:'US-26', epic:'prof', pri:'Must', reached:2, prev:0, t:'Grouped profile forms with inline rule help',
+  { id:'US-26', epic:'prof', pri:'Must', reached:2, prev:2, t:'Grouped profile forms with inline rule help',
     as:'As the user, I want to enter my employment details and understand why each field matters.',
     ac:['Groups: Employment, ILOE, Money, Situation','Inline help explains basic-vs-gross and ILOE thresholds','Validation on dates and required numerics'],
     note:'All four groups shipped with the inline help text, including computed fields that show their own derivation. Inputs are read-only until persistence exists; validation lives in database constraints (gross ≥ basic, non-negative amounts) but not yet in the form.',
     trace:'FR-C1 · A-1' },
-  { id:'US-27', epic:'prof', pri:'Must', reached:2, prev:0, t:'Income streams CRUD with salary auto-end',
+  { id:'US-27', epic:'prof', pri:'Must', reached:2, prev:2, t:'Income streams CRUD with salary auto-end',
     as:'As the user, I want my salary to stop at my last day in the termination scenario, while side income continues.',
     ac:['CRUD for monthly/oneOff streams with start/end dates','Salary auto-ends at expectedLastDay in the scenario','Side income feeds netMonthlyBurn'],
     note:'Listed with frequency, amount and end date; side income already reduces net burn in the tested engine. CRUD pending persistence.',
     trace:'FR-C2 · §4.2' },
 
   // ---------------- statements & ingestion ----------------
-  { id:'US-28', epic:'ing', pri:'Must', reached:1, prev:0, t:'Upload a statement to private storage',
+  { id:'US-28', epic:'ing', pri:'Must', reached:1, prev:1, t:'Upload a statement to private storage',
     as:'As the user, I want to upload PDF/CSV/XLSX statements per bank account and see their parsing status.',
     ac:['Files land in a private bucket, never public','StatementUpload row created: uploaded → queued','Upload list shows status and a per-file processing log','Files downloadable and deletable by me'],
     note:'Infrastructure done: the private bucket exists with per-user path policies checking the first path segment against auth.uid(), and the uploads table has a processing_log column. No upload UI yet — it needs auth to namespace the path.',
-    trace:'FR-F1 · FR-L1 · NFR-1 · NFR-6', blocked:'OQ-1' },
-  { id:'US-29', epic:'ing', pri:'Must', reached:1, prev:0, t:'Scheduled Claude Cowork parsing job',
+    trace:'FR-F1 · FR-L1 · NFR-1 · NFR-6' },
+  { id:'US-29', epic:'ing', pri:'Must', reached:1, prev:1, t:'Scheduled Claude Cowork parsing job',
     as:'As the user, I want statements parsed automatically without manual re-keying.',
     ac:['Scheduled sweep (~15 min) plus an immediate on-upload trigger','Normalises to date, description, amount, direction, balanceAfter',
         'Idempotent and safe to re-run','Status → parsed, or failed with a readable error'],
     note:'Designed, not built. The status enum and queue index exist. Held deliberately: OQ-1 decides whether every statement goes to an LLM or a deterministic CSV/XLSX path is kept, and that changes what gets written.',
-    trace:'FR-L2 · FR-L3 · BR-6 · D1 · R-2', blocked:'OQ-1' },
-  { id:'US-30', epic:'ing', pri:'Must', reached:1, prev:0, t:'Deduplication on re-upload',
+    trace:'FR-L2 · FR-L3 · BR-6 · D1 · R-2' },
+  { id:'US-30', epic:'ing', pri:'Must', reached:1, prev:1, t:'Deduplication on re-upload',
     as:'As the user, I want to re-upload the same statement without corrupting my ledger.',
     ac:['Hash on (account, date, amount, normalised description)','Re-uploading an identical file creates 0 new transactions','Duplicates flagged, never double-counted'],
     note:'The guarantee is already in the database: a unique partial index on (user_id, dedupe_hash) where NOT is_duplicate makes a re-upload a no-op at the storage layer rather than trusting application code. Hash computation ships with the parser.',
-    trace:'FR-L4 · §11', blocked:'OQ-1' },
-  { id:'US-31', epic:'ing', pri:'Must', reached:2, prev:0, t:'Review inbox — nothing counts until confirmed',
+    trace:'FR-L4 · §11' },
+  { id:'US-31', epic:'ing', pri:'Must', reached:2, prev:2, t:'Review inbox — nothing counts until confirmed',
     as:'As the user, I want to check parsed rows before they move my dashboards.',
     ac:['New transactions land as pending','Bulk confirm and per-row edit of category and match','Pending rows excluded from every dashboard figure'],
     note:'The important half is done and tested: pending and duplicate rows are excluded from every derived figure, asserted in projection.test.ts. The inbox screen lists pending rows with proposed matches; the Confirm action needs persistence.',
-    trace:'FR-F2 · FR-L7 · R-2', blocked:'OQ-1' },
-  { id:'US-32', epic:'ing', pri:'Should', reached:1, prev:0, t:'Auto-categorisation with editable keyword rules',
+    trace:'FR-F2 · FR-L7 · R-2' },
+  { id:'US-32', epic:'ing', pri:'Should', reached:1, prev:1, t:'Auto-categorisation with editable keyword rules',
     as:'As the user, I want transactions sorted into my budget categories automatically, and I want to fix the rules.',
     ac:['Keyword rules I can add/edit/delete (e.g. DEWA → Utilities, SALIK → Transport)','Uncategorised rows go to pending review','Rules re-runnable over existing transactions'],
     note:'category_rules table exists with a priority column and per-user keyword uniqueness. No rule engine or editor yet.',
-    trace:'FR-L5', blocked:'OQ-1' },
-  { id:'US-33', epic:'ing', pri:'Should', reached:1, prev:0, t:'Auto-matching to scheduled payments and salary',
+    trace:'FR-L5' },
+  { id:'US-33', epic:'ing', pri:'Should', reached:1, prev:1, t:'Auto-matching to scheduled payments and salary',
     as:'As the user, I want the app to propose which obligation a debit paid.',
     ac:['Match on amount ± tolerance, date ± window, payee keywords','Proposes "mark paid" rather than acting silently','Salary credits matched to the salary income stream'],
     note:'Schema support and the proposal UI exist — the inbox shows a matched payee where one is set. The matching algorithm itself is not written.',
-    trace:'FR-L6 · §11', blocked:'OQ-1' },
-  { id:'US-34', epic:'ing', pri:'Must', reached:2, prev:0, t:'Unparseable file fails cleanly',
+    trace:'FR-L6 · §11' },
+  { id:'US-34', epic:'ing', pri:'Must', reached:2, prev:2, t:'Unparseable file fails cleanly',
     as:'As the user, I want a clear error and no half-imported data when a file cannot be read.',
     ac:['Status set to failed with a human-readable errorMessage','Nothing partial written to the ledger','I can delete and retry'],
     note:'A check constraint makes a failed upload without an error message impossible to store, and the uploads list renders a failed example with actionable wording ("looks like a scanned image — re-export as text or CSV"). Delete-and-retry pending.',
-    trace:'FR-L7 · §11', blocked:'OQ-1' },
-  { id:'US-35', epic:'ing', pri:'Must', reached:2, prev:0, t:'Transactions ledger with filters and search',
+    trace:'FR-L7 · §11' },
+  { id:'US-35', epic:'ing', pri:'Must', reached:2, prev:2, t:'Transactions ledger with filters and search',
     as:'As the user, I want to find any transaction quickly.',
     ac:['Filters: account, category, date range, direction','Free-text search on description','Source and review status visible'],
     note:'Ledger shipped with account, amount, direction and source columns, sorted newest first. Filter controls are present but disabled until there is a queryable data source behind them.',
     trace:'FR-F3' },
 
   // ---------------- termination report ----------------
-  { id:'US-36', epic:'rep', pri:'Must', reached:3, prev:0, t:'Termination report, exportable to PDF',
+  { id:'US-36', epic:'rep', pri:'Must', reached:4, prev:3, t:'Termination report, exportable to PDF',
     as:'As the user, I want one page that answers "what if it happens tomorrow" and that I can save or send.',
     ac:['Itemised settlement, ILOE estimate, deadlines with countdowns, runway, scenarios, cheque exposure, readiness score',
         'Exports to PDF with figures unchanged','Legal disclaimer present on the export'],
-    note:'Shipped, opening with a plain-language "short answer" before the tables. Export uses the browser print pipeline, so the PDF is exactly what is on screen and no PDF renderer is shipped for one screen. Every figure comes from the tested engine.',
+    note:'Shipped, opening with a plain-language "short answer" before the tables. Export uses the browser print pipeline, so the PDF is exactly what is on screen and no PDF renderer is shipped for one screen. Every figure comes from the tested engine. Now Verified: e2e asserts the settlement figures (93,479.47 / 87,479.47), both legal dates, a countdown, the export button, and the absence of a "-0.00" line.',
     trace:'FR-G1 · BR-2 · BR-10 · NFR-7' },
 
   // ---------------- readiness ----------------
-  { id:'US-37', epic:'ready', pri:'Should', reached:3, prev:0, t:'Readiness score out of 18',
+  { id:'US-37', epic:'ready', pri:'Should', reached:3, prev:3, t:'Readiness score out of 18',
     as:'As the user, I want a single readiness rating with bands I can act on.',
     ac:['Auto-scored on runway, ILOE, gratuity and debt ratio','Bands: STRONG ≥14 · MODERATE 9–13 · AT RISK <9','Per-criterion breakdown visible, not just a total'],
     note:'Shipped with the rubric written explicitly (runway 6 + ILOE 4 + settlement 4 + debt 4) so it can be argued with, and tested: criteria sum to the total, an ineligible profile scores zero on ILOE, a broke profile lands AT RISK. Still a proposal pending OQ-2.',
     trace:'FR-H1 · BR-7 · G-2 · OQ-2', blocked:'OQ-2' },
-  { id:'US-38', epic:'ready', pri:'Should', reached:3, prev:0, t:'Seeded action plan with computed deadlines',
+  { id:'US-38', epic:'ready', pri:'Should', reached:3, prev:3, t:'Seeded action plan with computed deadlines',
     as:'As the user, I want a checklist telling me what to do and by when.',
     ac:['Ten seeded actions from §8 with computed deadline dates','Done-toggles persist','Document-gathering actions flagged before last day'],
     note:'All ten actions shipped with deadlines resolved from the engine rather than stored, live countdowns, and the ILOE row marked as a hard deadline. Toggles render but do not persist yet.',
@@ -535,59 +541,59 @@ const S = [
     ac:['Auto-lock after 15 minutes idle','Re-auth by biometric','"Sign out everywhere" revokes all sessions'],
     note:'Not started. Depends on US-39.',
     trace:'FR-K3' },
-  { id:'US-42', epic:'auth', pri:'Must', reached:3, prev:0, t:'Per-user data isolation and audit timestamps',
+  { id:'US-42', epic:'auth', pri:'Must', reached:3, prev:3, t:'Per-user data isolation and audit timestamps',
     as:'As the user, I want certainty that my financial data is private.',
     ac:['Row-level security on every table keyed to userId','createdAt/updatedAt on all rows','No financial data in localStorage; HTTPS only','Statement bucket private'],
     note:'Applied and independently checked: all 13 tables report RLS both enabled and forced with four per-command policies each. A hardening migration revoked RPC access to the trigger functions, closing two linter warnings; the triggers were then proven still to fire and the probe rows removed. Security advisor: zero lints.',
     trace:'NFR-1 · BR-9 · BR-6' },
 
   // ---------------- settings & data ----------------
-  { id:'US-43', epic:'set', pri:'Must', reached:1, prev:0, t:'Passkey management',
+  { id:'US-43', epic:'set', pri:'Must', reached:1, prev:1, t:'Passkey management',
     as:'As the user, I want to see and revoke the devices that can sign in as me.',
     ac:['List registered passkeys with device and date','Revoke individually','Revocation takes effect on the next sign-in'],
     note:'Settings section exists and states plainly that no passkeys are registered and that email sign-in always remains as recovery. Depends on US-40.',
     trace:'FR-I1 · BR-8' },
-  { id:'US-44', epic:'set', pri:'Must', reached:1, prev:0, t:'Notification preferences',
+  { id:'US-44', epic:'set', pri:'Must', reached:1, prev:1, t:'Notification preferences',
     as:'As the user, I want to choose which alerts reach me and how.',
     ac:['Per-channel email and web-push toggles','Push permission requested explicitly','Email cannot be disabled for hard legal deadlines'],
     note:'notification_prefs table exists with lead_days defaulting to {7,2}; the Settings panel shows the toggles and the iOS install caveat. Not wired.',
     trace:'FR-I2 · D3' },
-  { id:'US-45', epic:'set', pri:'Must', reached:1, prev:0, t:'JSON export and import',
+  { id:'US-45', epic:'set', pri:'Must', reached:1, prev:1, t:'JSON export and import',
     as:'As the user, I want to take my data with me and restore it.',
     ac:['Export every table to JSON','Import restores a previous export','Round-trip export → import → export is stable'],
     note:'Buttons present and disabled. Straightforward once persistence exists, since every table is already user-scoped.',
     trace:'FR-I3 · BR-9 · NFR-8' },
-  { id:'US-46', epic:'set', pri:'Must', reached:1, prev:0, t:'Delete all data',
+  { id:'US-46', epic:'set', pri:'Must', reached:1, prev:1, t:'Delete all data',
     as:'As the user, I want to erase everything, for real.',
     ac:['Deletes all rows and all statement files in storage','Explicit confirmation required','Nothing recoverable afterwards'],
     note:'Not built, but the schema already supports it cleanly: every table cascades from auth.users, so account deletion removes all rows. Storage files need an explicit sweep.',
     trace:'FR-I4 · BR-9 · NFR-8' },
 
   // ---------------- platform ----------------
-  { id:'US-47', epic:'plat', pri:'Must', reached:2, prev:0, t:'Installable PWA with service worker',
+  { id:'US-47', epic:'plat', pri:'Must', reached:2, prev:2, t:'Installable PWA with service worker',
     as:'As the user, I want the app on my phone home screen and able to receive push.',
     ac:['Installable on desktop and mobile','Service worker registered for web push','iOS push requires install — disclosed in the UI'],
     note:'Manifest, icon and theme colours shipped, so the app installs. The service worker is not registered yet, which is what web push actually needs — so this is Prototyped, not Shipped.',
     trace:'NFR-3 · FR-B2 · A-5', blocked:'OQ-5' },
-  { id:'US-48', epic:'plat', pri:'Must', reached:4, prev:1, t:'AED, en-AE and Asia/Dubai everywhere',
+  { id:'US-48', epic:'plat', pri:'Must', reached:4, prev:4, t:'AED, en-AE and Asia/Dubai everywhere',
     as:'As the user, I want figures and dates in my own conventions, with no timezone surprises.',
     ac:['AED with en-AE number formatting','Dates as dd MMM yyyy','All calendar, job and deadline maths in Asia/Dubai'],
     note:'Shipped and tested. Date maths runs on (y,m,d) rather than timestamps, because a Date built from an ISO string is UTC midnight and formats to the previous day in a westward timezone — which would fire a deadline a day early. Formatter tests also pin the negative-zero fix that made a zero deduction read "-0.00".',
     trace:'NFR-2 · C-1 · R-7' },
-  { id:'US-49', epic:'plat', pri:'Must', reached:3, prev:1, t:'Legal disclaimer visible in-app',
+  { id:'US-49', epic:'plat', pri:'Must', reached:4, prev:3, t:'Legal disclaimer visible in-app',
     as:'As the user, I need to know the limits of what this app tells me.',
     ac:['§10 footer text present verbatim','Visible in-app and on the exported report','MOHRE number included'],
-    note:'Shipped in the root layout, so it appears on all ten screens and on the printed report without any page having to remember it. MOHRE number is a tel: link.',
+    note:'Shipped in the root layout, so it appears on all ten screens and on the printed report without any page having to remember it. MOHRE number is a tel: link. Now Verified: e2e asserts the disclaimer and the MOHRE number on all ten screens, in both viewports.',
     trace:'NFR-7 · BR-12 · RB-1' },
-  { id:'US-50', epic:'plat', pri:'Must', reached:3, prev:1, t:'Responsive navigation',
+  { id:'US-50', epic:'plat', pri:'Must', reached:4, prev:3, t:'Responsive navigation',
     as:'As the user, I want the app usable on both my laptop and my phone.',
     ac:['Sidebar on desktop; bottom tabs on mobile','Generous touch targets','No horizontal page scrolling at any width'],
-    note:'Shipped. All ten routes were checked in a real browser at 1360px and 390px: no horizontal overflow anywhere, which is asserted by comparing scrollWidth against clientWidth rather than by eye.',
+    note:'Shipped. All ten routes were checked in a real browser at 1360px and 390px: no horizontal overflow anywhere, which is asserted by comparing scrollWidth against clientWidth rather than by eye. Now Verified: e2e asserts the sidebar navigates on desktop, bottom tabs replace it on mobile, and no screen scrolls horizontally in either viewport.',
     trace:'NFR-3' },
-  { id:'US-51', epic:'plat', pri:'Should', reached:3, prev:1, t:'Full dark mode',
+  { id:'US-51', epic:'plat', pri:'Should', reached:4, prev:3, t:'Full dark mode',
     as:'As the user, I want the app to respect my system theme.',
     ac:['Every screen and chart styled for light and dark','Dark palette stepped for the dark surface, not an automatic inversion','Status colours remain distinguishable in both'],
-    note:'Shipped. Charts inherit theme through CSS custom properties, so SVG follows the theme with no JS. All ten routes were rendered in both modes with zero console errors.',
+    note:'Shipped. Charts inherit theme through CSS custom properties, so SVG follows the theme with no JS. All ten routes were rendered in both modes with zero console errors. Now Verified: e2e asserts dark mode restyles the page and that an explicit light theme overrides a dark OS preference.',
     trace:'NFR-4' },
 ];
 
@@ -611,7 +617,7 @@ const pct = (s) => Math.round(((s.reached + 1) / STAGES.length) * 100);
 const advanced = (s) => s.reached > (s.prev ?? 0);
 
 $('#stamp').textContent =
-  `Updated 30 Jul 2026 · ${S.length} stories · reflects the merge of PR #1 into main (82 automated tests passing).`;
+  `Updated 30 Jul 2026 (polish pass) · ${S.length} stories · 82 unit tests + 96 end-to-end tests passing.`;
 
 function summary() {
   const total = S.length;

@@ -39,7 +39,9 @@ Because the parser is a scheduled Claude session rather than bundled code, the p
 3. The same session does dedupe, auto-categorize, and auto-match (all still per §7.4–7.6), writing results as `pending` for my review.
 4. Nothing counts as "actual" in dashboards until I confirm it in the Review inbox.
 
-**Privacy consequence you should explicitly approve:** statement contents are read by a Claude session (Claude Cowork). This *replaces* the "LLM fallback only for unparseable PDFs" model in §7 — here Claude is the primary parser for every file. There is therefore **no fully-local no-LLM mode** under this design. If you require a no-LLM fallback for sensitive statements, tell me and I'll add a deterministic CSV/XLSX-only path alongside the Cowork path. **Open question OQ-1.**
+**Privacy consequence — DECIDED (30 Jul 2026, resolving OQ-1).** Statement contents are read by a Claude session (Claude Cowork). This *replaces* the "LLM fallback only for unparseable PDFs" model in §7: Claude is the primary parser for **every** file, and there is deliberately **no fully-local no-LLM mode**. The sponsor chose Cowork-for-everything over keeping a deterministic CSV/XLSX path, accepting that every uploaded statement is read by an LLM in exchange for format coverage.
+
+This makes the mitigations in R-2/R-3 load-bearing rather than optional: files stay in a private bucket, the Cowork session gets least-privilege access, the in-app Statements screen discloses the behaviour, and **every parsed row lands `pending` until a human confirms it** — so a mis-read amount cannot silently move a dashboard figure.
 
 ---
 
@@ -169,14 +171,14 @@ I independently re-computed the entire §11 table; **all rows and all four edge 
 - **G-5 ILOE "avgBasic6m" data source.** It's a manual `Profile` field, but ingestion could estimate it from salary credits. Manual for now; note as a possible Stage 4 assist.
 
 **Contradictions / ambiguities**
-- **C-1 no-LLM mode vs. Claude Cowork (OQ-1).** §7 promises a "no-LLM fallback mode"; D1 makes Claude the primary parser. These conflict — needs your call (see OQ-1).
+- **C-1 no-LLM mode vs. Claude Cowork — RESOLVED (30 Jul 2026).** §7 promised a "no-LLM fallback mode" while D1 made Claude the primary parser. The sponsor resolved this in favour of **Cowork-for-everything**, so §7's no-LLM fallback is formally withdrawn from scope. The spec text is superseded by decision D1 as amended above; no deterministic-only parsing path will be built.
 - **C-2 Status thresholds are half-open and undefined at the boundary.** "≥6 good / 3–6 warning / <3 critical" — is exactly 6.0 good or warning; is exactly 3.0 warning or critical? **Proposed:** `≥6 good`, `3 ≤ r < 6 warning`, `r < 3 critical` (6.0 good, 3.0 warning). See R-6.
 - **C-3 `serviceYears` divisor.** §5 uses 365.25; some UAE gratuity practice uses 365. The spec's own acceptance value (87,479) only reconciles with **365.25**, so we lock 365.25. Flagging because it differs from a common manual calc and a user might question it.
 
 **Risks**
 - **R-1 Legal accuracy drift.** Gratuity/ILOE/visa rules change; the app gives numbers people may act on. Mitigation: engine constants centralized + dated; legal footer (§10) always visible; "verify with MOHRE" prompts on the report.
 - **R-2 Claude Cowork parsing reliability & cost.** LLM parsing of arbitrary statements can mis-read amounts/signs. Mitigation: **everything lands `pending`** and is human-confirmed before counting; balance-continuity check (balanceAfter deltas must equal signed amounts) flags suspect rows; per-file log.
-- **R-3 Financial data reaching an LLM.** Inherent to D1. Mitigation: private bucket, least-privilege access for the Cowork session, disclosure in-app, and the optional deterministic-only path if you want it (OQ-1).
+- **R-3 Financial data reaching an LLM.** Inherent to D1 and now **accepted** rather than mitigated by avoidance (OQ-1 resolved: no deterministic-only path). Residual mitigations: private storage bucket, least-privilege access for the Cowork session, in-app disclosure on the Statements screen, and mandatory human confirmation before any parsed row counts. Accepted risk owner: the sponsor.
 - **R-4 WebAuthn browser variance** (esp. iOS Safari / in-app browsers). Mitigation: SimpleWebAuthn, always keep email/OTP as a recoverable path, never make passkey the *only* factor.
 - **R-5 Cheque = legal jeopardy.** A missed reminder has civil/criminal consequences in the UAE. Mitigation: dual-channel reminders (email + push), 7- and 2-day lead, prominent styling, and a "cheque exposure" tile on the dashboard.
 - **R-6 Off-by-one on status boundaries** (C-2). Mitigation: the explicit half-open rule above, covered by unit tests at 2.99/3.00/5.99/6.00.
@@ -221,7 +223,7 @@ I independently re-computed the entire §11 table; **all rows and all four edge 
 
 | ID | Question | My recommendation |
 |---|---|---|
-| **OQ-1** | Given D1 (Claude Cowork parses every statement), do you still want a **deterministic CSV/XLSX-only "no-LLM" path** for sensitive files, or is Cowork-for-everything acceptable? | Keep a lightweight deterministic CSV/XLSX path as a fallback; PDFs go via Cowork. Confirms your comfort with statement text reaching an LLM. |
+| ~~**OQ-1**~~ **CLOSED 30 Jul 2026** | Deterministic CSV/XLSX-only path for sensitive files, or Cowork-for-everything? | **Decided: Cowork-for-everything.** The sponsor accepted LLM parsing of every statement; no deterministic-only path will be built. My recommendation had been to keep a local CSV/XLSX path, so this is a deliberate trade of privacy surface for format coverage — recorded in R-3 as an accepted risk. |
 | **OQ-2** | Readiness /18 rubric — do you have a preferred point split, or should I propose one in Stage 2? | I propose the rubric in Stage 2 for approval. |
 | **OQ-3** | Status boundary convention (C-2) — accept `≥6 good, 3≤r<6 warning, r<3 critical`? | Accept as stated. |
 | **OQ-4** | Recurrence generation horizon (G-3) — 18 months forward (to match the projection chart) OK? | Yes, 18 months, with single-occurrence override support. |
