@@ -45,7 +45,12 @@ export default async function StatementsPage() {
           </li>
           <li>
             <span className="ic" style={{ color: 'var(--warning)' }} aria-hidden>▲</span>
-            <span>Statement contents are read by an LLM in step 2. This is the open decision <b>OQ-1</b> — whether to keep a deterministic no-LLM path for sensitive files.</span>
+            <span>
+              <b>Every statement you upload is read by an LLM</b> in step 2 — including PDFs, CSVs
+              and spreadsheets. There is deliberately no local-only parsing mode. Files stay in a
+              private bucket and nothing counts until you confirm it, but the contents do leave the
+              database to be parsed.
+            </span>
           </li>
         </ul>
       </Card>
@@ -133,10 +138,10 @@ export default async function StatementsPage() {
 
       <Card title="Transactions ledger" sub={`${confirmed.length} confirmed transactions`}>
         <div className="filters">
-          <select disabled defaultValue=""><option value="">All accounts</option></select>
-          <select disabled defaultValue=""><option value="">All categories</option></select>
-          <select disabled defaultValue=""><option value="">All directions</option></select>
-          <input disabled placeholder="Search description" />
+          <select disabled defaultValue="" aria-label="Filter by account"><option value="">All accounts</option></select>
+          <select disabled defaultValue="" aria-label="Filter by category"><option value="">All categories</option></select>
+          <select disabled defaultValue="" aria-label="Filter by direction"><option value="">All directions</option></select>
+          <input disabled placeholder="Search description" aria-label="Search transaction descriptions" />
         </div>
         <div className="tbl-wrap">
           <table className="wide">

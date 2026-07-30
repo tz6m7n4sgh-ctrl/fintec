@@ -161,6 +161,40 @@ export function ProjectionChart({ projection }: { projection: Projection }) {
             {label}
           </text>
         ))}
+
+        {/*
+          Hover layer. Only a handful of points are labelled directly — labelling
+          all nineteen would be unreadable — so every month gets an invisible hit
+          band carrying a native tooltip. This uses SVG <title> rather than a
+          scripted tooltip so it costs no client JavaScript and is exposed to
+          assistive technology as the element's accessible name.
+        */}
+        {projection.points.map((p, idx) => {
+          const i = idx + 1;
+          const band = (X1 - X0) / (n - 1);
+          // One concatenated string, not several JSX children: adjacent text
+          // nodes make React emit comment separators, which are illegal inside
+          // <title> and fail hydration.
+          const tip =
+            `${p.label}: ${moneySigned(p.balance)}` +
+            (p.lumpSum > 0
+              ? ` — includes a cheque lump sum of ${money(p.lumpSum)} (${p.lumpSumPayees.join(', ')})`
+              : '') +
+            (p.belowZero ? ' — below zero' : '');
+          return (
+            <rect
+              key={`hit-${p.month}`}
+              x={sx(i) - band / 2}
+              y={Y0}
+              width={band}
+              height={Y1 - Y0}
+              fill="none"
+              pointerEvents="all"
+            >
+              <title>{tip}</title>
+            </rect>
+          );
+        })}
       </svg>
       <div className="legend">
         <span className="key"><span className="sw" style={{ background: 'var(--s1)' }} /> Projected balance</span>
@@ -220,6 +254,14 @@ export function ActualSpendChart({ data }: { data: MonthlyActual[] }) {
         </g>
       ))}
       <polyline fill="none" stroke="var(--s1)" strokeWidth="2" strokeLinejoin="round" points={line} />
+
+      {/* Per-month hover detail: only the endpoints are labelled directly. */}
+      {data.map((d, i) => (
+        <circle key={`hit-${d.month}`} cx={sx(i)} cy={sy(d.spend)} r="9" fill="none" pointerEvents="all">
+          <title>{`${d.label}: spent ${money(d.spend)}${d.income ? `, received ${money(d.income)}` : ''}`}</title>
+        </circle>
+      ))}
+
       <circle cx={sx(0)} cy={sy(first.spend)} r="4" fill="var(--s1)" stroke="var(--surface-1)" strokeWidth="2" />
       <text className="lbl-sm" x={sx(0)} y={sy(first.spend) + 16}>{money(first.spend)}</text>
       <circle cx={sx(data.length - 1)} cy={sy(lastPoint.spend)} r="4" fill="var(--s1)" stroke="var(--surface-1)" strokeWidth="2" />

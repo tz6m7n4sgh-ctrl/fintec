@@ -2,13 +2,14 @@
   "name": "Readiness — finance & termination planning",
   "short_name": "Readiness",
   "description": "Personal finance and termination-readiness planning for a UAE private-sector employee.",
-  "start_url": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#f9f9f7",
   "theme_color": "#2a78d6",
   "lang": "en-AE",
   "dir": "ltr",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

@@ -14,7 +14,7 @@ export default async function SettingsPage() {
           <table>
             <tbody>
               <tr>
-                <td>Supabase project</td>
+                <th scope="row" className="rowhead">Supabase project</th>
                 <td className="r">
                   {configured
                     ? <span className="pill ok"><span aria-hidden>✓</span> Configured</span>
@@ -22,15 +22,15 @@ export default async function SettingsPage() {
                 </td>
               </tr>
               <tr>
-                <td>Database schema &amp; row-level security</td>
+                <th scope="row" className="rowhead">Database schema &amp; row-level security</th>
                 <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Applied</span></td>
               </tr>
               <tr>
-                <td>Private statements bucket</td>
+                <th scope="row" className="rowhead">Private statements bucket</th>
                 <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Created</span></td>
               </tr>
               <tr>
-                <td>Reading live data</td>
+                <th scope="row" className="rowhead">Reading live data</th>
                 <td className="r">
                   {m.isSeedData
                     ? <span className="pill risk"><span aria-hidden>▲</span> Seed data</span>
@@ -56,16 +56,16 @@ export default async function SettingsPage() {
           <table>
             <tbody>
               <tr>
-                <td>Email</td>
+                <th scope="row" className="rowhead">Email</th>
                 <td className="r"><input type="checkbox" defaultChecked disabled aria-label="Email reminders" /></td>
               </tr>
               <tr>
-                <td>
+                <th scope="row" className="rowhead">
                   Web push
                   <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)' }}>
                     Requires installing the app on iOS
                   </span>
-                </td>
+                </th>
                 <td className="r"><input type="checkbox" disabled aria-label="Web push reminders" /></td>
               </tr>
             </tbody>

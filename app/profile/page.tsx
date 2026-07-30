@@ -4,13 +4,22 @@ import { getReadModel } from '@/lib/data/store';
 import { RULES } from '@/lib/engine/uae';
 import { aed, money } from '@/lib/format/money';
 
-/** A read-only field with the inline rule help the spec asks for (FR-C1). */
+/**
+ * A read-only field with the inline rule help the spec asks for (FR-C1).
+ *
+ * The label is associated with the input via htmlFor/id, and the help text via
+ * aria-describedby, so a screen reader announces both. A visually adjacent
+ * <label> with no `for` is not associated at all — the control reads out as
+ * unlabelled, which an audit of this page caught across all 21 inputs.
+ */
 function Field({ label, value, help }: { label: string; value: string; help?: string }) {
+  const id = `f-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+  const helpId = `${id}-help`;
   return (
     <div className="field">
-      <label>{label}</label>
-      <input readOnly value={value} />
-      {help ? <div className="help">{help}</div> : null}
+      <label htmlFor={id}>{label}</label>
+      <input id={id} readOnly value={value} aria-describedby={help ? helpId : undefined} />
+      {help ? <div className="help" id={helpId}>{help}</div> : null}
     </div>
   );
 }
