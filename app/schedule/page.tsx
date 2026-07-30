@@ -1,0 +1,181 @@
+import { Card, PageHead } from '@/components/ui';
+import { addDays, formatDate } from '@/lib/engine/dates';
+import { getReadModel } from '@/lib/data/store';
+import { RULES } from '@/lib/engine/uae';
+import { aed, money } from '@/lib/format/money';
+
+const RECURRENCE_LABEL: Record<string, string> = {
+  none: 'One-off',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  termly: 'Termly',
+  yearly: 'Yearly',
+};
+
+/** Occurrences of a recurring payment inside a window — used for the 12-month total. */
+function occurrencesWithin(
+  recurrence: string,
+  firstDue: string,
+  windowEnd: string,
+): number {
+  const stepMonths =
+    recurrence === 'monthly' ? 1 : recurrence === 'quarterly' ? 3 : recurrence === 'termly' ? 4 : recurrence === 'yearly' ? 12 : 0;
+  if (stepMonths === 0) return firstDue <= windowEnd ? 1 : 0;
+
+  let count = 0;
+  const [fy, fm, fd] = firstDue.split('-').map(Number);
+  for (let k = 0; k < 24; k++) {
+    const total = fy * 12 + (fm - 1) + k * stepMonths;
+    const y = Math.floor(total / 12);
+    const mo = (total % 12) + 1;
+    const iso = `${y}-${String(mo).padStart(2, '0')}-${String(fd).padStart(2, '0')}`;
+    if (iso > windowEnd) break;
+    count++;
+  }
+  return count;
+}
+
+export default async function SchedulePage() {
+  const m = await getReadModel();
+  const last = m.profile.expectedLastDay;
+  const end6 = addDays(last, RULES.CHEQUE_WINDOW_6M);
+  const end12 = addDays(last, RULES.CHEQUE_WINDOW_12M);
+
+  const rows = [...m.payments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  const monthlyCommitted = m.payments
+    .filter((p) => p.recurrence === 'monthly')
+    .reduce((s, p) => s + p.amount, 0);
+
+  const cheques6 = m.payments.filter((p) => p.type === 'cheque' && p.dueDate >= last && p.dueDate <= end6);
+  const cheques12 = m.payments.filter((p) => p.type === 'cheque' && p.dueDate >= last && p.dueDate <= end12);
+  const outOfBudget = m.payments.filter((p) => !p.includedInBudget);
+
+  // 12-month total expands recurrences, so a monthly bill counts 12 times.
+  const total12 = m.payments.reduce(
+    (s, p) => s + p.amount * occurrencesWithin(p.recurrence, p.dueDate, end12),
+    0,
+  );
+
+  const inBudgetChequeExposure = cheques12
+    .filter((p) => p.includedInBudget)
+    .reduce((s, p) => s + p.amount, 0);
+
+  return (
+    <>
+      <PageHead
+        title="Schedule"
+        sub="Every recurring and one-off obligation · this is the source the calendar and projection are built from"
+      />
+
+      <div className="grid g4">
+        <div className="card tile">
+          <div className="lbl">Monthly committed</div>
+          <div className="val mono">{money(monthlyCommitted)}</div>
+          <div className="foot">EMIs + bills, recurring</div>
+        </div>
+        <div className="card tile">
+          <div className="lbl">Cheques — next 6 months</div>
+          <div className="val mono">{money(m.readiness.deadlines.cheques6m)}</div>
+          <div className="foot">{cheques6.length} cheques</div>
+        </div>
+        <div className="card tile">
+          <div className="lbl">Cheques — next 12 months</div>
+          <div className="val mono">{money(m.readiness.deadlines.cheques12m)}</div>
+          <div className="foot">{cheques12.length} cheques</div>
+        </div>
+        <div className="card tile">
+          <div className="lbl">Not in monthly budget</div>
+          <div className="val mono">{money(outOfBudget.reduce((s, p) => s + p.amount, 0))}</div>
+          <div className="foot">Hits the projection as lump sums</div>
+        </div>
+      </div>
+
+      <Card
+        title="Scheduled payments"
+        sub='"In budget" means the amount is already inside a monthly budget line, so the projection must not subtract it twice'
+      >
+        <div className="tbl-wrap">
+          <table className="wide">
+            <thead>
+              <tr>
+                <th>Next due</th><th>Payee</th><th>Purpose</th><th>Type</th>
+                <th>Recurrence</th><th>Account</th><th className="r">Amount</th>
+                <th>In budget</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p) => (
+                <tr key={p.id}>
+                  <td className="mono">{formatDate(p.dueDate)}</td>
+                  <td className="payee">{p.payee}</td>
+                  <td>{p.purpose}</td>
+                  <td>
+                    {p.type === 'cheque' ? (
+                      <span className="pill cheque"><span aria-hidden>◆</span> Cheque</span>
+                    ) : (
+                      <span className="pill">{p.type === 'autoDebit' ? 'Auto-debit' : 'Transfer'}</span>
+                    )}
+                  </td>
+                  <td>{RECURRENCE_LABEL[p.recurrence]}</td>
+                  <td>{p.account}</td>
+                  <td className="r amt mono">{money(p.amount)}</td>
+                  <td>
+                    {p.includedInBudget ? (
+                      <span className="pill ok"><span aria-hidden>✓</span> Yes</span>
+                    ) : (
+                      <span className="pill"><span aria-hidden>✕</span> No</span>
+                    )}
+                  </td>
+                  <td>
+                    {p.status === 'atRisk' ? (
+                      <span className="pill risk"><span aria-hidden>▲</span> At risk</span>
+                    ) : p.status === 'paid' ? (
+                      <span className="pill ok"><span aria-hidden>✓</span> Paid</span>
+                    ) : (
+                      <span className="pill">Upcoming</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              <tr className="tot-row">
+                <td colSpan={6}>Total — next 12 months (recurrences expanded)</td>
+                <td className="r mono">{money(total12)}</td>
+                <td colSpan={2} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card title="Why some cheques sit outside the budget">
+        <ul className="insights">
+          <li>
+            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>◆</span>
+            <span>
+              {outOfBudget.map((p) => `${p.payee} (${money(p.amount)})`).join(' and ')}{' '}
+              {outOfBudget.length === 1 ? 'is' : 'are'} marked <b>not in budget</b> — no monthly
+              budget line covers {outOfBudget.length === 1 ? 'it' : 'them'}, so the projection
+              subtracts {outOfBudget.length === 1 ? 'it' : 'them'} as lump sums.
+            </span>
+          </li>
+          <li>
+            <span className="ic" style={{ color: 'var(--s3)' }} aria-hidden>✓</span>
+            <span>
+              Rent, school and EMI cheques are <b>in budget</b> — already inside the monthly burn
+              of {aed(m.survivalTotal)}. Subtracting them again would understate runway by{' '}
+              {aed(inBudgetChequeExposure)} over 12 months.
+            </span>
+          </li>
+          <li>
+            <span className="ic" style={{ color: 'var(--warning)' }} aria-hidden>▲</span>
+            <span>
+              Each in-budget item links to exactly one budget line. The database enforces this with
+              a check constraint, so an in-budget payment cannot exist without naming its line.
+            </span>
+          </li>
+        </ul>
+      </Card>
+    </>
+  );
+}
