@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+
+# Environment files: never commit real credentials.
+.env
+.env*.local
+
+*.tsbuildinfo
+next-env.d.ts
+coverage/
