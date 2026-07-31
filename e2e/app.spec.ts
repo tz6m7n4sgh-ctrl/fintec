@@ -237,6 +237,29 @@ test.describe('schedule', () => {
   });
 });
 
+test.describe('settings', () => {
+  /**
+   * The Backend card previously rendered "✓ Applied" and "✓ Created" as literals.
+   * They happened to be true, but nothing computed them, so they would have gone
+   * on claiming success against a fresh project or a half-applied migration.
+   *
+   * This app's credibility rests on honest status reporting, so the rule is:
+   * a row either derives its state or does not assert one.
+   */
+  test('backend status never asserts what the app cannot check', async ({ page }) => {
+    await page.goto(url('/settings/'));
+    const backend = page.locator('section.card', { hasText: 'Backend' }).first();
+
+    // Unearned ticks must not come back.
+    await expect(backend).not.toContainText('Applied');
+    await expect(backend).not.toContainText('Created');
+    await expect(backend.getByText('Not checked from here')).toHaveCount(2);
+
+    // The rows it genuinely can derive must still report real state.
+    await expect(backend).toContainText('Seed data');
+  });
+});
+
 test.describe('accessibility', () => {
   for (const route of ROUTES) {
     test(`${route.path} — every control has an accessible name`, async ({ page }) => {

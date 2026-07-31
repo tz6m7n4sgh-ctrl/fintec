@@ -22,12 +22,22 @@ export default async function SettingsPage() {
                 </td>
               </tr>
               <tr>
-                <th scope="row" className="rowhead">Database schema &amp; row-level security</th>
-                <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Applied</span></td>
+                <th scope="row" className="rowhead">
+                  Database schema &amp; row-level security
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Defined in three migrations under <code>supabase/migrations</code>
+                  </span>
+                </th>
+                <td className="r"><span className="pill"><span aria-hidden>○</span> Not checked from here</span></td>
               </tr>
               <tr>
-                <th scope="row" className="rowhead">Private statements bucket</th>
-                <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Created</span></td>
+                <th scope="row" className="rowhead">
+                  Private statements bucket
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Defined in migration 0002
+                  </span>
+                </th>
+                <td className="r"><span className="pill"><span aria-hidden>○</span> Not checked from here</span></td>
               </tr>
               <tr>
                 <th scope="row" className="rowhead">Reading live data</th>
@@ -39,6 +49,14 @@ export default async function SettingsPage() {
               </tr>
             </tbody>
           </table>
+        </div>
+        <div className="legend">
+          <span className="key">
+            The app is a static export with no server, so it cannot query your database to confirm
+            the migrations ran. Rather than show a tick it has not earned, these two rows say what
+            they are and where they are defined. To check them yourself, run the RLS query in the
+            README against your project.
+          </span>
         </div>
       </Card>
 
