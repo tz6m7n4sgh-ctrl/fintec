@@ -237,6 +237,76 @@ test.describe('schedule', () => {
   });
 });
 
+test.describe('transactions ledger', () => {
+  /**
+   * US-35. The filter controls shipped as disabled placeholders for a long
+   * time, so these assert they actually filter rather than merely exist.
+   *
+   * Counts come from the §11 seed: 12 confirmed rows — six salary credits and
+   * six aggregated monthly debits — plus three pending rows that must never
+   * appear here, whatever the filters say.
+   */
+  const ledger = (page: Page) =>
+    page.locator('section.card', { hasText: 'Transactions ledger' }).first();
+
+  test('shows every confirmed transaction by default', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await expect(card.locator('tbody tr')).toHaveCount(12);
+    await expect(card).toContainText('Showing 12 of 12');
+  });
+
+  test('filters by direction', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await card.getByLabel('Filter by direction').selectOption('credit');
+    await expect(card.locator('tbody tr')).toHaveCount(6);
+    await expect(card).toContainText('Showing 6 of 12');
+    // Every remaining row really is a credit.
+    await expect(card.locator('tbody tr', { hasText: 'Debit' })).toHaveCount(0);
+  });
+
+  test('searches descriptions', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await card.getByLabel('Search transaction descriptions').fill('salary');
+    await expect(card.locator('tbody tr')).toHaveCount(6);
+    // Case-insensitive: the seed stores these uppercase.
+    await expect(card.locator('tbody tr').first()).toContainText('SALARY CREDIT');
+  });
+
+  test('filters by date range', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await card.getByLabel('From date').fill('2026-07-01');
+    await card.getByLabel('To date').fill('2026-09-30');
+    // Three months of salary plus three months of outgoings.
+    await expect(card.locator('tbody tr')).toHaveCount(6);
+    await expect(card).not.toContainText('Apr 2026');
+  });
+
+  test('an empty result says so, and clearing restores the rows', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    // The ADCB account has only pending rows, so it can never match here.
+    await card.getByLabel('Filter by account').selectOption('acc-adcb');
+    await expect(card.locator('tbody tr')).toHaveCount(0);
+    await expect(card).toContainText('No transactions match these filters');
+
+    await card.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(card.locator('tbody tr')).toHaveCount(12);
+  });
+
+  test('pending transactions never leak into the ledger', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    // DEWA/SALIK are pending; no filter combination should surface them.
+    await expect(card).not.toContainText('DEWA');
+    await card.getByLabel('Search transaction descriptions').fill('dewa');
+    await expect(card.locator('tbody tr')).toHaveCount(0);
+  });
+});
+
 test.describe('settings', () => {
   /**
    * The Backend card previously rendered "✓ Applied" and "✓ Created" as literals.

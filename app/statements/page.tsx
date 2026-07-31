@@ -1,4 +1,5 @@
 import { Card, Empty, PageHead } from '@/components/ui';
+import { TransactionsLedger } from './TransactionsLedger';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { money } from '@/lib/format/money';
@@ -137,40 +138,25 @@ export default async function StatementsPage() {
       </Card>
 
       <Card title="Transactions ledger" sub={`${confirmed.length} confirmed transactions`}>
-        <div className="filters">
-          <select disabled defaultValue="" aria-label="Filter by account"><option value="">All accounts</option></select>
-          <select disabled defaultValue="" aria-label="Filter by category"><option value="">All categories</option></select>
-          <select disabled defaultValue="" aria-label="Filter by direction"><option value="">All directions</option></select>
-          <input disabled placeholder="Search description" aria-label="Search transaction descriptions" />
-        </div>
-        <div className="tbl-wrap" tabIndex={0}>
-          <table className="wide">
-            <thead>
-              <tr>
-                <th>Date</th><th>Description</th><th>Account</th>
-                <th className="r">Amount</th><th>Direction</th><th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...confirmed]
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .map((t) => (
-                  <tr key={t.id}>
-                    <td className="mono">{formatDate(t.date)}</td>
-                    <td className="payee">{t.description}</td>
-                    <td>{accountName(t.bankAccountId)}</td>
-                    <td className="r amt mono">{money(t.amount)}</td>
-                    <td>
-                      {t.direction === 'credit'
-                        ? <span className="pill ok">Credit</span>
-                        : <span className="pill">Debit</span>}
-                    </td>
-                    <td><span className="pill">{t.source === 'statement' ? 'Statement' : 'Manual'}</span></td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <TransactionsLedger
+          rows={confirmed.map((t) => ({
+            id: t.id,
+            date: t.date,
+            description: t.description,
+            accountId: t.bankAccountId,
+            accountLabel: accountName(t.bankAccountId),
+            amount: t.amount,
+            direction: t.direction,
+            source: t.source,
+            categoryId: t.categoryId,
+          }))}
+          accounts={m.accounts.map((a) => ({ id: a.id, label: `${a.bankName} ··${a.last4}` }))}
+          // Only categories that actually appear in the ledger — a filter that
+          // can only ever return nothing is worse than no filter.
+          categories={m.budget
+            .filter((c) => confirmed.some((t) => t.categoryId === c.id))
+            .map((c) => ({ id: c.id, label: c.name }))}
+        />
       </Card>
     </>
   );
