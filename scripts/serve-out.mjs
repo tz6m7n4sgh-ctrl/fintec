@@ -16,6 +16,7 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
+import { createBrotliCompress, createGzip } from 'node:zlib';
 
 const ROOT = resolve(process.cwd(), 'out');
 const PORT = Number(process.env.PORT ?? 3210);
@@ -70,6 +71,36 @@ function resolveFile(urlPath) {
   return null;
 }
 
+/**
+ * Text types worth compressing. Images and fonts are already compressed, so
+ * running them through gzip costs CPU and saves nothing.
+ */
+const COMPRESSIBLE = new Set([
+  'text/html; charset=utf-8',
+  'text/css; charset=utf-8',
+  'text/javascript; charset=utf-8',
+  'application/json; charset=utf-8',
+  'application/manifest+json; charset=utf-8',
+  'image/svg+xml',
+  'text/plain; charset=utf-8',
+]);
+
+/**
+ * Picks an encoding the client accepts, preferring brotli.
+ *
+ * GitHub Pages compresses text responses; this server did not, so every
+ * Lighthouse measurement taken against it was pessimistic in exactly the area
+ * the reports flagged — transfer size, render-blocking CSS and unused JS. That
+ * made the NFR-9 gap look larger than it is. Matching the real host here is the
+ * difference between measuring the app and measuring the test rig.
+ */
+function negotiate(acceptEncoding = '') {
+  const accepted = acceptEncoding.toLowerCase();
+  if (accepted.includes('br')) return { name: 'br', create: createBrotliCompress };
+  if (accepted.includes('gzip')) return { name: 'gzip', create: createGzip };
+  return null;
+}
+
 const server = createServer((req, res) => {
   const file = resolveFile(req.url ?? '/');
 
@@ -81,11 +112,20 @@ const server = createServer((req, res) => {
     return;
   }
 
-  res.writeHead(200, {
-    'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
-    'cache-control': 'no-store',
-  });
-  createReadStream(file).pipe(res);
+  const type = TYPES[extname(file)] ?? 'application/octet-stream';
+  const encoding = COMPRESSIBLE.has(type) ? negotiate(req.headers['accept-encoding']) : null;
+
+  const headers = { 'content-type': type, 'cache-control': 'no-store' };
+  if (encoding) {
+    headers['content-encoding'] = encoding.name;
+    // Cached-by-encoding, so a proxy cannot hand a gzip body to a client that
+    // asked for identity.
+    headers.vary = 'accept-encoding';
+  }
+
+  res.writeHead(200, headers);
+  if (encoding) createReadStream(file).pipe(encoding.create()).pipe(res);
+  else createReadStream(file).pipe(res);
 });
 
 server.listen(PORT, '127.0.0.1', () => {

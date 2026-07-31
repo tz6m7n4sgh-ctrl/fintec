@@ -315,16 +315,37 @@ they now carry `tabIndex={0}` and a visible focus ring.
 
 ### Performance
 
-`lighthouserc.json` runs **Lighthouse CI** against the built export in CI. This finally puts a
-number on NFR-9 — and the number says NFR-9 is **not met**: median TTI is ~3.4 s against a 2 s
-target, under Lighthouse's default mobile profile (Slow 4G, 4× CPU). Everything else is healthy —
-FCP 1.1 s, Speed Index 1.1 s, CLS 0, TBT 50 ms, accessibility and best-practices both **100**.
+`lighthouserc.js` runs **Lighthouse CI** against the built export in CI. This finally puts a number
+on NFR-9, and the first number was wrong in an instructive way.
 
-The assertion is therefore a *ratchet* at 4000 ms rather than the real 2000 ms target, so CI fails
-on regressions instead of being permanently and uselessly red. Tighten it as TTI improves.
+The initial measurement said TTI ~3.4 s against a 2 s target — NFR-9 badly missed. The cause was not
+the app. `scripts/serve-out.mjs` served everything uncompressed while GitHub Pages compresses text,
+so Lighthouse was measuring the **test rig**, not the site. Adding brotli/gzip to that server took
+the stylesheet from 11,936 to 2,792 bytes and TTI from ~3.4 s to ~1.98 s, with no application code
+changed at all.
 
-One caveat before optimising: `scripts/serve-out.mjs` sends no gzip/brotli while GitHub Pages does,
-so these figures are pessimistic against the deployed site.
+Current median, 3 runs, default mobile profile (Slow 4G, 4× CPU):
+
+| Metric | Dashboard | Report |
+|---|---|---|
+| First Contentful Paint | 0.81 s | 0.81 s |
+| Largest Contentful Paint | 1.08 s | 0.98 s |
+| **Time to Interactive** | **1.98 s** | **1.88 s** |
+| Total Blocking Time | 147 ms | 61 ms |
+| Cumulative Layout Shift | 0 | 0 |
+| Performance score | 0.95 | 1.00 |
+
+**NFR-9 is met** — but by about 1%, which is not comfortable. The assertions are ratchets with
+headroom for runner variance (TTI 2500 ms) rather than pinned to the target, because asserting
+2000 ms against a 1981 ms median would flake. Tighten them as real margin appears.
+
+Two things still worth attention: TBT rose from 50 to 147 ms once compression let the JavaScript
+arrive sooner — faster delivery concentrated the main-thread work rather than removing it — and the
+stylesheet is still render-blocking.
+
+The lesson generalises: **an unrepresentative test rig produces plausible numbers, and plausible
+wrong numbers are worse than obviously wrong ones.** The same mistake, in the same file, also
+produced a phantom accessibility failure (see the base-path note in `lighthouserc.js`).
 
 Reference figures asserted: service 7.332 years · gratuity **87,479** · leave 6,000 ·
 settlement **93,479** · ILOE 9,000/**27,000** · resources **220,479** · burn 23,000 ·
