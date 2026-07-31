@@ -83,6 +83,13 @@ jobs:
         # reasoning behind them live in lighthouserc.json.
         run: npm run test:lighthouse
 
+      - name: Which Lighthouse audits failed
+        # lhci names the category it rejected but not the audit behind it, and
+        # the category score is a weighted composite. Runs even when the step
+        # above already failed the job — that is exactly when it is needed.
+        if: always()
+        run: node scripts/lh-failing-audits.mjs
+
       - name: Upload Lighthouse reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,6 +97,10 @@ jobs:
           name: lighthouse-reports
           path: .lighthouseci/
           retention-days: 7
+          # .lighthouseci is a dotfile directory, and upload-artifact@v4 skips
+          # hidden files by default — without this the upload silently finds
+          # nothing, which is how the first failing run lost its reports.
+          include-hidden-files: true
 
       - name: Upload Pages artifact
         # Only the run that will deploy needs the artifact.
