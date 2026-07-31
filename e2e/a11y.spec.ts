@@ -40,8 +40,14 @@ const THEMES = [
   { name: 'dark', scheme: 'dark' as const },
 ];
 
-/** WCAG 2.0/2.1 levels A and AA — the conformance target in NFR-3/NFR-4. */
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+/**
+ * WCAG 2.0/2.1/2.2 levels A and AA — the conformance target in NFR-3/NFR-4.
+ *
+ * 2.2 is included because it is not academic here: `target-size` (SC 2.5.8)
+ * caught navigation links below the 24x24px minimum. Omitting the wcag22aa tag
+ * meant Lighthouse was checking a rule this suite was not.
+ */
+const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 /**
  * Axe reports one violation object per rule, with every offending node inside
