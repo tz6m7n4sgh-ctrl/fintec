@@ -156,7 +156,7 @@ export default async function DashboardPage() {
               </li>
               {lumpMonths.length > 0 && (
                 <li>
-                  <span className="ic" style={{ color: 'var(--critical)' }} aria-hidden>▲</span>
+                  <span className="ic" style={{ color: 'var(--critical-ink)' }} aria-hidden>▲</span>
                   <span>
                     <b>{aed(projection.totalLumpSums)}</b> of cheque lump sums fall due in{' '}
                     {lumpMonths.map((p) => p.label).join(' and ')} —{' '}
@@ -207,7 +207,7 @@ export default async function DashboardPage() {
       </Card>
 
       <Card title="Largest upcoming obligations" sub={`Next payments after ${formatMonthShort(m.profile.expectedLastDay)}`}>
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <thead>
               <tr>

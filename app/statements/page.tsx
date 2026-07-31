@@ -32,15 +32,15 @@ export default async function StatementsPage() {
       <Card title="How ingestion works" sub="Scheduled parsing job">
         <ul className="insights">
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>1</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>1</span>
             <span>You upload a PDF, CSV or XLSX. It goes straight to a <b>private storage bucket</b> namespaced to your user id — never a public URL.</span>
           </li>
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>2</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>2</span>
             <span>A <b>scheduled Claude Cowork session</b> picks up queued files, extracts the transactions, dedupes them and proposes categories and payment matches.</span>
           </li>
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>3</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>3</span>
             <span>Everything lands in the <b>review inbox</b> as pending. Nothing moves a dashboard figure until you confirm it.</span>
           </li>
           <li>
@@ -56,7 +56,7 @@ export default async function StatementsPage() {
       </Card>
 
       <Card title="Uploads" sub={`${m.uploads.length} files · re-uploading the same file creates zero duplicate transactions`}>
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>
@@ -71,7 +71,7 @@ export default async function StatementsPage() {
                   <tr key={u.id}>
                     <td className="payee">
                       {u.fileName}
-                      {u.errorMessage ? <span className="sub" style={{ color: 'var(--critical)' }}>{u.errorMessage}</span> : null}
+                      {u.errorMessage ? <span className="sub" style={{ color: 'var(--critical-ink)' }}>{u.errorMessage}</span> : null}
                     </td>
                     <td>{accountName(u.bankAccountId)}</td>
                     <td className="mono">
@@ -97,7 +97,7 @@ export default async function StatementsPage() {
         {pending.length === 0 ? (
           <Empty>Nothing to review. New parsed transactions will appear here.</Empty>
         ) : (
-          <div className="tbl-wrap">
+          <div className="tbl-wrap" tabIndex={0}>
             <table className="wide">
               <thead>
                 <tr>
@@ -143,7 +143,7 @@ export default async function StatementsPage() {
           <select disabled defaultValue="" aria-label="Filter by direction"><option value="">All directions</option></select>
           <input disabled placeholder="Search description" aria-label="Search transaction descriptions" />
         </div>
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>

@@ -46,7 +46,7 @@ export default async function BudgetPage() {
         title="Categories"
         sub="Auto rows are read-only — edit them on the screen that owns the data"
       >
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>
@@ -104,7 +104,7 @@ export default async function BudgetPage() {
       <Card title="How the survival budget drives runway">
         <ul className="insights">
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>→</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>→</span>
             <span>
               Runway uses the <b>survival</b> total ({aed(m.survivalTotal)}), less side income of{' '}
               {aed(m.profile.monthlySideIncome)}, giving a net burn of{' '}

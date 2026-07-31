@@ -42,7 +42,7 @@ export default async function PlanPage() {
       </Card>
 
       <Card title="Score breakdown" sub="Every point is attributable">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr><th>Criterion</th><th className="r">Score</th><th>Why</th></tr>
@@ -66,7 +66,7 @@ export default async function PlanPage() {
       </Card>
 
       <Card title="Action plan" sub="Deadlines are computed from your last working day">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr><th>Done</th><th>Action</th><th>When</th><th className="r">Countdown</th></tr>

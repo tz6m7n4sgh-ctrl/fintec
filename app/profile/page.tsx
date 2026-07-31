@@ -104,7 +104,7 @@ export default async function ProfilePage() {
       </Card>
 
       <Card title="Income streams">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <thead>
               <tr><th>Name</th><th>Frequency</th><th className="r">Amount</th><th>Ends</th><th>Active</th></tr>

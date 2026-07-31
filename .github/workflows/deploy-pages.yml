@@ -77,6 +77,20 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+      - name: Lighthouse CI
+        # Measures the artefact that is about to deploy. Gives NFR-9 a number:
+        # nothing asserted page performance before this. Thresholds and the
+        # reasoning behind them live in lighthouserc.json.
+        run: npm run test:lighthouse
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 7
+
       - name: Upload Pages artifact
         # Only the run that will deploy needs the artifact.
         if: github.event_name != 'pull_request'

@@ -121,7 +121,7 @@ export default async function CalendarPage() {
                 className="count"
                 style={{
                   borderColor: `color-mix(in oklab, var(--${row.tone}) 55%, transparent)`,
-                  color: row.tone === 'critical' ? 'var(--critical)' : 'var(--ink-1)',
+                  color: row.tone === 'critical' ? 'var(--critical-ink)' : 'var(--ink-1)',
                   background: `color-mix(in oklab, var(--${row.tone}) 14%, transparent)`,
                 }}
               >
@@ -177,7 +177,7 @@ export default async function CalendarPage() {
       </Card>
 
       <Card title="Agenda" sub="Every obligation from your last working day onwards">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>

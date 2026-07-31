@@ -10,7 +10,7 @@ export default async function SettingsPage() {
       <PageHead title="Settings" sub="Sign-in devices, alerts and your data" />
 
       <Card title="Backend" sub="Where your data lives">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
               <tr>
@@ -52,7 +52,7 @@ export default async function SettingsPage() {
       </Card>
 
       <Card title="Notifications" sub="Reminders 7 and 2 days before each cheque and school fee">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
               <tr>
@@ -82,7 +82,7 @@ export default async function SettingsPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
           <button className="btn" disabled>Export all data (JSON)</button>
           <button className="btn" disabled>Import from JSON</button>
-          <button className="btn" disabled style={{ borderColor: 'color-mix(in oklab, var(--critical) 45%, transparent)', color: 'var(--critical)' }}>
+          <button className="btn" disabled style={{ borderColor: 'color-mix(in oklab, var(--critical) 45%, transparent)', color: 'var(--critical-ink)' }}>
             Delete all data
           </button>
         </div>

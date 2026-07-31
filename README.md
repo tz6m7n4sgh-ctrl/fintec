@@ -19,7 +19,8 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 | Cash projection with lump-sum cheques | **Done** — reports the real zero-crossing, not just flat-burn runway |
 | Readiness scoring (/18) | **Done** — explicit rubric, per-criterion explanations |
 | All ten screens | **Done** — server-rendered, light/dark, desktop/mobile |
-| Automated tests | **Done** — 82 unit + 96 end-to-end, run in CI against the deployed artefact |
+| Automated tests | **Done** — 82 unit + 136 end-to-end (incl. 40 axe accessibility), run in CI against the deployed artefact |
+| Accessibility & performance gates | **Done** — axe-core sweeps every screen in both themes; Lighthouse CI scores the built artefact |
 | Deployment | **Done** — static export to GitHub Pages (needs Pages enabled once, see below) |
 | Database schema + RLS | **Done and applied** — 13 tables, RLS enabled *and* forced, 0 security advisories |
 | Private statements bucket | **Done** — namespaced per user id |
@@ -261,9 +262,11 @@ broken number (§11 edge case).
 ## Testing
 
 ```bash
-npm test          # 82 unit tests
-npm run build     # required before e2e — the suite tests the real export
-npm run test:e2e  # 96 end-to-end tests (desktop + mobile)
+npm test                 # 82 unit tests
+npm run build            # required before e2e — the suite tests the real export
+npm run test:e2e         # 136 end-to-end tests (desktop + mobile)
+npm run test:a11y        # just the 40 axe accessibility tests
+npm run test:lighthouse  # Lighthouse CI against the built export
 ```
 
 ### Unit tests
@@ -293,6 +296,35 @@ Several assertions pin specific defects found by looking at rendered pages: a st
 caption counted a different set of cheques than its figure summed, the same scenario reading "OK" on
 one screen and "Tight" on another, a zero deduction rendering as `-0.00`, and a `<title>` hydration
 failure introduced while adding the chart hover layer.
+
+### Accessibility sweep
+
+`e2e/a11y.spec.ts` runs **axe-core** over all ten screens in both viewports **and both themes** —
+40 tests. The hand-written checks above stay where they are; axe is the general sweep that catches
+what an assertion cannot enumerate ahead of time.
+
+It was added after a token audit found `--ink-3` failing the 4.5:1 normal-text contrast ratio on
+every light-mode surface (3.21–3.50:1) while the whole suite stayed green. The status palette had
+the same problem: `--critical` and `--s1` were tuned as **fills**, where 1.4.11's 3:1 applies, then
+reused as **text**, where 4.5:1 does. Hence the `*-ink` tokens — `--good-ink` had already set the
+precedent, it just was not applied across the palette. Use `*-ink` for glyphs and copy, the vivid
+token for anything graphical.
+
+Axe also caught that the scrollable `.tbl-wrap` containers were not keyboard-reachable (WCAG 2.1.1);
+they now carry `tabIndex={0}` and a visible focus ring.
+
+### Performance
+
+`lighthouserc.json` runs **Lighthouse CI** against the built export in CI. This finally puts a
+number on NFR-9 — and the number says NFR-9 is **not met**: median TTI is ~3.4 s against a 2 s
+target, under Lighthouse's default mobile profile (Slow 4G, 4× CPU). Everything else is healthy —
+FCP 1.1 s, Speed Index 1.1 s, CLS 0, TBT 50 ms, accessibility and best-practices both **100**.
+
+The assertion is therefore a *ratchet* at 4000 ms rather than the real 2000 ms target, so CI fails
+on regressions instead of being permanently and uselessly red. Tighten it as TTI improves.
+
+One caveat before optimising: `scripts/serve-out.mjs` sends no gzip/brotli while GitHub Pages does,
+so these figures are pessimistic against the deployed site.
 
 Reference figures asserted: service 7.332 years · gratuity **87,479** · leave 6,000 ·
 settlement **93,479** · ILOE 9,000/**27,000** · resources **220,479** · burn 23,000 ·

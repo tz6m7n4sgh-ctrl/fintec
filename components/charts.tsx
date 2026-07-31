@@ -104,7 +104,7 @@ export function ProjectionChart({ projection }: { projection: Projection }) {
             x={X1}
             y={zeroY - 5}
             textAnchor="end"
-            style={{ fill: 'var(--critical)', fontWeight: 650 }}
+            style={{ fill: 'var(--critical-ink)', fontWeight: 650 }}
           >
             below zero
           </text>
@@ -143,7 +143,7 @@ export function ProjectionChart({ projection }: { projection: Projection }) {
             className="lbl-pt"
             x={sx(projection.zeroCrossingMonth) + 8}
             y={zeroY + 42}
-            style={{ fill: 'var(--critical)' }}
+            style={{ fill: 'var(--critical-ink)' }}
           >
             runs out {projection.zeroCrossingLabel}
           </text>
