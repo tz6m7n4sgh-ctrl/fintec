@@ -416,6 +416,65 @@ test.describe('transactions ledger', () => {
   });
 });
 
+test.describe('sign-in', () => {
+  /**
+   * US-39. These run unconfigured — no Supabase URL or key — which is the state
+   * CI builds in. That is deliberate: the app must degrade to "you cannot sign
+   * in" rather than crash a screen showing someone their termination deadlines.
+   *
+   * The OTP round-trip itself cannot be asserted here; it needs a provisioned
+   * user and a real mailbox. What is asserted is everything around it.
+   */
+  test('renders and says plainly that sign-in is unavailable when unconfigured', async ({ page }) => {
+    const problems = collectPageProblems(page);
+    const response = await page.goto(url('/sign-in/'));
+    expect(response?.status()).toBe(200);
+
+    await expect(page.locator('h1')).toHaveText('Sign in');
+    await expect(page.locator('body')).toContainText('Sign-in is not configured');
+    // Degrading must be quiet, not a wall of console errors.
+    expect(problems).toEqual([]);
+  });
+
+  test('explains what protects the data before asking for an email', async ({ page }) => {
+    await page.goto(url('/sign-in/'));
+    const body = await page.locator('body').innerText();
+    // The three claims a user should be able to check before typing real
+    // figures in. If any is removed, this fails and someone has to think.
+    expect(body).toContain('row-level security');
+    expect(body).toContain('private bucket');
+    expect(body).toContain('localStorage');
+  });
+
+  test('settings offers sign-in and does not claim an account when signed out', async ({ page }) => {
+    await page.goto(url('/settings/'));
+    const account = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: 'Account' }),
+    });
+    await expect(account).toContainText('Not signed in');
+    await expect(account.locator('a[href*="sign-in"]')).toHaveCount(1);
+    // No session, so no sign-out control to click.
+    await expect(account.getByRole('button', { name: /sign out/i })).toHaveCount(0);
+  });
+});
+
+test.describe('security headers', () => {
+  /**
+   * The headers a static host could not set. They were deliberately absent
+   * before the move to a server build rather than misleadingly declared, so
+   * asserting them is what makes the migration's benefit real rather than
+   * claimed.
+   */
+  test('are set on a page response', async ({ page }) => {
+    const response = await page.goto(url('/'));
+    const headers = response?.headers() ?? {};
+    expect(headers['x-content-type-options']).toBe('nosniff');
+    expect(headers['x-frame-options']).toBe('DENY');
+    expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    expect(headers['permissions-policy']).toContain('camera=()');
+  });
+});
+
 test.describe('settings', () => {
   /**
    * The Backend card previously rendered "✓ Applied" and "✓ Created" as literals.

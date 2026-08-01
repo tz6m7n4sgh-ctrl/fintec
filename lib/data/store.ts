@@ -9,6 +9,7 @@
  * making the pages await it now means no page has to change later.
  */
 
+import { getUser } from '@/lib/supabase/server';
 import { computeReadiness, currentSpend, survivalSpend } from '@/lib/engine/uae';
 import { monthlyActuals, projectCash } from '@/lib/engine/projection';
 import { scoreReadiness } from '@/lib/engine/readiness';
@@ -37,7 +38,15 @@ import {
 } from './seed';
 import type { BankAccount, ChecklistItem, StatementUpload, Transaction } from './seed';
 
+/** The signed-in user, reduced to what the screens actually display. */
+export interface SessionUser {
+  id: string;
+  email: string | null;
+}
+
 export interface ReadModel {
+  /** Null when signed out, or when Supabase is not configured. */
+  user: SessionUser | null;
   profile: Profile;
   budget: BudgetCategory[];
   debts: Debt[];
@@ -68,6 +77,11 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export async function getReadModel(): Promise<ReadModel> {
+  const authUser = await getUser();
+  const user: SessionUser | null = authUser
+    ? { id: authUser.id, email: authUser.email ?? null }
+    : null;
+
   const profile = SEED_PROFILE;
   const budget = SEED_BUDGET;
   const payments = SEED_PAYMENTS;
@@ -78,6 +92,7 @@ export async function getReadModel(): Promise<ReadModel> {
   const score = scoreReadiness(readiness, SEED_DEBTS, budget);
 
   return {
+    user,
     profile,
     budget,
     debts: SEED_DEBTS,
@@ -95,8 +110,10 @@ export async function getReadModel(): Promise<ReadModel> {
     score,
     currentTotal: currentSpend(budget),
     survivalTotal: survivalSpend(budget),
-    // The schema and RLS are live, but no rows are written yet, so the screens
-    // still read the seed. Surfaced in the UI rather than hidden.
+    // Still the seed even when signed in: sign-in exists, but no live read path
+    // does yet, so there are no rows to return. This must become derived — not
+    // flipped by hand — the moment reads land, or it becomes the same unearned
+    // claim the Settings status pills used to make.
     isSeedData: true,
   };
 }

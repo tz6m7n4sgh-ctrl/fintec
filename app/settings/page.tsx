@@ -1,4 +1,5 @@
 import { Card, PageHead } from '@/components/ui';
+import { signOut } from '@/app/auth/actions';
 import { getReadModel, isSupabaseConfigured } from '@/lib/data/store';
 
 export default async function SettingsPage() {
@@ -8,6 +9,42 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHead title="Settings" sub="Sign-in devices, alerts and your data" />
+
+      <Card title="Account" sub="Who this session belongs to">
+        {m.user ? (
+          <>
+            <div className="tbl-wrap" tabIndex={0}>
+              <table>
+                <tbody>
+                  <tr>
+                    <th scope="row" className="rowhead">Signed in as</th>
+                    <td className="r mono">{m.user.email ?? m.user.id}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <form action={signOut} style={{ marginTop: 12 }}>
+              <button className="btn" type="submit">Sign out everywhere</button>
+            </form>
+            <div className="legend">
+              <span className="key">
+                Signs out of every device, not just this one — it revokes the refresh tokens
+                rather than only clearing this browser&rsquo;s cookie.
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+              Not signed in, so these screens show the reference dataset rather than your own
+              figures.
+            </p>
+            <a className="btn primary" href="/sign-in" style={{ display: 'inline-block', textDecoration: 'none' }}>
+              Sign in
+            </a>
+          </>
+        )}
+      </Card>
 
       <Card title="Backend" sub="Where your data lives">
         <div className="tbl-wrap" tabIndex={0}>
@@ -52,19 +89,18 @@ export default async function SettingsPage() {
         </div>
         <div className="legend">
           <span className="key">
-            The app is a static export with no server, so it cannot query your database to confirm
-            the migrations ran. Rather than show a tick it has not earned, these two rows say what
-            they are and where they are defined. To check them yourself, run the RLS query in the
-            README against your project.
+            Nothing here queries your database to confirm the migrations ran — that would be a
+            round trip on every render to answer a question that changes about once a year. Rather
+            than show a tick it has not earned, these two rows say what they are and where they are
+            defined. To check them yourself, run the RLS query in the README against your project.
           </span>
         </div>
       </Card>
 
       <Card title="Passkeys — biometric sign-in" sub="Fingerprint or Face ID via WebAuthn">
         <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-          No passkeys registered yet. Sign-in is the next build step; email or one-time-code
-          sign-in always remains available as a recovery path, so a passkey is never the only
-          way in.
+          No passkeys registered yet. Email one-time-code sign-in is live and always remains
+          available as a recovery path, so a passkey is never the only way in (R-4).
         </p>
         <button className="btn" disabled>Register this device</button>
       </Card>

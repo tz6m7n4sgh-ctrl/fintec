@@ -33,6 +33,7 @@ const ROUTES = [
   '/report/',
   '/plan/',
   '/settings/',
+  '/sign-in/',
 ] as const;
 
 const THEMES = [
