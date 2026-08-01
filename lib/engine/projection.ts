@@ -53,14 +53,34 @@ export function projectCash(
   startDate: IsoDate,
   horizonMonths: number = DEFAULT_HORIZON_MONTHS,
 ): Projection {
+  // The first projected month is startDate + 1 month, so a payment falling
+  // between startDate and the end of startDate's own month has a key no
+  // iteration below would ever look up. That gap silently dropped it.
+  //
+  // It mattered: chequeExposure() counts from lastDay INCLUSIVE, so a cheque due
+  // on the last working day was counted by the dashboard's exposure tile while
+  // the projection never deducted it — two figures shown side by side, quietly
+  // disagreeing, with the projection understating the shortfall. On an app whose
+  // central promise is "you will not bounce a cheque", that is the wrong
+  // direction to be wrong in.
+  //
+  // Anything due in that gap is folded into month 1. Anything genuinely before
+  // startDate is in the past and is not a future outflow.
+  const firstMonth = addMonths(startDate, 1);
+  const monthKey = (iso: IsoDate) => {
+    const { y, m } = parseIso(iso);
+    return `${y}-${String(m).padStart(2, '0')}`;
+  };
+  const firstKey = monthKey(firstMonth);
+
   // Only out-of-budget payments are lump sums — everything else is already in
   // netMonthlyBurn. Grouped by calendar month so several cheques in one month
   // combine into a single hit.
   const lumps = new Map<string, { total: number; payees: string[] }>();
   for (const p of payments) {
     if (p.includedInBudget) continue;
-    const { y, m } = parseIso(p.dueDate);
-    const key = `${y}-${String(m).padStart(2, '0')}`;
+    if (p.dueDate < startDate) continue; // already past
+    const key = monthKey(p.dueDate) < firstKey ? firstKey : monthKey(p.dueDate);
     const entry = lumps.get(key) ?? { total: 0, payees: [] };
     entry.total += p.amount;
     entry.payees.push(p.payee);
