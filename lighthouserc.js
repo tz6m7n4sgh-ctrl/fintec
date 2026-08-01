@@ -17,19 +17,20 @@
  * page under test was simply broken.
  *
  * So the URLs are derived from the same env var the build and the e2e suite
- * use. scripts/serve-out.mjs reads it too, so the server mounts at the matching
- * sub-path. Wrong base path now means a 404 rather than a plausible-looking
- * score.
+ * use, and `next start` mounts at the matching sub-path. Wrong base path now
+ * means a 404 rather than a plausible-looking score.
  *
  * MEASURED STATE, median of 3 runs, default mobile profile (Slow 4G, 4x CPU):
  * FCP 0.81 s, Speed Index 0.81 s, LCP 1.08 s, TBT 147 ms, CLS 0,
  * TTI 1.98 s (dashboard) / 1.88 s (report). NFR-9's 2000 ms target is MET.
  *
  * It was not met when this file was first written, and the reason is worth
- * keeping: scripts/serve-out.mjs served everything uncompressed while GitHub
- * Pages compresses text. Lighthouse was measuring the test rig, not the app.
- * Adding brotli/gzip to that server took the CSS from 11,936 to 2,792 bytes and
- * TTI from ~3.4 s to ~1.98 s. No application code changed.
+ * keeping: the hand-written static server it used to measure against served
+ * everything uncompressed while a real host compresses text. Lighthouse was
+ * measuring the test rig, not the app. Fixing that took the CSS from 11,936 to
+ * 2,792 bytes and TTI from ~3.4 s to ~1.98 s, with no application code changed.
+ * That server is now gone entirely: these numbers come from `next start`, which
+ * is what actually runs in production and compresses by default.
  *
  * The margin is thin — 1981 ms against a 2000 ms target is about 1%. So the
  * assertions below are ratchets set with headroom for runner variance rather
@@ -47,9 +48,9 @@ const ORIGIN = 'http://127.0.0.1:3210';
 module.exports = {
   ci: {
     collect: {
-      startServerCommand: 'node scripts/serve-out.mjs',
-      startServerReadyPattern: 'Serving',
-      startServerReadyTimeout: 30000,
+      startServerCommand: 'npm run start -- --port 3210',
+      startServerReadyPattern: 'Ready',
+      startServerReadyTimeout: 60000,
       url: [`${ORIGIN}${BASE_PATH}/`, `${ORIGIN}${BASE_PATH}/report/`],
       numberOfRuns: 3,
       settings: {

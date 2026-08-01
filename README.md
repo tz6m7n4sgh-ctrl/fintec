@@ -19,9 +19,9 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 | Cash projection with lump-sum cheques | **Done** — reports the real zero-crossing, not just flat-burn runway |
 | Readiness scoring (/18) | **Done** — explicit rubric, per-criterion explanations |
 | All ten screens | **Done** — server-rendered, light/dark, desktop/mobile |
-| Automated tests | **Done** — 82 unit + 136 end-to-end (incl. 40 axe accessibility), run in CI against the deployed artefact |
+| Automated tests | **Done** — 82 unit + 164 end-to-end (incl. 40 axe accessibility), run in CI against a production server |
 | Accessibility & performance gates | **Done** — axe-core sweeps every screen in both themes; Lighthouse CI scores the built artefact |
-| Deployment | **Done** — static export to GitHub Pages (needs Pages enabled once, see below) |
+| Deployment | **Server build** — needs a Node host provisioned (no deploy job in CI) |
 | Database schema + RLS | **Done and applied** — 13 tables, RLS enabled *and* forced, 0 security advisories |
 | Private statements bucket | **Done** — namespaced per user id |
 | Authentication (email/OTP + passkeys) | **Not built** — next step |
@@ -196,47 +196,39 @@ uploads from the same bank parse without re-inference:
 
 ## Deployment
 
-### GitHub Pages (configured)
+### A Node host — required
 
-The app builds to a **fully static export**, so GitHub Pages can host it. Every route is
-prerendered at build time — there is no server at runtime.
+The app is a **server build**. It was a static export on GitHub Pages, and that was fine while it
+only ever rendered the §11 reference data. It stopped being fine as soon as real salary, savings and
+debt figures were on the table: **a static site has no server boundary**, so row-level security
+becomes the only thing between that data and the internet.
 
-`.github/workflows/deploy-pages.yml` runs on every push to `main`: tests, typecheck and build must
-all pass before anything publishes, so a red suite cannot reach the live page. Pull requests run the
-same verification but **never deploy**.
-
-**One-time setup** (repository admin, cannot be done from code):
-
-> **Settings → Pages → Build and deployment → Source: GitHub Actions**
-
-Without that, the deploy job fails — the workflow cannot enable Pages for you. Once set, the site
-appears at `https://<user>.github.io/<repo>/` and the run summary links to it.
-
-Notes specific to Pages:
-
-- `basePath` is derived from the repository name, because a project site is served from a sub-path.
-  Local development is unaffected and still runs at `/`.
-- `trailingSlash: true` emits `route/index.html` instead of `route.html`; Pages does no extension
-  rewriting, so without it every route but the home page would 404.
-- `public/.nojekyll` stops Jekyll from stripping Next's `_next/` asset directory.
-- **Pages cannot set response headers**, so the security headers this app previously declared are
-  gone rather than silently ineffective. See the comment in `next.config.mjs`.
-- `NEXT_PUBLIC_SUPABASE_*` are read from repository **variables** and are optional: with them unset
-  the site renders the seeded dataset, which is all it shows today anyway.
-
-> **A public repository means a public site.** That is harmless while the app displays only the §11
-> reference data. Before real financial data is wired up, decide deliberately whether a public
-> static host is right — a static site has no server boundary, so row-level security becomes the
-> only thing protecting your data.
-
-### Any Node host
-
-Vercel or a plain Node server also work, and can set real security headers. Remove
-`output: 'export'` from `next.config.mjs` to get a server build back, then:
+The migration restored one, and is what lets sign-in, the ingestion job and the reminder senders
+exist at all. Pages can no longer host this — there is no deploy job in CI, because a deploy job
+that cannot run would be worse than none.
 
 ```bash
-npm run build && npm start
+npm run build && npm start        # production server on :3000
 ```
+
+Deploy to Vercel, Fly, a container, or any Node host. That is a provisioning step outside this repo.
+
+**What the move bought, immediately:**
+
+- **Real security headers.** `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and
+  `Permissions-Policy` are set in `next.config.mjs` and verifiable with `curl -D-`. Pages could not
+  set them at all, so they had been deliberately removed rather than left misleadingly present.
+- **A place for auth to keep a session**, rather than pushing everything into the browser.
+- **Somewhere to run the ingestion job and the reminder senders**, which a static host simply
+  cannot do.
+
+**Content-Security-Policy is still absent, deliberately.** Next's App Router emits inline scripts, so
+a useful CSP needs per-request nonces; a CSP with `unsafe-inline` on scripts implies protection it
+does not give. Same principle as before — absent beats misleadingly present.
+
+`trailingSlash: true` is kept from the export config. A server resolves `/calendar` and `/calendar/`
+alike, but every existing URL and test uses the trailing form and changing it would turn passing
+assertions into redirects for nothing.
 
 Environment variables (see `.env.example`):
 
@@ -264,7 +256,7 @@ broken number (§11 edge case).
 ```bash
 npm test                 # 82 unit tests
 npm run build            # required before e2e — the suite tests the real export
-npm run test:e2e         # 136 end-to-end tests (desktop + mobile)
+npm run test:e2e         # 164 end-to-end tests (desktop + mobile)
 npm run test:a11y        # just the 40 axe accessibility tests
 npm run test:lighthouse  # Lighthouse CI against the built export
 ```
@@ -319,21 +311,21 @@ they now carry `tabIndex={0}` and a visible focus ring.
 on NFR-9, and the first number was wrong in an instructive way.
 
 The initial measurement said TTI ~3.4 s against a 2 s target — NFR-9 badly missed. The cause was not
-the app. `scripts/serve-out.mjs` served everything uncompressed while GitHub Pages compresses text,
-so Lighthouse was measuring the **test rig**, not the site. Adding brotli/gzip to that server took
-the stylesheet from 11,936 to 2,792 bytes and TTI from ~3.4 s to ~1.98 s, with no application code
-changed at all.
+the app. The hand-written static server the tests ran against sent no compression while a real host
+compresses text, so Lighthouse was measuring the **test rig**, not the site. That server has since
+been deleted outright: the suite now runs against `next start`, which is what actually serves
+production. TTI went from ~3.4 s to ~1.84 s with no application code changed at all.
 
 Current median, 3 runs, default mobile profile (Slow 4G, 4× CPU):
 
 | Metric | Dashboard | Report |
 |---|---|---|
-| First Contentful Paint | 0.81 s | 0.81 s |
-| Largest Contentful Paint | 1.08 s | 0.98 s |
-| **Time to Interactive** | **1.98 s** | **1.88 s** |
-| Total Blocking Time | 147 ms | 61 ms |
+| First Contentful Paint | 0.77 s | 0.77 s |
+| Largest Contentful Paint | 1.84 s | 1.83 s |
+| **Time to Interactive** | **1.84 s** | **1.84 s** |
+| Total Blocking Time | 73 ms | 71 ms |
 | Cumulative Layout Shift | 0 | 0 |
-| Performance score | 0.95 | 1.00 |
+| Performance score | 0.99 | 1.00 |
 
 **NFR-9 is met** — but by about 1%, which is not comfortable. The assertions are ratchets with
 headroom for runner variance (TTI 2500 ms) rather than pinned to the target, because asserting

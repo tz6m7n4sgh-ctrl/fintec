@@ -12,8 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test e2e/a11y.spec.ts",
-    "test:lighthouse": "lhci autorun",
-    "serve:out": "node scripts/serve-out.mjs"
+    "test:lighthouse": "lhci autorun"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

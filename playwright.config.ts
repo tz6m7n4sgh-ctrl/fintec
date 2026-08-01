@@ -4,11 +4,11 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * End-to-end configuration.
  *
- * The tests run against the real static export served the way a static host
- * serves it — including under a sub-path when NEXT_PUBLIC_BASE_PATH is set — so
- * CI exercises the exact artefact it is about to deploy rather than a dev server.
+ * The tests run against a production `next start` server — the same thing that
+ * runs in production — including under a sub-path when NEXT_PUBLIC_BASE_PATH is
+ * set, so CI exercises the real artefact rather than a dev server.
  *
- * `out/` must exist: run `npm run build` first (CI does).
+ * `.next/` must exist: run `npm run build` first (CI does).
  */
 
 const PORT = 3210;
@@ -45,10 +45,16 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'node scripts/serve-out.mjs',
+    // The real Next server, not a stand-in. The app used to be a static export
+    // served by a hand-written script, and that script was the source of two
+    // defects that produced plausible-but-wrong measurements: a base-path
+    // mismatch that made Lighthouse audit an unstyled page, and missing
+    // compression that made every performance number pessimistic. Testing the
+    // actual production server removes that whole class of error.
+    command: 'npm run start -- --port ' + PORT,
     url: `http://127.0.0.1:${PORT}${BASE_PATH}/`,
-    env: { PORT: String(PORT), BASE_PATH },
+    env: { NEXT_PUBLIC_BASE_PATH: BASE_PATH },
     reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
+    timeout: 60_000,
   },
 });
