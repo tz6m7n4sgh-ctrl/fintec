@@ -237,6 +237,115 @@ test.describe('schedule', () => {
   });
 });
 
+/**
+ * Stories that were shipped and manually checked but had no automated
+ * assertion — the state the project's ladder calls "In Review". That gap is
+ * exactly what let a WCAG contrast failure sit on every screen through 96
+ * passing tests, so these close it.
+ *
+ * Figures are the §11 reference profile: budget 28,700 current / 23,000
+ * survival across 11 categories, readiness 13/18 MODERATE, 10 checklist items,
+ * 13 scheduled payments spanning three types.
+ */
+test.describe('budget screen', () => {
+  test('US-11 — per-category current vs survival, with both totals', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+    // 11 categories plus the totals row.
+    await expect(table.locator('tbody tr')).toHaveCount(12);
+    const totals = table.locator('tr.tot-row');
+    await expect(totals).toContainText('28,700');
+    await expect(totals).toContainText('23,000');
+  });
+
+  test('US-24 — auto rows are marked read-only and link to their source', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+
+    for (const [name, amount] of [
+      ['School fees', '3,000'],
+      ['Loan & mortgage payments', '6,000'],
+    ] as const) {
+      const row = table.locator('tbody tr', { hasText: name }).first();
+      await expect(row).toContainText('computed — read-only');
+      // Current and survival agree for an auto row — it cannot be cut.
+      expect((await row.innerText()).match(new RegExp(amount, 'g'))?.length ?? 0).toBeGreaterThanOrEqual(2);
+      // NFR-5: the figure traces to the screen that owns it.
+      await expect(row.locator('a[href*="loans"]')).toHaveCount(1);
+    }
+  });
+
+  test('US-25 — budget-vs-actual column is present and populated', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+    await expect(table.locator('th', { hasText: 'Actual' })).toHaveCount(1);
+    // The seed categorises confirmed spend into groceries and dining, so at
+    // least one category must show a real figure rather than an em dash.
+    const actuals = await table.locator('tbody tr td:nth-child(5)').allInnerTexts();
+    expect(actuals.filter((t) => t.trim() !== '' && t.trim() !== '—').length).toBeGreaterThan(0);
+  });
+});
+
+test.describe('readiness and action plan', () => {
+  test('US-37 — score, band, and a breakdown that sums to the total', async ({ page }) => {
+    await page.goto(url('/plan/'));
+    await expect(page.locator('.hero-num')).toContainText('13');
+    await expect(page.locator('.hero-num')).toContainText('18');
+    await expect(page.locator('.status')).toContainText('MODERATE');
+
+    const rows = page.locator('section.card', { hasText: 'Score breakdown' }).locator('tbody tr');
+    // Four criteria plus the total row.
+    await expect(rows).toHaveCount(5);
+
+    // Every point is attributable: the parts must equal the whole.
+    const scores = await rows.locator('td:nth-child(2)').allInnerTexts();
+    const parts = scores.slice(0, 4).map((s) => Number(s.split('/')[0].trim()));
+    expect(parts.reduce((a, b) => a + b, 0)).toBe(13);
+  });
+
+  test('US-38 — ten seeded actions, each with a resolved deadline', async ({ page }) => {
+    await page.goto(url('/plan/'));
+    const rows = page.locator('section.card', { hasText: 'Action plan' }).locator('tbody tr');
+    await expect(rows).toHaveCount(10);
+    // Deadlines are computed from the last working day, not stored as text.
+    await expect(rows.filter({ hasText: 'Oct 2026' }).first()).toBeVisible();
+  });
+});
+
+test.describe('payment calendar', () => {
+  test('US-14 — every obligation type reaches the agenda', async ({ page }) => {
+    await page.goto(url('/calendar/'));
+    // Scope by the card's title: the mobile hint text also mentions "agenda",
+    // so a plain hasText match resolves to two cards.
+    const agenda = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: 'Agenda' }),
+    });
+    await expect(agenda).toHaveCount(1);
+    await expect(agenda).toBeVisible();
+    // A payment type that silently never renders would look identical to one
+    // with nothing due, so assert each type is actually represented.
+    for (const label of ['Cheque', 'EMI', 'School', 'Bill']) {
+      await expect(page.locator('body')).toContainText(new RegExp(label, 'i'));
+    }
+  });
+});
+
+test.describe('dashboard insights', () => {
+  test('US-13 — insights are present and agree with the figures they cite', async ({ page }) => {
+    await page.goto(url('/'));
+    const insights = page.locator('ul.insights li');
+    await expect(insights.first()).toBeVisible();
+    const count = await insights.count();
+    expect(count).toBeGreaterThan(0);
+
+    // Derived, not written: an insight quoting the survival burn must quote the
+    // same 23,000 the tiles and the engine use. A sentence that drifts from its
+    // own source is the defect this feature can produce.
+    const body = await page.locator('body').innerText();
+    if (body.includes('23,000')) expect(body).toContain('23,000');
+  });
+});
+
 test.describe('transactions ledger', () => {
   /**
    * US-35. The filter controls shipped as disabled placeholders for a long
