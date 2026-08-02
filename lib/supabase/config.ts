@@ -45,3 +45,31 @@ export const SUPABASE_PUBLISHABLE_KEY =
 export function isSupabaseConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 }
+
+/**
+ * Whether this deployment set its own credentials, or fell back to the ones
+ * committed above (HAD-75).
+ *
+ * There used to be a *second* `isSupabaseConfigured()` in `lib/data/store.ts`
+ * that read `process.env` with no fallback. The two disagreed, and Settings
+ * printed the wrong one: on a deployment with no environment variables — which
+ * is production — the screen said **"Supabase project: ✕ Not configured"**
+ * while sign-in worked perfectly against the committed default. The screen
+ * stated the opposite of the truth.
+ *
+ * Deleting the duplicate fixes the contradiction and would make Settings say
+ * "Configured" always, which is barely more honest: it reports that a constant
+ * exists, not that a deployment was set up. So the question is split in two.
+ * "Can this app reach Supabase" is `isSupabaseConfigured`. "Is it reaching a
+ * project this deployment chose" is this.
+ *
+ * The distinction is not cosmetic. Every preview build and every fork inherits
+ * the committed default, so they all point at the same project — and a person
+ * signing in to a preview URL is creating an account in the real one. That is
+ * worth saying on the screen rather than leaving to be discovered.
+ */
+export function isUsingCommittedDefault(): boolean {
+  return (
+    SUPABASE_URL === DEFAULT_URL || SUPABASE_PUBLISHABLE_KEY === DEFAULT_PUBLISHABLE_KEY
+  );
+}

@@ -279,6 +279,48 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('settings — which Supabase project (HAD-75)', () => {
+  const backend = (page: Page) =>
+    page.locator('section.card').filter({ has: page.locator('.card-title', { hasText: /^Backend$/ }) });
+
+  test('does not claim "Not configured" while sign-in works', async ({ page }) => {
+    /*
+     * The defect. Two `isSupabaseConfigured()` functions disagreed: one read
+     * `process.env` with no fallback and was printed here, the other read the
+     * committed defaults and decided whether sign-in actually worked. On a
+     * deployment with no environment variables — which is this one — the screen
+     * said "Not configured" while signing in worked perfectly.
+     *
+     * Asserted against the *sign-in* screen rather than in isolation, because
+     * the bug was the disagreement between them, not either answer alone.
+     */
+    await page.goto(url('/settings/'));
+    const settingsSaysNotConfigured = await backend(page).getByText('Not configured').count();
+
+    await page.goto(url('/sign-in/'));
+    const signInWorks = await page.getByRole('button', { name: /Sign in/ }).count();
+
+    expect(
+      settingsSaysNotConfigured === 0 || signInWorks === 0,
+      'Settings must not say "Not configured" on a deployment where sign-in is live',
+    ).toBe(true);
+  });
+
+  test('says which project it is reaching, not merely that one exists', async ({ page }) => {
+    /*
+     * Deleting the duplicate alone would make this row say "Configured" always,
+     * which reports that a constant exists rather than that a deployment was
+     * set up. It now distinguishes the two, and warns when the committed
+     * default is in use — because every preview and fork inherits it, so an
+     * account created on a preview URL is an account in the real project.
+     */
+    await page.goto(url('/settings/'));
+    const card = backend(page);
+    const row = card.locator('tbody tr', { hasText: 'Supabase project' }).first();
+    await expect(row).toContainText(/Shared default|This deployment/);
+  });
+});
+
 test.describe('settings — password', () => {
   const card = (page: Page) =>
     page.locator('section.card').filter({ has: page.locator('.card-title', { hasText: /^Passwords$/ }) });

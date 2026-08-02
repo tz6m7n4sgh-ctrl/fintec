@@ -89,13 +89,6 @@ export interface ReadModel {
   isSeedData: boolean;
 }
 
-/** True once Supabase credentials are configured. */
-export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  );
-}
-
 /** The §11 reference dataset, used whenever there is no live data to show. */
 const SEED_DATA: LiveData = {
   profile: SEED_PROFILE,
