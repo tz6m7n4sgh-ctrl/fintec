@@ -17,6 +17,7 @@
  * precision silently. `num()` is the single conversion point.
  */
 
+import type { CategoryRule } from '@/lib/engine/categorise';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   BudgetCategory,
@@ -47,6 +48,12 @@ export interface LiveData {
   transactions: Transaction[];
   uploads: StatementUpload[];
   checklist: ChecklistItem[];
+  /**
+   * Keyword categorisation rules (US-32). The table has existed since 0001 and
+   * nothing loaded it until HAD-11 — the fourth column of its kind this
+   * session, after dedupe_hash, matched_scheduled_payment_id and atRisk.
+   */
+  categoryRules: CategoryRule[];
 }
 
 /**
@@ -89,7 +96,7 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
   if (!profileRow) return null;
   if (!isComputableProfile(profileRow)) return null;
 
-  const [budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist] =
+  const [budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist, categoryRules] =
     await Promise.all([
       supabase.from('budget_categories').select('*').order('sort_order'),
       supabase.from('debts').select('*').order('created_at'),
@@ -100,6 +107,8 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       supabase.from('transactions').select('*').order('date', { ascending: false }),
       supabase.from('statement_uploads').select('*').order('created_at', { ascending: false }),
       supabase.from('checklist_items').select('*').order('sort_order'),
+      // Ordered so the engine's tie-breaks are reached with a stable input.
+      supabase.from('category_rules').select('*').order('priority'),
     ]);
 
   /*
@@ -111,7 +120,7 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
    * confident and become wrong, which is this project's most expensive failure
    * mode and the one worth failing loudly on.
    */
-  const results = { budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist };
+  const results = { budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist, categoryRules };
   for (const [name, result] of Object.entries(results)) {
     if (result.error) throw new Error(`Failed to read ${name}: ${result.error.message}`);
   }
@@ -235,6 +244,12 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       detail: r.detail,
       deadlineKey: r.deadline_key ?? undefined,
       done: r.done,
+    })),
+    categoryRules: (categoryRules.data ?? []).map((r) => ({
+      id: r.id,
+      keyword: r.keyword,
+      categoryId: r.category_id,
+      priority: r.priority,
     })),
   };
 }

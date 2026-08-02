@@ -279,6 +279,40 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('budget — categorisation rules', () => {
+  const rulesCard = (page: import('@playwright/test').Page) =>
+    page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Categorisation rules$/ }),
+    });
+
+  test('US-32 — signed out, rules are read-only and say why', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const card = rulesCard(page);
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add a rule' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit rule / })).toHaveCount(0);
+  });
+
+  test('US-32 — rules render in the order the engine evaluates them', async ({ page }) => {
+    /*
+     * The table is the explanation. `ADCB CAR LOAN` and `ADCB` would resolve by
+     * specificity at equal priority, so showing rules in creation order would
+     * leave the user deriving precedence from two columns in their head.
+     */
+    await page.goto(url('/budget/'));
+    const rows = rulesCard(page).locator('tbody tr');
+    await expect(rows.first()).toContainText('ADCB CAR LOAN');
+  });
+
+  test('US-32 — a rule suggests a category in the review inbox', async ({ page }) => {
+    // End to end: the DEWA rule sorts into Utilities, and the pending DEWA
+    // transaction on /statements/ must arrive already suggesting it.
+    await page.goto(url('/budget/'));
+    await expect(rulesCard(page)).toContainText('DEWA');
+    await expect(rulesCard(page).locator('tbody tr', { hasText: 'DEWA' })).toContainText('Utilities');
+  });
+});
+
 test.describe('statements — review inbox', () => {
   const inbox = (page: import('@playwright/test').Page) =>
     page.locator('section.card').filter({

@@ -15,6 +15,7 @@ import type { LiveData } from './repository';
 import { computeReadiness, currentSpend, schoolFeeObligations, survivalSpend } from '@/lib/engine/uae';
 import { monthlyActuals, projectCash } from '@/lib/engine/projection';
 import { applySettlement } from '@/lib/engine/settle';
+import type { CategoryRule } from '@/lib/engine/categorise';
 import { scoreReadiness } from '@/lib/engine/readiness';
 import type { MonthlyActual, Projection } from '@/lib/engine/projection';
 import type { ReadinessScore } from '@/lib/engine/readiness';
@@ -37,6 +38,7 @@ import {
   SEED_PROFILE,
   SEED_SCHOOL_FEES,
   SEED_TRANSACTIONS,
+  SEED_CATEGORY_RULES,
   SEED_UPLOADS,
 } from './seed';
 import type { BankAccount, ChecklistItem, StatementUpload, Transaction } from './seed';
@@ -60,6 +62,8 @@ export interface ReadModel {
   transactions: Transaction[];
   uploads: StatementUpload[];
   checklist: ChecklistItem[];
+  /** Keyword categorisation rules (US-32). Proposals derive from these. */
+  categoryRules: CategoryRule[];
 
   // Derived
   readiness: Readiness;
@@ -90,6 +94,7 @@ const SEED_DATA: LiveData = {
   accounts: SEED_ACCOUNTS,
   transactions: SEED_TRANSACTIONS,
   uploads: SEED_UPLOADS,
+  categoryRules: SEED_CATEGORY_RULES,
   checklist: SEED_CHECKLIST,
 };
 
