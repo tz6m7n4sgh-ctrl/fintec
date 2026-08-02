@@ -222,6 +222,7 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       categoryId: r.category_id ?? undefined,
       source: r.source,
       matchedScheduledPaymentId: r.matched_scheduled_payment_id ?? undefined,
+      matchedIncomeStreamId: r.matched_income_stream_id ?? undefined,
       isDuplicate: r.is_duplicate,
       reviewStatus: r.review_status,
     })),

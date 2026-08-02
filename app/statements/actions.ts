@@ -274,7 +274,7 @@ export async function confirmTransaction(
    */
   const { data: row, error: readError } = await supabase
     .from('transactions')
-    .select('category_id, matched_scheduled_payment_id, review_status')
+    .select('category_id, matched_scheduled_payment_id, matched_income_stream_id, review_status')
     .eq('id', id)
     .maybeSingle();
 
@@ -288,16 +288,30 @@ export async function confirmTransaction(
   // Empty string is not a uuid; the columns are nullable foreign keys.
   const categoryId = String(form.get('categoryId') ?? '').trim() || null;
   const matchId = String(form.get('matchedScheduledPaymentId') ?? '').trim() || null;
+  const incomeId = String(form.get('matchedIncomeStreamId') ?? '').trim() || null;
+
+  /*
+   * A row cannot claim both. The database refuses it too
+   * (`transactions_one_match_kind`), and the reason is worth stating: a debit
+   * cannot arrive from a salary and a credit cannot pay a cheque, so a row
+   * with both is a confusion about direction — and the consequence would be a
+   * payment marked paid by money coming *in*.
+   */
+  if (matchId && incomeId) {
+    return fail('A transaction is either a payment or income, not both. Reload the page and try again.');
+  }
 
   const changed =
     categoryId !== (row.category_id ?? null) ||
-    matchId !== (row.matched_scheduled_payment_id ?? null);
+    matchId !== (row.matched_scheduled_payment_id ?? null) ||
+    incomeId !== (row.matched_income_stream_id ?? null);
 
   const { error } = await supabase
     .from('transactions')
     .update({
       category_id: categoryId,
       matched_scheduled_payment_id: matchId,
+      matched_income_stream_id: incomeId,
       review_status: reviewStatusFor(changed),
     })
     .eq('id', id);
