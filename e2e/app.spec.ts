@@ -279,6 +279,29 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('statements — uploads', () => {
+  test('US-28 — signed out, uploading is disabled and says why', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Uploads$/ }),
+    });
+    await expect(card).toContainText('Sign in to upload your own');
+    // No write affordance may appear without a session. The storage policy
+    // namespaces every object by user id, so there is no path to upload to.
+    await expect(card.getByRole('button', { name: 'Upload a statement' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Delete / })).toHaveCount(0);
+    await expect(card.locator('input[type="file"]')).toHaveCount(0);
+  });
+
+  test('US-28 — the LLM warning is on the page that sends the file', async ({ page }) => {
+    // NFR-1 / the consent this screen owes the user. Statements are the most
+    // sensitive thing this app holds and parsing sends their contents out of
+    // the database; the warning must not be reachable only by scrolling past.
+    await page.goto(url('/statements/'));
+    await expect(page.locator('body')).toContainText('read by an LLM');
+  });
+});
+
 test.describe('loans', () => {
   test('US-19 — signed out, the debts table is read-only and says why', async ({ page }) => {
     await page.goto(url('/loans/'));

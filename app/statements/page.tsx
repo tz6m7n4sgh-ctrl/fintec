@@ -1,5 +1,6 @@
 import { Card, Empty, PageHead } from '@/components/ui';
 import { TransactionsLedger } from './TransactionsLedger';
+import { UploadsEditor } from './UploadsEditor';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { money } from '@/lib/format/money';
@@ -57,6 +58,13 @@ export default async function StatementsPage() {
       </Card>
 
       <Card title="Uploads" sub={`${m.uploads.length} files · re-uploading the same file creates zero duplicate transactions`}>
+        {m.isSeedData ? (
+        <>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+          These are the §11 reference figures. <b>Sign in to upload your own</b> — uploading is
+          disabled here because there is no account to file a statement against, and the storage
+          policy namespaces every file by user id.
+        </p>
         <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
@@ -89,6 +97,10 @@ export default async function StatementsPage() {
             </tbody>
           </table>
         </div>
+        </>
+        ) : (
+          <UploadsEditor uploads={m.uploads} accounts={m.accounts} />
+        )}
       </Card>
 
       <Card
