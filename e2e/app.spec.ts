@@ -279,6 +279,36 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('statements — review inbox', () => {
+  const inbox = (page: import('@playwright/test').Page) =>
+    page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Review inbox$/ }),
+    });
+
+  test('US-31 — signed out, confirming is disabled and says why', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = inbox(page);
+    await expect(card).toContainText('Sign in to review your own');
+    await expect(card.getByRole('button', { name: /^Confirm/ })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Discard / })).toHaveCount(0);
+  });
+
+  test('US-31 — the card states that pending rows count toward nothing', async ({ page }) => {
+    /*
+     * R-2's safety net, asserted where the user reads it. `monthlyActuals()`
+     * skips anything pending — that is pinned in projection.test.ts — and this
+     * is the sentence that tells a person so before they confirm.
+     *
+     * The stale legend that used to sit here said bulk confirm "becomes
+     * available once sign-in and persistence are wired up". Both are wired up
+     * now, so that claim had to go rather than be left to rot into a lie.
+     */
+    await page.goto(url('/statements/'));
+    await expect(inbox(page)).toContainText('do NOT count in any dashboard figure yet');
+    await expect(page.locator('body')).not.toContainText('once sign-in and persistence are wired up');
+  });
+});
+
 test.describe('statements — uploads', () => {
   test('US-28 — signed out, uploading is disabled and says why', async ({ page }) => {
     await page.goto(url('/statements/'));

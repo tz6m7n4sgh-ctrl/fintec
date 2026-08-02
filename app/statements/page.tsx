@@ -1,6 +1,7 @@
 import { Card, Empty, PageHead } from '@/components/ui';
 import { TransactionsLedger } from './TransactionsLedger';
 import { UploadsEditor } from './UploadsEditor';
+import { ReviewInbox } from './ReviewInbox';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { money } from '@/lib/format/money';
@@ -109,44 +110,63 @@ export default async function StatementsPage() {
       >
         {pending.length === 0 ? (
           <Empty>Nothing to review. New parsed transactions will appear here.</Empty>
+        ) : m.isSeedData ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+              These are the §11 reference figures. <b>Sign in to review your own</b> — confirming
+              is disabled here because there is no account whose figures it would move.
+            </p>
+            <div className="tbl-wrap" tabIndex={0}>
+              <table className="wide">
+                <thead>
+                  <tr>
+                    <th>Date</th><th>Description</th><th>Account</th>
+                    <th className="r">Amount</th><th>Proposed match</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.map((t) => {
+                    const match = t.matchedScheduledPaymentId
+                      ? m.payments.find((p) => p.id === t.matchedScheduledPaymentId)
+                      : undefined;
+                    return (
+                      <tr key={t.id}>
+                        <td className="tnum">{formatDate(t.date)}</td>
+                        <td className="payee">{t.description}</td>
+                        <td>{accountName(t.bankAccountId)}</td>
+                        <td className="r amt tnum">
+                          {t.direction === 'debit' ? '−' : '+'}{money(t.amount)}
+                        </td>
+                        <td>
+                          {match
+                            ? <span className="pill ok"><span aria-hidden>✓</span> {match.payee}</span>
+                            : <span className="pill">Uncategorised</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
-          <div className="tbl-wrap" tabIndex={0}>
-            <table className="wide">
-              <thead>
-                <tr>
-                  <th>Date</th><th>Description</th><th>Account</th>
-                  <th className="r">Amount</th><th>Proposed match</th><th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.map((t) => {
-                  const match = t.matchedScheduledPaymentId
-                    ? m.payments.find((p) => p.id === t.matchedScheduledPaymentId)
-                    : undefined;
-                  return (
-                    <tr key={t.id}>
-                      <td className="tnum">{formatDate(t.date)}</td>
-                      <td className="payee">{t.description}</td>
-                      <td>{accountName(t.bankAccountId)}</td>
-                      <td className="r amt tnum">
-                        {t.direction === 'debit' ? '−' : '+'}{money(t.amount)}
-                      </td>
-                      <td>
-                        {match
-                          ? <span className="pill ok"><span aria-hidden>✓</span> {match.payee}</span>
-                          : <span className="pill">Uncategorised</span>}
-                      </td>
-                      <td><button className="btn" disabled>Confirm</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ReviewInbox
+            rows={pending.map((t) => ({
+              id: t.id,
+              date: t.date,
+              description: t.description,
+              accountLabel: accountName(t.bankAccountId),
+              amount: t.amount,
+              direction: t.direction,
+              categoryId: t.categoryId,
+              matchedScheduledPaymentId: t.matchedScheduledPaymentId,
+              matchLabel: t.matchedScheduledPaymentId
+                ? m.payments.find((p) => p.id === t.matchedScheduledPaymentId)?.payee
+                : undefined,
+            }))}
+            categories={m.budget.map((c) => ({ id: c.id, label: c.name }))}
+          />
         )}
-        <div className="legend">
-          <span className="key">Bulk confirm becomes available once sign-in and persistence are wired up.</span>
-        </div>
       </Card>
 
       <Card title="Transactions ledger" sub={`${confirmed.length} confirmed transactions`}>

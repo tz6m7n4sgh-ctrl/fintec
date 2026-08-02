@@ -215,3 +215,172 @@ export async function statementDownloadUrl(
   if (error || !data) return fail(explain(error?.message ?? 'Could not produce a download link.'));
   return { ok: true, url: data.signedUrl };
 }
+
+// ---------------------------------------------------------------------------
+// Review inbox (US-31 / HAD-21 / R-2)
+// ---------------------------------------------------------------------------
+
+export interface ReviewResult {
+  ok: boolean;
+  error?: string;
+  id?: string;
+  /** How many rows a bulk action actually changed. */
+  count?: number;
+}
+
+/**
+ * Confirming is the moment a parsed row starts counting.
+ *
+ * Until then `monthlyActuals()` skips it — `reviewStatus === 'pending'`
+ * continues, verified rather than assumed. That skip is the whole safety net
+ * for R-2: an LLM reading a bank statement can misread an amount, and a wrong
+ * figure that silently moves a dashboard is the failure this app exists to
+ * avoid. Confirmation is a human saying the number is right.
+ *
+ * So these actions only ever move a row *into* counting, one deliberate act at
+ * a time, and the screen says what confirming will do before it is done.
+ */
+
+/**
+ * `confirmed` means accepted as parsed; `edited` means accepted with changes.
+ *
+ * The enum has carried three values since 0001 and only two were ever used.
+ * The distinction is an audit trail: six months on, "did I check this figure
+ * or did the model produce it?" is answerable, and "I corrected this one" is
+ * different from "I agreed with it".
+ */
+function reviewStatusFor(changed: boolean): 'confirmed' | 'edited' {
+  return changed ? 'edited' : 'confirmed';
+}
+
+/** Confirms one row, optionally with a corrected category or payment match. */
+export async function confirmTransaction(
+  _prev: ReviewResult,
+  form: FormData,
+): Promise<ReviewResult> {
+  const id = String(form.get('id') ?? '').trim();
+  const fail = (error: string): ReviewResult => ({ ok: false, error, id });
+  if (!id) return fail('Nothing to confirm.');
+
+  const c = await client();
+  if (!c.ok) return fail(c.error);
+  const { supabase } = c;
+
+  /*
+   * Read the row back rather than trusting the form's idea of what was parsed.
+   * The page may have been open for an hour; deciding `edited` versus
+   * `confirmed` against a stale copy would record that somebody corrected a
+   * value they never saw.
+   */
+  const { data: row, error: readError } = await supabase
+    .from('transactions')
+    .select('category_id, matched_scheduled_payment_id, review_status')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (readError) return fail(explain(readError.message));
+  if (!row) return fail('That transaction no longer exists. Reload the page.');
+  if (row.review_status !== 'pending') {
+    // Not an error worth alarming anyone about — a double submit, or two tabs.
+    return { ok: true, id, count: 0 };
+  }
+
+  // Empty string is not a uuid; the columns are nullable foreign keys.
+  const categoryId = String(form.get('categoryId') ?? '').trim() || null;
+  const matchId = String(form.get('matchedScheduledPaymentId') ?? '').trim() || null;
+
+  const changed =
+    categoryId !== (row.category_id ?? null) ||
+    matchId !== (row.matched_scheduled_payment_id ?? null);
+
+  const { error } = await supabase
+    .from('transactions')
+    .update({
+      category_id: categoryId,
+      matched_scheduled_payment_id: matchId,
+      review_status: reviewStatusFor(changed),
+    })
+    .eq('id', id);
+
+  if (error) return fail(explain(error.message));
+
+  // Confirming moves actual-spend, the budget comparison and the trend.
+  revalidatePath('/', 'layout');
+  return { ok: true, id, count: 1 };
+}
+
+/**
+ * Confirms every pending row as parsed.
+ *
+ * `.eq('review_status', 'pending')` is not redundant with RLS — it is what
+ * makes the action idempotent and what stops a second click re-stamping rows
+ * the user already corrected, turning an `edited` back into a `confirmed` and
+ * erasing the record that they changed something.
+ *
+ * No categories or matches are altered here. Bulk confirm means "these are all
+ * right as read", which is a different claim from correcting one, and mixing
+ * the two would let a fat-fingered bulk action overwrite deliberate edits.
+ */
+export async function confirmAllPending(
+  _prev: ReviewResult,
+  _form: FormData,
+): Promise<ReviewResult> {
+  const fail = (error: string): ReviewResult => ({ ok: false, error });
+
+  const c = await client();
+  if (!c.ok) return fail(c.error);
+
+  const { data, error } = await c.supabase
+    .from('transactions')
+    .update({ review_status: 'confirmed' })
+    .eq('review_status', 'pending')
+    .eq('is_duplicate', false)
+    .select('id');
+
+  if (error) return fail(explain(error.message));
+
+  revalidatePath('/', 'layout');
+  return { ok: true, count: data?.length ?? 0 };
+}
+
+/**
+ * Discards a row the parser got wrong.
+ *
+ * Not in US-31's acceptance criteria, and included anyway for a reason worth
+ * stating: without it a misread row has nowhere to go. It would sit pending
+ * forever, which is *safe* — pending rows count toward nothing — but it turns
+ * the inbox into a list of things you cannot act on, and an inbox nobody can
+ * empty is an inbox nobody reads. R-2's safety net only works if the screen
+ * stays worth opening.
+ *
+ * A delete rather than a status, because the row is wrong: keeping it would
+ * occupy its `dedupe_hash` and stop the corrected version being inserted on a
+ * re-parse.
+ */
+export async function discardTransaction(
+  _prev: ReviewResult,
+  form: FormData,
+): Promise<ReviewResult> {
+  const id = String(form.get('id') ?? '').trim();
+  const fail = (error: string): ReviewResult => ({ ok: false, error, id });
+  if (!id) return fail('Nothing to discard.');
+
+  const c = await client();
+  if (!c.ok) return fail(c.error);
+
+  /*
+   * Only a pending row. A confirmed transaction is part of the user's actual
+   * spending history and deleting it from this screen would quietly change a
+   * figure they had already agreed to.
+   */
+  const { error } = await c.supabase
+    .from('transactions')
+    .delete()
+    .eq('id', id)
+    .eq('review_status', 'pending');
+
+  if (error) return fail(explain(error.message));
+
+  revalidatePath('/', 'layout');
+  return { ok: true, id, count: 1 };
+}
