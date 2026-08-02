@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
+import { EraseData } from './EraseData';
 import { signOut } from '@/app/auth/actions';
 import { getReadModel, isSupabaseConfigured } from '@/lib/data/store';
 
@@ -156,14 +157,22 @@ export default async function SettingsPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
           <button className="btn" disabled>Export all data (JSON)</button>
           <button className="btn" disabled>Import from JSON</button>
-          <button className="btn" disabled style={{ borderColor: 'color-mix(in oklab, var(--critical) 45%, transparent)', color: 'var(--critical-ink)' }}>
-            Delete all data
-          </button>
         </div>
-        <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12, marginBottom: 0 }}>
-          Delete removes every row and every uploaded statement file from storage. It cannot be
-          undone.
+        <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
+          Export and import are not built yet (HAD-15). The buttons stay disabled rather than
+          appearing to work.
         </p>
+
+        <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '16px 0' }} />
+
+        {m.isSeedData ? (
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginBottom: 0 }}>
+            <b>Sign in to erase your data.</b> There is nothing to delete here — this is the §11
+            reference dataset, which is not stored anywhere and reappears on every visit.
+          </p>
+        ) : (
+          <EraseData />
+        )}
       </Card>
     </>
   );
