@@ -32,12 +32,32 @@ if (reports.length === 0) {
   process.exit(0);
 }
 
-// One run per URL is enough — repeat runs of the same URL fail the same audits.
+/*
+ * Every run per URL, not one.
+ *
+ * This used to keep whichever report the filesystem listed first and discard
+ * the rest, on the reasoning that repeat runs of the same URL fail the same
+ * audits. They do — but they do not score the same, and since the category
+ * gates became **median**-graded that difference is the whole story.
+ *
+ * The run that exposed it printed `performance: 0.79` beside a passing build.
+ * Both were true: 0.79 was one arbitrary run, and the median cleared 0.90. A
+ * diagnostic that shows one number next to a gate that measured a different one
+ * invites exactly the wrong conclusion, in either direction.
+ */
 const byUrl = new Map();
 for (const file of reports) {
   const lhr = JSON.parse(readFileSync(join(DIR, file), 'utf8'));
   const url = lhr.finalDisplayedUrl ?? lhr.finalUrl;
-  if (!byUrl.has(url)) byUrl.set(url, lhr);
+  if (!byUrl.has(url)) byUrl.set(url, []);
+  byUrl.get(url).push(lhr);
+}
+
+/** The value lhci actually asserts against. */
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 // A diagnostic must never be the thing that fails the job.
@@ -46,20 +66,38 @@ process.on('uncaughtException', (err) => {
   process.exit(0);
 });
 
-const first = [...byUrl.values()][0];
+const first = [...byUrl.values()][0][0];
 console.log(`Lighthouse ${first.lighthouseVersion} · ${first.environment?.hostUserAgent ?? 'unknown UA'}\n`);
 
-for (const [url, lhr] of byUrl) {
-  console.log(`=== ${url} ===`);
+for (const [url, runs] of byUrl) {
+  console.log(`=== ${url} · ${runs.length} run(s) ===`);
+
+  /*
+   * Audits come from the worst run so nothing is hidden, while the score line
+   * shows every run and the median. Reading the two together tells you both
+   * what is wrong and whether the gate has any headroom — which a single
+   * arbitrary run cannot.
+   */
   for (const name of CATEGORIES) {
+    if (!runs[0].categories[name]) continue;
+    const scores = runs.map((r) => r.categories[name]?.score ?? 0);
+    const worst = runs[scores.indexOf(Math.min(...scores))];
+    const lhr = worst;
     const category = lhr.categories[name];
-    if (!category) continue;
 
     const failed = category.auditRefs
       .map((ref) => ({ ref, audit: lhr.audits[ref.id] }))
       .filter(({ audit }) => audit && audit.score !== null && audit.score < 1);
 
-    console.log(`  ${name}: ${category.score}`);
+    const med = median(scores);
+    const spread = Math.max(...scores) - Math.min(...scores);
+    console.log(
+      `  ${name}: median ${med.toFixed(2)}  runs [${scores.map((n) => n.toFixed(2)).join(', ')}]` +
+        // A wide spread is worth naming: a gate at 0.90 with a 0.11 swing goes
+        // red on a bad-luck day with no code change, and that is worth knowing
+        // before it happens rather than after.
+        (spread >= 0.05 ? `  ← spread ${spread.toFixed(2)}, this gate is flaky` : ''),
+    );
     for (const { ref, audit } of failed) {
       // weight 0 audits do not move the score, but still flag a real problem.
       console.log(`    - ${ref.id} (score ${audit.score}, weight ${ref.weight}) — ${audit.title}`);
