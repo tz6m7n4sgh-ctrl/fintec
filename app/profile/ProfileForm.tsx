@@ -27,6 +27,7 @@ function Field({
   help,
   type = 'number',
   step,
+  required,
 }: {
   name: string;
   label: string;
@@ -34,12 +35,16 @@ function Field({
   help?: string;
   type?: string;
   step?: string;
+  required?: boolean;
 }) {
   const id = `f-${name}`;
   const helpId = `${id}-help`;
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label}
+        {required ? <span aria-hidden> *</span> : null}
+      </label>
       <input
         id={id}
         name={name}
@@ -47,6 +52,8 @@ function Field({
         step={step}
         min={type === 'number' ? 0 : undefined}
         defaultValue={defaultValue}
+        required={required}
+        aria-required={required || undefined}
         aria-describedby={help ? helpId : undefined}
       />
       {help ? <div className="help" id={helpId}>{help}</div> : null}
@@ -116,10 +123,10 @@ export function ProfileForm({ profile, isSeedData }: { profile: Profile; isSeedD
           help="From your MOHRE contract. Gratuity, leave encashment and ILOE all use BASIC — never gross." />
         <Field name="grossSalary" label="Gross salary (monthly)" defaultValue={v(profile.grossSalary, '')}
           help="Basic plus allowances. Used only for notice paid in lieu. Cannot be less than basic." />
-        <Field name="employmentStart" label="Employment start" type="date" defaultValue={v(profile.employmentStart, '')}
-          help="Service length is counted from here, which sets your gratuity." />
-        <Field name="expectedLastDay" label="Expected last day" type="date" defaultValue={v(profile.expectedLastDay, '')}
-          help="Every deadline in the app is counted from this date." />
+        <Field name="employmentStart" label="Employment start" type="date" required defaultValue={v(profile.employmentStart, '')}
+          help="Required. Service length is counted from here, which sets your gratuity." />
+        <Field name="expectedLastDay" label="Expected last day" type="date" required defaultValue={v(profile.expectedLastDay, '')}
+          help="Required. Every deadline in the app is counted from this date." />
         <Field name="unpaidLeaveDays" label="Unpaid leave days" defaultValue={v(profile.unpaidLeaveDays, 0)}
           help="Deducted from service days before gratuity is calculated." />
         <Field name="unusedLeaveDays" label="Unused annual leave days" defaultValue={v(profile.unusedLeaveDays, 0)}

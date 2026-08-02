@@ -518,6 +518,26 @@ test.describe('sign-in', () => {
     await expect(page).toHaveURL(/sign-in/);
   });
 
+  test('the two dates the engine cannot run without are marked required', async ({ page }) => {
+    /*
+     * Both date columns are nullable, and parseIso throws on null from inside
+     * getReadModel — which every screen calls. A profile saved with a blank
+     * date would 500 all ten screens including this one, leaving no way to
+     * correct it through the UI. The server action refuses that save; this
+     * asserts the browser refuses it first.
+     *
+     * Signed out there is no form, so this only runs where one is rendered.
+     */
+    await page.goto(url('/profile/'));
+    const start = page.locator('#f-employmentStart');
+    if ((await start.count()) === 0) {
+      await expect(page.locator('body')).toContainText('Reference profile, not yours');
+      return;
+    }
+    await expect(start).toHaveAttribute('required', '');
+    await expect(page.locator('#f-expectedLastDay')).toHaveAttribute('required', '');
+  });
+
   test('the profile screen sends a signed-out visitor to sign in', async ({ page }) => {
     await page.goto(url('/profile/'));
     // Signed out, the figures shown are the reference profile, and the screen

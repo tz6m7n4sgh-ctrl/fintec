@@ -50,12 +50,32 @@ export interface LiveData {
 }
 
 /**
+ * True once a profile can actually be computed from.
+ *
+ * `employment_start` and `expected_last_day` are nullable in the schema and the
+ * form does not force them, but every deadline, the service period and the
+ * whole gratuity calculation are counted from them. `parseIso` throws on null,
+ * and it is reached from `getReadModel`, which every screen calls — so a
+ * profile saved without dates would take out the entire app, *including the
+ * profile screen needed to repair it*. There is no way back from that through
+ * the UI.
+ *
+ * So an incomplete profile is treated exactly like a missing one: fall back to
+ * the seed and say so. The write path refuses to create this state; this is the
+ * guard for rows that predate that check.
+ */
+export function isComputableProfile(row: { employment_start: unknown; expected_last_day: unknown }): boolean {
+  return typeof row.employment_start === 'string' && typeof row.expected_last_day === 'string';
+}
+
+/**
  * Loads everything the read model needs for the signed-in user.
  *
- * Returns `null` when there is no profile row. That is the honest answer for a
- * newly created account: the engine cannot compute a gratuity without a salary
- * or an employment start date, and inventing defaults would produce confident
- * figures about nothing. The caller falls back to the seed and says so.
+ * Returns `null` when there is no profile row, or when the one there cannot be
+ * computed from. That is the honest answer for a newly created account: the
+ * engine cannot compute a gratuity without a salary or an employment start
+ * date, and inventing defaults would produce confident figures about nothing.
+ * The caller falls back to the seed and says so.
  */
 export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData | null> {
   const { data: profileRow, error } = await supabase
@@ -67,6 +87,7 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
   // rejection, network) is not — surface it rather than silently seeding.
   if (error) throw new Error(`Failed to read profile: ${error.message}`);
   if (!profileRow) return null;
+  if (!isComputableProfile(profileRow)) return null;
 
   const [budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist] =
     await Promise.all([
@@ -80,6 +101,20 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       supabase.from('statement_uploads').select('*').order('created_at', { ascending: false }),
       supabase.from('checklist_items').select('*').order('sort_order'),
     ]);
+
+  /*
+   * Supabase resolves a failed query as `{ data: null, error }` rather than
+   * rejecting, so Promise.all succeeds even when half of these did not. Reading
+   * `.data ?? []` past that turns a transient network blip, a missing migration
+   * or a policy problem into an empty table — and an empty `debts` is not an
+   * error on any screen, it is simply someone with no debts. The figures stay
+   * confident and become wrong, which is this project's most expensive failure
+   * mode and the one worth failing loudly on.
+   */
+  const results = { budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist };
+  for (const [name, result] of Object.entries(results)) {
+    if (result.error) throw new Error(`Failed to read ${name}: ${result.error.message}`);
+  }
 
   const profile: Profile = {
     basicSalary: num(profileRow.basic_salary),

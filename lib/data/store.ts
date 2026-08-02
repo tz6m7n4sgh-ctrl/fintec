@@ -111,7 +111,24 @@ export async function getReadModel(): Promise<ReadModel> {
     const supabase = await createClient();
     if (supabase) {
       const live = await loadLiveData(supabase);
-      if (live) {
+      /*
+       * A profile row is not enough to go live on. Runway is resources divided
+       * by monthly burn, and burn comes entirely from `budget`. With no budget
+       * rows the burn is zero, and zero burn does not read as "no data":
+       * `uae.ts:220` returns `Infinity`, the hero tile prints **"Unlimited"**,
+       * and `scoreRunway` awards the **full 6 of 6** — so the readiness score
+       * is inflated at the same time.
+       *
+       * That is the worst output this app can produce: a confident wrong answer
+       * in the reassuring direction, on the one screen someone opens to find
+       * out how long their savings actually last.
+       *
+       * There is no per-user budget seeding yet and the budget screen is still
+       * read-only (US-23, HAD-19), so until a user can enter spending there is
+       * nothing to go live *on*. Staying on the seed keeps the "Reference data"
+       * banner up, which is the honest thing to show.
+       */
+      if (live && live.budget.length > 0) {
         data = live;
         isSeedData = false;
       }
