@@ -502,6 +502,9 @@ test.describe('sign-in and sign-up', () => {
      */
     await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'new-password');
     await expect(page.locator('#confirm')).toHaveAttribute('autocomplete', 'new-password');
+    // `username`, not `email` — this field identifies the account, and it is
+    // what the manager pairs with the password when deciding what to save.
+    await expect(page.locator('#email')).toHaveAttribute('autocomplete', 'username');
 
     expect(problems).toEqual([]);
   });
@@ -545,8 +548,16 @@ test.describe('sign-in and sign-up', () => {
     // Scoped to the form's own error card: Next's route announcer is also
     // role="alert", and an unscoped match resolves to both.
     await expect(page.locator('.card[role="alert"]')).toContainText('do not match');
-    // Still on the form, with the address kept — retyping it is pure friction.
     await expect(page).toHaveURL(/sign-up/);
+
+    /*
+     * The address must survive the rejection. React 19 resets an uncontrolled
+     * form once its action settles, so without an explicit defaultValue the
+     * email box empties on every failed attempt — and the failure most likely
+     * to repeat is a mistyped password, where clearing the address punishes the
+     * user for a mistake they did not make in that field.
+     */
+    await expect(page.locator('#email')).toHaveValue('someone@example.com');
   });
 
   test('nothing on either screen mentions a code, a link or an email being sent', async ({

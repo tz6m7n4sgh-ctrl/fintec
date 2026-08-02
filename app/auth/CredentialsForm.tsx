@@ -54,10 +54,26 @@ export function CredentialsForm({ mode }: { mode: 'signin' | 'signup' }) {
           id="email"
           name="email"
           type="email"
-          autoComplete={isSignUp ? 'email' : 'username'}
+          /*
+           * `username`, not `email`, on both screens. `email` is the hint for
+           * collecting an address as data; `username` is the hint for the field
+           * that identifies the account, which is what a password manager pairs
+           * with the password field when deciding what to save. Getting this
+           * wrong means the manager may store a password with no identifier
+           * attached — and in an app with no reset flow, a credential the
+           * manager did not capture properly is a lockout.
+           */
+          autoComplete="username"
           required
           aria-required="true"
           aria-describedby="email-help"
+          /*
+           * React 19 resets an uncontrolled form once its action settles, and a
+           * reset restores each input to its default value — so this is what
+           * keeps the address on screen after a rejection rather than clearing
+           * it. Empty on first render, which is correct.
+           */
+          defaultValue={state.email ?? ''}
         />
         <div className="help" id="email-help">
           {isSignUp

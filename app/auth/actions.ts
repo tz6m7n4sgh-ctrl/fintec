@@ -30,6 +30,19 @@ import { normaliseEmail, validateSignIn, validateSignUp } from '@/lib/auth/crede
 
 export interface AuthResult {
   error?: string;
+  /**
+   * The address that was submitted, echoed back so the form can refill it.
+   *
+   * React 19 resets an uncontrolled form once its action settles, so without
+   * this the email box empties on every rejection — and the rejection most
+   * likely to repeat is a mistyped password, which punishes the user in a field
+   * they got right. The form sets it as `defaultValue`, which is what a reset
+   * restores to.
+   *
+   * The password is deliberately NOT echoed. Putting it back into component
+   * state and into the DOM as an attribute is a worse trade than retyping it.
+   */
+  email?: string;
 }
 
 /** Nothing to sign in to. The pages render this state too, but the actions must
@@ -82,15 +95,18 @@ function explain(message: string): string {
 export async function signIn(_prev: AuthResult, form: FormData): Promise<AuthResult> {
   const email = normaliseEmail(String(form.get('email') ?? ''));
   const password = String(form.get('password') ?? '');
+  // Every failure carries the address back to the form. One helper so a new
+  // early return cannot quietly forget to.
+  const fail = (error: string): AuthResult => ({ error, email });
 
   const invalid = validateSignIn(email, password);
-  if (invalid) return { error: invalid };
+  if (invalid) return fail(invalid);
 
   const supabase = await createClient();
-  if (!supabase) return { error: NOT_CONFIGURED };
+  if (!supabase) return fail(NOT_CONFIGURED);
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: explain(error.message) };
+  if (error) return fail(explain(error.message));
 
   // The layout, the shell and every server-rendered screen read the session, so
   // the whole tree is stale the moment this succeeds.
@@ -111,15 +127,16 @@ export async function signUp(_prev: AuthResult, form: FormData): Promise<AuthRes
   const email = normaliseEmail(String(form.get('email') ?? ''));
   const password = String(form.get('password') ?? '');
   const confirm = String(form.get('confirm') ?? '');
+  const fail = (error: string): AuthResult => ({ error, email });
 
   const invalid = validateSignUp(email, password, confirm);
-  if (invalid) return { error: invalid };
+  if (invalid) return fail(invalid);
 
   const supabase = await createClient();
-  if (!supabase) return { error: NOT_CONFIGURED };
+  if (!supabase) return fail(NOT_CONFIGURED);
 
   const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) return { error: explain(error.message) };
+  if (error) return fail(explain(error.message));
 
   /*
    * With confirmations on, Supabase does not reject a duplicate sign-up — it
@@ -129,11 +146,11 @@ export async function signUp(_prev: AuthResult, form: FormData): Promise<AuthRes
    * the person actually sitting there.
    */
   if (data.user && data.user.identities?.length === 0) {
-    return { error: 'An account already exists for that email. Sign in instead.' };
+    return fail('An account already exists for that email. Sign in instead.');
   }
 
   // No session means the project is still gating on a confirmation email.
-  if (!data.session) return { error: CONFIRMATION_STILL_ON };
+  if (!data.session) return fail(CONFIRMATION_STILL_ON);
 
   revalidatePath('/', 'layout');
   // A new account has no figures in it, and every screen is computed from the
