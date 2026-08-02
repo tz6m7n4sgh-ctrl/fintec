@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { addDays, daysBetween, addMonths, formatDate, isWithin, todayInDubai } from './dates';
 import {
+  AUTO_ROW_ID,
   RULES,
   applyAutoRows,
   chequeExposure,
@@ -26,12 +27,15 @@ import {
   runway,
   runwayFrom,
   runwayStatus,
+  schoolFeeObligations,
   scenarios,
   servicePeriod,
   survivalSpend,
 } from './uae';
-import type { BudgetCategory, Debt, Profile, ScheduledPayment, SchoolFee } from './types';
-import { SEED_BUDGET, SEED_PROFILE } from '@/lib/data/seed';
+import type {
+  BudgetCategory, Debt, IncomeStream, Profile, ScheduledPayment, SchoolFee,
+} from './types';
+import { SEED_BUDGET, SEED_INCOME, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
 
 /** The §11 reference profile. */
 const REF: Profile = {
@@ -50,7 +54,6 @@ const REF: Profile = {
   iloeAvgBasic6m: 15_000,
   cashSavings: 80_000,
   otherLiquidAssets: 20_000,
-  monthlySideIncome: 0,
   dependents: 2,
   visaGraceDays: 90,
   healthCoverMonthsAfterEnd: 0,
@@ -139,21 +142,21 @@ describe('§11 acceptance table', () => {
   });
 
   it('totalResources = AED 220,479', () => {
-    expect(Math.round(runway(REF, refBudget()).totalResources)).toBe(220_479);
+    expect(Math.round(runway(REF, refBudget(), []).totalResources)).toBe(220_479);
   });
 
   it('netMonthlyBurn = AED 23,000', () => {
-    const r = runway(REF, refBudget());
+    const r = runway(REF, refBudget(), []);
     expect(r.survivalSpend).toBe(23_000);
     expect(r.netMonthlyBurn).toBe(23_000);
   });
 
   it('runwayMonths ≈ 9.6', () => {
-    expect(runway(REF, refBudget()).runwayMonths).toBeCloseTo(9.586, 3);
+    expect(runway(REF, refBudget(), []).runwayMonths).toBeCloseTo(9.586, 3);
   });
 
   it('scenario(12) ≈ −AED 55,521 → SHORTFALL', () => {
-    const s = scenarios(runway(REF, refBudget()));
+    const s = scenarios(runway(REF, refBudget(), []));
     const twelve = s.find((x) => x.months === 12)!;
     expect(Math.round(twelve.remaining)).toBe(-55_521);
     expect(twelve.shortfall).toBe(true);
@@ -207,8 +210,24 @@ describe('§11 edge cases', () => {
     expect(g.gratuity).toBe(240_000);
   });
 
+  /**
+   * A monthly stream with no end date — income the user expects to keep
+   * arriving through the job search. No `endDate` is the load-bearing part:
+   * `incomeAfterLastDay` asks what still pays on the day *after* the last
+   * working day, so a stream that ends with the job contributes nothing, which
+   * is exactly how the salary stream drops out.
+   */
+  const sideStream = (amount: number): IncomeStream => ({
+    id: 'inc-side-test',
+    name: 'Freelance',
+    amount,
+    frequency: 'monthly',
+    active: true,
+  });
+
   it('sideIncome ≥ survival spend → runway = ∞ (UI shows "Unlimited")', () => {
-    const r = runway({ ...REF, monthlySideIncome: 23_000 }, refBudget());
+    const r = runway(REF, refBudget(), [sideStream(23_000)]);
+    expect(r.monthlySideIncome).toBe(23_000);
     expect(r.netMonthlyBurn).toBe(0);
     expect(r.runwayMonths).toBe(Infinity);
     expect(Number.isFinite(r.runwayMonths)).toBe(false);
@@ -222,9 +241,54 @@ describe('§11 edge cases', () => {
   });
 
   it('sideIncome exceeding survival spend still floors burn at zero', () => {
-    const r = runway({ ...REF, monthlySideIncome: 40_000 }, refBudget());
+    const r = runway(REF, refBudget(), [sideStream(40_000)]);
     expect(r.netMonthlyBurn).toBe(0);
     expect(r.runwayMonths).toBe(Infinity);
+  });
+
+  /*
+   * HAD-80. The assertion the issue asked for by name: "one assertion that
+   * adding a side-income stream moves netMonthlyBurn, so the two can never
+   * silently diverge again."
+   *
+   * Before this, `runway()` read `profile.monthlySideIncome` and nothing read
+   * `income_streams`. Both were zero in the §11 seed, so every figure agreed
+   * and no test could tell. Once US-27 made streams editable, a user could add
+   * a 5,000 freelance stream, watch it appear in the table, and see runway sit
+   * exactly where it was.
+   */
+  it('adding a side-income stream moves netMonthlyBurn — HAD-80', () => {
+    const without = runway(REF, refBudget(), []);
+    const with5k = runway(REF, refBudget(), [sideStream(5_000)]);
+
+    expect(without.netMonthlyBurn).toBe(23_000);
+    expect(with5k.netMonthlyBurn).toBe(18_000);
+    expect(with5k.runwayMonths).toBeGreaterThan(without.runwayMonths);
+  });
+
+  it('a stream that ends with the job does not extend runway', () => {
+    // The salary itself is such a stream. If this failed, the first month of
+    // unemployment would look funded by the job that just ended.
+    const salary: IncomeStream = {
+      id: 'inc-salary', name: 'Salary', amount: 25_000, frequency: 'monthly',
+      endDate: REF.expectedLastDay, active: true,
+    };
+    expect(runway(REF, refBudget(), [salary]).netMonthlyBurn).toBe(23_000);
+  });
+
+  it('a one-off is not monthly income', () => {
+    // A single payment on a date is not a per-month figure. Counting it would
+    // overstate every month after the one it lands in.
+    const bonus: IncomeStream = {
+      id: 'inc-bonus', name: 'Bonus', amount: 50_000, frequency: 'oneOff', active: true,
+    };
+    expect(runway(REF, refBudget(), [bonus]).netMonthlyBurn).toBe(23_000);
+  });
+
+  it('an inactive stream contributes nothing', () => {
+    expect(
+      runway(REF, refBudget(), [{ ...sideStream(9_000), active: false }]).netMonthlyBurn,
+    ).toBe(23_000);
   });
 });
 
@@ -374,7 +438,7 @@ describe('cheque exposure', () => {
 
 describe('computeReadiness', () => {
   it('produces every §11 headline figure in one pass', () => {
-    const r = computeReadiness(REF, refBudget(), REF_CHEQUES);
+    const r = computeReadiness(REF, refBudget(), REF_CHEQUES, []);
     expect(Math.round(r.gratuity.gratuity)).toBe(87_479);
     expect(Math.round(r.settlement.finalSettlement)).toBe(93_479);
     expect(r.iloe.iloeTotal).toBe(27_000);
@@ -447,8 +511,8 @@ describe('date helpers', () => {
  */
 describe('runwayFrom', () => {
   it('matches runway() for the reference profile', () => {
-    const full = runway(SEED_PROFILE, SEED_BUDGET);
-    const direct = runwayFrom(full.totalResources, full.survivalSpend, SEED_PROFILE.monthlySideIncome);
+    const full = runway(SEED_PROFILE, SEED_BUDGET, SEED_INCOME);
+    const direct = runwayFrom(full.totalResources, full.survivalSpend, full.monthlySideIncome);
     expect(direct).toEqual(full);
   });
 
@@ -483,5 +547,143 @@ describe('runwayFrom', () => {
     const r = runwayFrom(0, 10_000, 0);
     expect(r.runwayMonths).toBe(0);
     expect(r.status).toBe('critical');
+  });
+});
+
+/**
+ * `applyAutoRows` creating a row that is not stored anywhere.
+ *
+ * Measured, not assumed: before this, `applyAutoRows` only *updated* rows that
+ * already carried an `autoSource`. Per-user budget rows are not seeded on
+ * sign-up (HAD-69), so a real user could add a mortgage, see it on the Loans
+ * screen, and watch the budget total, survival spend and runway ignore it
+ * entirely. Nothing would look broken — which is what makes it the shape of
+ * defect this project keeps producing.
+ */
+describe('applyAutoRows — derived rows for an unseeded budget', () => {
+  const debts: Debt[] = [
+    { id: 'd1', type: 'carLoan', name: 'Car', outstandingBalance: 50_000, monthlyPayment: 2_400, monthsRemaining: 20, lender: 'ADCB' },
+    { id: 'd2', type: 'mortgage', name: 'Home', outstandingBalance: 900_000, monthlyPayment: 3_600, monthsRemaining: 200, lender: 'FAB' },
+  ];
+  const fees: SchoolFee[] = [
+    { id: 'f1', child: 'A', school: 'GEMS', term: 'T1', dueDate: '2026-09-01', amount: 12_000, paidByCheque: true, paid: false },
+    { id: 'f2', child: 'A', school: 'GEMS', term: 'T2', dueDate: '2027-01-12', amount: 12_000, paidByCheque: true, paid: false },
+    { id: 'f3', child: 'A', school: 'GEMS', term: 'T3', dueDate: '2027-04-20', amount: 12_000, paidByCheque: true, paid: false },
+  ];
+  const plain: BudgetCategory[] = [
+    { id: 'c1', name: 'Groceries', currentAmount: 3_000, survivalAmount: 2_000, editable: true },
+  ];
+
+  it('derives the debts row when the budget has none', () => {
+    const out = applyAutoRows(plain, debts, []);
+    const row = out.find((c) => c.autoSource === 'debts');
+    expect(row).toBeDefined();
+    expect(row!.currentAmount).toBe(6_000);
+    expect(row!.survivalAmount).toBe(6_000);
+    expect(row!.editable).toBe(false);
+  });
+
+  it('a derived debt row reaches the survival total, and therefore runway', () => {
+    // The assertion that would have caught the gap: without the derived row,
+    // survivalSpend stays at 2,000 and the mortgage is invisible to runway.
+    const out = applyAutoRows(plain, debts, []);
+    expect(survivalSpend(out)).toBe(8_000);
+    expect(survivalSpend(applyAutoRows(plain, [], []))).toBe(2_000);
+  });
+
+  it('derives the school-fees row at annual ÷ 12', () => {
+    const row = applyAutoRows(plain, [], fees).find((c) => c.autoSource === 'schoolFees');
+    expect(row!.currentAmount).toBe(3_000);
+  });
+
+  it('does not duplicate a row the budget already stores', () => {
+    const stored: BudgetCategory[] = [
+      ...plain,
+      { id: 'c2', name: 'Loan & mortgage payments', currentAmount: 0, survivalAmount: 0, editable: false, autoSource: 'debts' },
+    ];
+    const out = applyAutoRows(stored, debts, []);
+    expect(out.filter((c) => c.autoSource === 'debts')).toHaveLength(1);
+    // The stored row is still the one that wins, updated to the live figure.
+    expect(out.find((c) => c.autoSource === 'debts')!.id).toBe('c2');
+    expect(out.find((c) => c.autoSource === 'debts')!.currentAmount).toBe(6_000);
+  });
+
+  it('adds nothing when there is nothing to derive', () => {
+    // A row reading AED 0 would be noise on a budget someone is trying to read.
+    expect(applyAutoRows(plain, [], [])).toHaveLength(1);
+  });
+
+  it('a derived row carries a non-uuid id, so nothing can write it by mistake', () => {
+    const row = applyAutoRows(plain, debts, []).find((c) => c.autoSource === 'debts')!;
+    expect(row.id).toBe(AUTO_ROW_ID.debts);
+    expect(row.id).not.toMatch(/^[0-9a-f-]{36}$/i);
+  });
+});
+
+/**
+ * HAD-81 — school-fee terms as dated obligations.
+ *
+ * Before this, `chequeExposure()` took `ScheduledPayment[]` and `SchoolFee` was
+ * not among its inputs, so a cheque-paid term reached the budget through
+ * `monthlySchoolFees()` and reached nothing else. The §11 figures hid it: the
+ * seed entered every cheque-paid term twice, in two tables. R-5 says a cheque
+ * the calendar does not show is the worst defect this app can produce.
+ */
+describe('schoolFeeObligations', () => {
+  const fees: SchoolFee[] = [
+    { id: 'f1', child: 'Layla', school: 'GEMS', term: 'Term 1', dueDate: '2026-09-05', amount: 12_000, paidByCheque: true, paid: true },
+    { id: 'f2', child: 'Layla', school: 'GEMS', term: 'Term 2', dueDate: '2027-01-12', amount: 12_000, paidByCheque: true, paid: false },
+    { id: 'f3', child: 'Layla', school: 'GEMS', term: 'Term 3', dueDate: '2027-04-20', amount: 12_000, paidByCheque: false, paid: false },
+  ];
+
+  it('a paid term is not an outstanding obligation', () => {
+    expect(schoolFeeObligations(fees).map((o) => o.dueDate)).toEqual(['2027-01-12', '2027-04-20']);
+  });
+
+  it('a cheque-paid term becomes a cheque and reaches exposure', () => {
+    // The whole point. Before, this was 0.
+    const derived = schoolFeeObligations(fees);
+    expect(chequeExposure(derived, '2026-09-30', RULES.CHEQUE_WINDOW_12M)).toBe(12_000);
+  });
+
+  it('a term paid by transfer is not counted as cheque exposure', () => {
+    const derived = schoolFeeObligations(fees);
+    expect(derived.find((o) => o.dueDate === '2027-04-20')!.type).toBe('transfer');
+  });
+
+  it('every derived obligation is in-budget — G-1', () => {
+    // School fees are already inside the monthly burn via the auto row. Marking
+    // these out-of-budget would make the projection subtract the full annual
+    // fee a second time as lump sums, understating runway.
+    expect(schoolFeeObligations(fees).every((o) => o.includedInBudget)).toBe(true);
+  });
+
+  it('never recurs — a term is one dated obligation', () => {
+    // Marking these termly would expand one term into three. That is precisely
+    // the 36,000 of phantom school fees the 12-month schedule total carried.
+    expect(schoolFeeObligations(fees).every((o) => o.recurrence === 'none')).toBe(true);
+  });
+
+  it('carries a non-uuid id so nothing can write one by mistake', () => {
+    expect(schoolFeeObligations(fees)[0].id).toBe('fee:f2');
+  });
+
+  it('is marked derived, so the editor knows not to offer to change it', () => {
+    /*
+     * The id guard is real but it is a *database* guard: `scheduled_payments.id`
+     * is a uuid, so `.eq('id', 'fee:f2')` fails with 22P02, verified against the
+     * live project rather than assumed.
+     *
+     * Failing loudly is right. Failing loudly *at the user*, on a row whose Edit
+     * button the app itself rendered, is not — and that is what the schedule
+     * editor did the moment these rows joined `m.payments`. This flag is what
+     * the editor reads to show "computed — edit on Loans & fees" instead.
+     */
+    expect(schoolFeeObligations(fees).every((o) => o.derivedFrom === 'schoolFees')).toBe(true);
+  });
+
+  it('a stored payment is never marked derived', () => {
+    // The flag has to distinguish, or the editor would refuse to edit anything.
+    expect(SEED_PAYMENTS.every((p) => p.derivedFrom === undefined)).toBe(true);
   });
 });

@@ -63,6 +63,15 @@ function explain(message: string): string {
   if (message.includes('violates check constraint') && message.includes('amount')) {
     return 'The amount cannot be negative.';
   }
+  if (message.includes('scheduled_one_override_per_occurrence')) {
+    return 'That occurrence has already been changed once. Edit the existing entry rather than detaching it again — two overrides for one date would show the payment twice.';
+  }
+  if (message.includes('scheduled_detached_is_one_off')) {
+    return 'A single changed occurrence cannot itself repeat.';
+  }
+  if (message.includes('scheduled_detach_needs_both')) {
+    return 'That occurrence could not be identified. Reload the page and try again.';
+  }
   if (message.includes('violates foreign key constraint')) {
     return 'That budget line or bank account no longer exists. Reload the page and pick again.';
   }
@@ -71,6 +80,22 @@ function explain(message: string): string {
 
 const NOT_CONFIGURED = 'Supabase is not configured for this deployment.';
 const SIGNED_OUT = 'You are signed out. Sign in again to save.';
+
+/**
+ * Derived rows carry a sentinel id — `fee:<uuid>` for a school-fee term
+ * (HAD-81), `auto:*` for a computed budget line — precisely so that a write
+ * against one cannot silently succeed. Postgres already refuses them: the id
+ * column is a uuid and the comparison fails with `22P02`.
+ *
+ * This is the second line, not the first. The editor does not offer Edit or
+ * Delete on a derived row at all. But a stale page, a replayed form or a future
+ * screen that forgets could still get here, and `22P02 invalid input syntax for
+ * type uuid` is not a sentence to show anybody. The rule is the same either
+ * way: change the record that owns the number, not the row derived from it.
+ */
+const DERIVED_ID = /^(fee|auto):/;
+const DERIVED_MESSAGE =
+  'That row is computed from a school-fee term, not stored as a payment — change it on the Loans & fees screen and it will update here.';
 
 /**
  * Creates or updates one payment.
@@ -82,6 +107,8 @@ export async function savePayment(_prev: SaveResult, form: FormData): Promise<Sa
   const id = s(form, 'id') || undefined;
   const fail = (error: string): SaveResult => ({ ok: false, error, id });
 
+  if (id && DERIVED_ID.test(id)) return fail(DERIVED_MESSAGE);
+
   const supabase = await createClient();
   if (!supabase) return fail(NOT_CONFIGURED);
 
@@ -92,6 +119,18 @@ export async function savePayment(_prev: SaveResult, form: FormData): Promise<Sa
   const dueDate = s(form, 'dueDate');
   if (!dueDate) {
     return fail('A due date is required — without one the payment cannot reach the calendar.');
+  }
+
+  /*
+   * Detaching one occurrence (US-22 / OQ-4). Both fields travel together or not
+   * at all — the database enforces that pairing, because a row claiming to
+   * replace an occurrence without saying which one cannot be expanded either
+   * way. A detached row must also not recur, so the form forces `none`.
+   */
+  const seriesId = s(form, 'seriesId') || null;
+  const detachedDate = s(form, 'detachedDate') || null;
+  if ((seriesId === null) !== (detachedDate === null)) {
+    return fail('That occurrence could not be identified. Reload the page and try again.');
   }
 
   const includedInBudget = form.get('includedInBudget') === 'on';
@@ -116,7 +155,11 @@ export async function savePayment(_prev: SaveResult, form: FormData): Promise<Sa
     amount: n(form, 'amount'),
     account_label: s(form, 'accountLabel'),
     type: s(form, 'type') || 'transfer',
-    recurrence: s(form, 'recurrence') || 'none',
+    // A detached occurrence stands alone; two levels of recurrence would make
+    // "which occurrence does this replace" unanswerable.
+    recurrence: seriesId ? 'none' : s(form, 'recurrence') || 'none',
+    series_id: seriesId,
+    detached_date: detachedDate,
     included_in_budget: includedInBudget,
     // Null rather than '' — the column is a uuid foreign key, and an empty
     // string is not a uuid.
@@ -148,6 +191,7 @@ export async function deletePayment(_prev: SaveResult, form: FormData): Promise<
   const fail = (error: string): SaveResult => ({ ok: false, error, id });
 
   if (!id) return fail('Nothing to delete.');
+  if (DERIVED_ID.test(id)) return fail(DERIVED_MESSAGE);
 
   const supabase = await createClient();
   if (!supabase) return fail(NOT_CONFIGURED);

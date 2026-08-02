@@ -11,6 +11,7 @@
  */
 
 import { addDays, daysBetween, isWithin } from './dates';
+import { incomeAfterLastDay } from './income';
 import type {
   BudgetCategory,
   Deadlines,
@@ -18,6 +19,7 @@ import type {
   FinalSettlement,
   GratuityBreakdown,
   IloeBenefit,
+  IncomeStream,
   IsoDate,
   Profile,
   Readiness,
@@ -170,6 +172,36 @@ export function monthlySchoolFees(fees: SchoolFee[]): number {
  * Applies the computed values onto the auto rows so both the current and
  * survival columns agree, leaving editable rows untouched.
  */
+/**
+ * Stable ids for a derived row that has no database row behind it.
+ *
+ * `auto:` is not a uuid, which is the point — it cannot collide with a real
+ * `budget_categories.id`, and anything that tries to write one will fail loudly
+ * rather than create a duplicate.
+ */
+export const AUTO_ROW_ID = { debts: 'auto:debts', schoolFees: 'auto:schoolFees' } as const;
+
+/**
+ * Overlays the computed budget rows onto the stored ones.
+ *
+ * Two behaviours, and the second one was missing until it was measured.
+ *
+ * **Update.** A stored row marked `autoSource` has its amounts replaced by the
+ * live derivation and is forced read-only, so the budget can never disagree
+ * with the screen that owns the data.
+ *
+ * **Create.** If no stored row exists for a source that currently has a
+ * non-zero total, one is *derived* rather than skipped. Without this, a user
+ * whose budget has no seeded auto rows — which is every user who signs up,
+ * since per-user budget rows are not seeded (HAD-69) — could add a mortgage,
+ * see it on the Loans screen, and watch the budget total, the survival spend
+ * and the runway all ignore it completely. The debt would be real, every
+ * derived figure would be wrong, and nothing would look broken.
+ *
+ * Derived rather than inserted, deliberately: the amounts belong to the debts
+ * and school-fees tables, and a second write path into `budget_categories`
+ * would be a second place for them to drift. Nothing here writes.
+ */
 export function applyAutoRows(
   categories: BudgetCategory[],
   debts: Debt[],
@@ -177,7 +209,8 @@ export function applyAutoRows(
 ): BudgetCategory[] {
   const debt = monthlyDebtService(debts);
   const school = monthlySchoolFees(fees);
-  return categories.map((c) => {
+
+  const updated = categories.map((c) => {
     if (c.autoSource === 'debts') {
       return { ...c, currentAmount: debt, survivalAmount: debt, editable: false };
     }
@@ -186,6 +219,34 @@ export function applyAutoRows(
     }
     return c;
   });
+
+  const derived: BudgetCategory[] = [];
+  const has = (src: 'debts' | 'schoolFees') => updated.some((c) => c.autoSource === src);
+
+  // Zero total and no stored row means there is nothing to show. A row reading
+  // AED 0 would be noise on a budget the user is trying to read.
+  if (debt > 0 && !has('debts')) {
+    derived.push({
+      id: AUTO_ROW_ID.debts,
+      name: 'Loan & mortgage payments',
+      currentAmount: debt,
+      survivalAmount: debt,
+      editable: false,
+      autoSource: 'debts',
+    });
+  }
+  if (school > 0 && !has('schoolFees')) {
+    derived.push({
+      id: AUTO_ROW_ID.schoolFees,
+      name: 'School fees',
+      currentAmount: school,
+      survivalAmount: school,
+      editable: false,
+      autoSource: 'schoolFees',
+    });
+  }
+
+  return [...updated, ...derived];
 }
 
 export function survivalSpend(categories: BudgetCategory[]): number {
@@ -228,15 +289,36 @@ export function runwayFrom(
   return {
     totalResources,
     survivalSpend: spend,
+    monthlySideIncome,
     netMonthlyBurn,
     runwayMonths,
     status: runwayStatus(runwayMonths),
   };
 }
 
+/**
+ * Runway, with side income **derived from the income streams** (HAD-80).
+ *
+ * `streams` is required and third rather than appended as an optional, so the
+ * compiler names every caller instead of silently handing one a zero. The
+ * omission would be conservative — no side income understates runway — but a
+ * figure that is quietly pessimistic is still a figure nobody can trust.
+ *
+ * This used to read `profile.monthlySideIncome`, a single number on the profile
+ * form, while `income_streams` sat beside it feeding nothing. The two agreed
+ * only because both were zero in the §11 seed. Once US-27 made streams
+ * editable, a user could add a 5,000 freelance stream, see it in the table, and
+ * watch their runway not move — the project's signature defect, a real figure
+ * and a derived number silently disagreeing.
+ *
+ * `incomeAfterLastDay` is the right derivation rather than a plain sum: it asks
+ * what still arrives the day *after* employment ends, so salary drops out on
+ * its end date and a stream starting mid-scenario is counted only once it does.
+ */
 export function runway(
   profile: Profile,
   categories: BudgetCategory[],
+  streams: IncomeStream[],
   settlement?: FinalSettlement,
   iloe?: IloeBenefit,
 ): Runway {
@@ -246,7 +328,11 @@ export function runway(
   const totalResources =
     profile.cashSavings + profile.otherLiquidAssets + s.finalSettlement + i.iloeTotal;
 
-  return runwayFrom(totalResources, survivalSpend(categories), profile.monthlySideIncome);
+  return runwayFrom(
+    totalResources,
+    survivalSpend(categories),
+    incomeAfterLastDay(streams, profile.expectedLastDay),
+  );
 }
 
 export const SCENARIO_MONTHS = [3, 6, 9, 12] as const;
@@ -292,13 +378,14 @@ export function deadlines(profile: Profile, payments: ScheduledPayment[] = []): 
 export function computeReadiness(
   profile: Profile,
   categories: BudgetCategory[],
-  payments: ScheduledPayment[] = [],
+  payments: ScheduledPayment[],
+  streams: IncomeStream[],
 ): Readiness {
   const service = servicePeriod(profile);
   const g = gratuity(profile, service);
   const settlement = finalSettlement(profile);
   const iloe = iloeBenefit(profile);
-  const r = runway(profile, categories, settlement, iloe);
+  const r = runway(profile, categories, streams, settlement, iloe);
   return {
     service,
     gratuity: g,
@@ -308,4 +395,55 @@ export function computeReadiness(
     scenarios: scenarios(r),
     deadlines: deadlines(profile, payments),
   };
+}
+
+/**
+ * School-fee terms, as the dated obligations they already are.
+ *
+ * `chequeExposure()`, the calendar and the projection all read
+ * `ScheduledPayment[]`. `SchoolFee` was not among their inputs, so a
+ * cheque-paid term reached the budget through `monthlySchoolFees()` and
+ * reached nothing else — invisible on the calendar, absent from both exposure
+ * tiles. For an obligation whose whole risk is a bounced cheque (R-5), that is
+ * the worst place to be invisible.
+ *
+ * The §11 figures hid it: the seed entered every cheque-paid term twice, once
+ * in `school_fees` and once in `scheduled_payments`. Correct only because a
+ * human remembered to do it twice, and impossible to reproduce through the UI.
+ *
+ * So the obligation is **derived** here rather than written a second time —
+ * the same choice as `applyAutoRows`, for the same reason: one source per
+ * fact, and nothing to drift.
+ *
+ * Two details that are load-bearing:
+ *
+ * - `includedInBudget: true`. School fees are already inside the monthly burn
+ *   via the "School fees" auto row, so the projection must **not** subtract
+ *   them again as lump sums. That is G-1, and getting it wrong here would
+ *   understate runway by the full annual fee.
+ * - `recurrence: 'none'`. Each term is its own row with its own date. Marking
+ *   these termly would expand one term into three and treble the exposure.
+ */
+export function schoolFeeObligations(fees: SchoolFee[]): ScheduledPayment[] {
+  return fees
+    // A paid term is not an exposure. The seed models this the same way: only
+    // the two unpaid terms had a matching scheduled payment.
+    .filter((f) => !f.paid)
+    .map((f) => ({
+      // `fee:` marks a derived row and cannot collide with a real uuid, so
+      // anything that tries to write one fails loudly.
+      id: `fee:${f.id}`,
+      dueDate: f.dueDate,
+      payee: `${f.school} school`,
+      purpose: `School fees — ${f.term}${f.child ? ` (${f.child})` : ''}`,
+      amount: f.amount,
+      account: '',
+      type: f.paidByCheque ? ('cheque' as const) : ('transfer' as const),
+      recurrence: 'none' as const,
+      includedInBudget: true,
+      // So the schedule editor can show this row without offering to edit a
+      // record that does not exist. The term is owned by the Loans screen.
+      derivedFrom: 'schoolFees' as const,
+      status: 'upcoming' as const,
+    }));
 }

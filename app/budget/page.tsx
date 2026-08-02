@@ -122,7 +122,7 @@ export default async function BudgetPage() {
         <BudgetEditor
           categories={m.budget}
           totalResources={m.readiness.runway.totalResources}
-          monthlySideIncome={m.profile.monthlySideIncome}
+          monthlySideIncome={m.readiness.runway.monthlySideIncome}
           savedRunwayMonths={m.readiness.runway.runwayMonths}
           actualPerMonth={actualPerMonth}
         />
@@ -134,7 +134,7 @@ export default async function BudgetPage() {
             <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>→</span>
             <span>
               Runway uses the <b>survival</b> total ({aed(m.survivalTotal)}), less side income of{' '}
-              {aed(m.profile.monthlySideIncome)}, giving a net burn of{' '}
+              {aed(m.readiness.runway.monthlySideIncome)}, giving a net burn of{' '}
               <b>{aed(m.readiness.runway.netMonthlyBurn)}</b> per month.
             </span>
           </li>

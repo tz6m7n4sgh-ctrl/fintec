@@ -104,10 +104,24 @@ function PaymentForm({
   return (
     <form action={action} className="card" style={{ marginBottom: 14 }}>
       <input type="hidden" name="id" value={payment.id} />
+      <input type="hidden" name="seriesId" value={payment.seriesId ?? ''} />
+      <input type="hidden" name="detachedDate" value={payment.detachedDate ?? ''} />
 
       <h2 style={{ fontSize: 15, marginTop: 0 }}>
-        {isNew ? 'Add a scheduled payment' : `Edit — ${payment.payee}`}
+        {isNew
+          ? 'Add a scheduled payment'
+          : payment.seriesId
+            ? `This occurrence only — ${payment.payee}`
+            : `Edit — ${payment.payee}`}
       </h2>
+
+      {payment.seriesId ? (
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+          Changing this <b>detaches the {formatDate(payment.detachedDate!)} occurrence</b> from the
+          series. The series keeps running unchanged, and this date stops generating from it — so
+          the payment appears once, not twice. Moving the date here moves only this one.
+        </p>
+      ) : null}
 
       {state.error ? (
         <div
@@ -149,13 +163,15 @@ function PaymentForm({
             ))}
           </select>
         </Row>
-        <Row label="Recurrence" htmlFor="f-recurrence">
-          <select id="f-recurrence" name="recurrence" defaultValue={payment.recurrence}>
-            {Object.entries(RECURRENCE_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </select>
-        </Row>
+        {payment.seriesId ? null : (
+          <Row label="Recurrence" htmlFor="f-recurrence">
+            <select id="f-recurrence" name="recurrence" defaultValue={payment.recurrence}>
+              {Object.entries(RECURRENCE_LABEL).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </Row>
+        )}
         <Row label="Account" htmlFor="f-accountLabel" help="However you refer to it — never a full account number.">
           <input id="f-accountLabel" name="accountLabel" defaultValue={payment.account} />
         </Row>
@@ -398,15 +414,51 @@ export function PaymentsEditor({
                   )}
                 </td>
                 <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 6 }}>
+                  {p.derivedFrom ? (
+                    /*
+                     * A school-fee term, derived rather than stored (HAD-81).
+                     * There is no `scheduled_payments` row behind it: its id is
+                     * `fee:<uuid>`, and a write against that is refused by
+                     * Postgres with `invalid input syntax for type uuid`.
+                     * Offering Edit here would surface that as a raw database
+                     * error on a row the user was invited to change. Point at
+                     * the screen that owns the term instead — the same contract
+                     * the budget's computed rows already keep.
+                     */
+                    <span className="sub">
+                      computed — edit on <a href="/loans/">Loans &amp; fees</a>
+                    </span>
+                  ) : (
+                  <>
                   <button
                     className="btn"
                     type="button"
                     onClick={() => setEditing(p)}
                     aria-label={`Edit ${p.payee}`}
                   >
-                    Edit
+                    {p.seriesId ? 'Edit' : p.recurrence === 'none' ? 'Edit' : 'Edit series'}
                   </button>
+                  {p.recurrence !== 'none' && !p.seriesId ? (
+                    <button
+                      className="btn"
+                      type="button"
+                      aria-label={`Change one occurrence of ${p.payee}`}
+                      onClick={() =>
+                        setEditing({
+                          ...p,
+                          id: '',
+                          recurrence: 'none',
+                          seriesId: p.id,
+                          detachedDate: p.dueDate,
+                        })
+                      }
+                    >
+                      This one only
+                    </button>
+                  ) : null}
                   <DeleteButton id={p.id} payee={p.payee} />
+                  </>
+                  )}
                 </td>
               </tr>
             ))}

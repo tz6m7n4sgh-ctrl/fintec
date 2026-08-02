@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
 import { ProfileForm } from './ProfileForm';
+import { IncomeEditor } from './IncomeEditor';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { RULES } from '@/lib/engine/uae';
@@ -108,8 +109,8 @@ export default async function ProfilePage() {
           <Field label="Cash savings" value={money(p.cashSavings)} />
           <Field label="Other liquid assets" value={money(p.otherLiquidAssets)}
             help="Only what you could actually access within days." />
-          <Field label="Monthly side income" value={money(p.monthlySideIncome)}
-            help="Reduces net burn. If it covers survival spending, runway is unlimited." />
+          <Field label="Monthly side income" value={money(r.runway.monthlySideIncome)}
+            help="Derived from the income streams below — whatever still arrives after your last working day. Reduces net burn; if it covers survival spending, runway is unlimited." />
           <Field label="Computed total resources" value={money(r.runway.totalResources)}
             help="Savings + liquid assets + final settlement + ILOE total." />
         </div>
@@ -126,6 +127,12 @@ export default async function ProfilePage() {
       </Card>
 
       <Card title="Income streams">
+        {m.isSeedData ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+              These are the §11 reference figures. <b>Sign in to record your own</b> — editing is
+              disabled here because there is no account to save them against.
+            </p>
         <div className="tbl-wrap" tabIndex={0}>
           <table>
             <thead>
@@ -144,9 +151,13 @@ export default async function ProfilePage() {
             </tbody>
           </table>
         </div>
-        <div className="legend">
-          <span className="key">Salary auto-ends at your last working day in the termination scenario.</span>
-        </div>
+            <div className="legend">
+              <span className="key">Salary auto-ends at your last working day in the termination scenario.</span>
+            </div>
+          </>
+        ) : (
+          <IncomeEditor income={m.income} expectedLastDay={p.expectedLastDay} />
+        )}
       </Card>
     </>
   );

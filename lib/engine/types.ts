@@ -37,8 +37,16 @@ export interface Profile {
   iloeAvgBasic6m: number;
   cashSavings: number;
   otherLiquidAssets: number;
-  /** Expected income during the job search. */
-  monthlySideIncome: number;
+  /*
+   * `monthlySideIncome` was here. It is gone (HAD-80).
+   *
+   * Income during the job search is derived from `income_streams` via
+   * `incomeAfterLastDay()`. Two places holding the same fact meant a user could
+   * add a freelance stream, see it listed, and watch runway not move — the
+   * profile number was what `runway()` actually read, and nothing kept them in
+   * step. Leaving the field in place as a fallback would still be two sources,
+   * with an invisible precedence rule between them.
+   */
   dependents: number;
   /** 30–90 standard; 180 for Golden/Green/skill-level-1-2 visas. */
   visaGraceDays: number;
@@ -97,6 +105,37 @@ export interface ScheduledPayment {
    * belongs; this is the form's copy, not a second source of truth.
    */
   budgetCategoryId?: string;
+  /**
+   * The recurring payment this row was detached from (US-22 / OQ-4).
+   *
+   * Set together with `detachedDate` or not at all — the database enforces that
+   * pairing, because a row claiming to replace an occurrence without saying
+   * which one cannot be expanded either way.
+   */
+  seriesId?: string;
+  /**
+   * Which occurrence of `seriesId` this row replaces.
+   *
+   * Deliberately distinct from `dueDate`: detaching an occurrence and then
+   * moving it is the normal case, and without a fixed record of the occurrence
+   * being replaced the series would keep generating the original date and the
+   * payment would appear twice.
+   */
+  detachedDate?: IsoDate;
+  /**
+   * Set when this row is *derived* from another record rather than stored —
+   * currently only a school-fee term (HAD-81). Names the screen that owns the
+   * underlying data.
+   *
+   * The same shape as `autoSource` on `BudgetCategory`, and for the same
+   * reason. A derived row carries a sentinel id (`fee:<uuid>`) that is not a
+   * uuid, so any write against it is refused by Postgres with
+   * `22P02 invalid input syntax for type uuid` — the loud failure is deliberate.
+   * But a screen that *offers* Edit and Delete on such a row turns that guard
+   * into a raw database error shown to the user. This flag is what lets the
+   * editor decline the invitation instead.
+   */
+  derivedFrom?: 'schoolFees';
   status: PaymentStatus;
 }
 
@@ -117,7 +156,9 @@ export interface IncomeStream {
   name: string;
   amount: number;
   frequency: 'monthly' | 'oneOff';
+  /** First day the stream pays. Undefined means "already running". */
   startDate?: IsoDate;
+  /** Last day the stream pays — not the first day it does not. */
   endDate?: IsoDate;
   active: boolean;
 }
@@ -171,6 +212,16 @@ export type RunwayStatus = 'good' | 'warning' | 'critical';
 export interface Runway {
   totalResources: number;
   survivalSpend: number;
+  /**
+   * Income still arriving after the last working day, derived from the income
+   * streams (HAD-80).
+   *
+   * Returned rather than left implicit inside `netMonthlyBurn` because three
+   * screens show it — the profile summary, the budget explainer and the report
+   * — and each of them reading it off the same computed runway is what stops a
+   * fourth source appearing.
+   */
+  monthlySideIncome: number;
   netMonthlyBurn: number;
   /** `Infinity` when net burn is zero — the UI must render "Unlimited". */
   runwayMonths: number;

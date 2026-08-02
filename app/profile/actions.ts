@@ -110,7 +110,6 @@ export async function saveProfile(_prev: SaveResult, form: FormData): Promise<Sa
     iloe_avg_basic_6m: n(form, 'iloeAvgBasic6m'),
     cash_savings: n(form, 'cashSavings'),
     other_liquid_assets: n(form, 'otherLiquidAssets'),
-    monthly_side_income: n(form, 'monthlySideIncome'),
     dependents: n(form, 'dependents'),
     visa_grace_days: n(form, 'visaGraceDays'),
     health_cover_months_after_end: n(form, 'healthCoverMonthsAfterEnd'),
@@ -120,6 +119,99 @@ export async function saveProfile(_prev: SaveResult, form: FormData): Promise<Sa
   if (error) return { ok: false, error: explain(error.message) };
 
   // Every screen reads the profile, so every screen is now stale.
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Income streams (US-27 / FR-C2 / §6.3)
+//
+// The salary ending when the job does is not enforced here. It is a property of
+// the stream's own end date, evaluated by `lib/engine/income.ts` — which is what
+// "enforced in code rather than seeded" means for this story. What this action
+// does is make that date editable and default it sensibly.
+// ---------------------------------------------------------------------------
+
+export interface IncomeResult {
+  ok: boolean;
+  error?: string;
+  id?: string;
+}
+
+const FREQUENCIES = ['monthly', 'oneOff'] as const;
+type Frequency = (typeof FREQUENCIES)[number];
+
+function explainIncome(message: string): string {
+  if (message.includes('income_dates_ordered')) {
+    return 'The end date is before the start date.';
+  }
+  if (message.includes('income_streams_name_check') || message.includes('length(trim(name))')) {
+    return 'Give the income stream a name.';
+  }
+  if (message.includes('violates check constraint')) {
+    return 'The amount cannot be negative.';
+  }
+  return message;
+}
+
+/** Creates or updates one income stream. */
+export async function saveIncomeStream(
+  _prev: IncomeResult,
+  form: FormData,
+): Promise<IncomeResult> {
+  const id = String(form.get('id') ?? '').trim() || undefined;
+  const fail = (error: string): IncomeResult => ({ ok: false, error, id });
+
+  const supabase = await createClient();
+  if (!supabase) return fail('Supabase is not configured for this deployment.');
+
+  const { data: auth } = await supabase.auth.getUser();
+  const user = auth?.user;
+  if (!user) return fail('You are signed out. Sign in again to save.');
+
+  const name = String(form.get('name') ?? '').trim();
+  if (!name) return fail('Give the income stream a name.');
+
+  const frequency = String(form.get('frequency') ?? 'monthly') as Frequency;
+  if (!FREQUENCIES.includes(frequency)) return fail('Pick monthly or one-off.');
+
+  const row = {
+    user_id: user.id,
+    name,
+    amount: n(form, 'amount'),
+    frequency,
+    start_date: d(form, 'startDate'),
+    end_date: d(form, 'endDate'),
+    active: b(form, 'active'),
+  };
+
+  const { error } = id
+    ? await supabase.from('income_streams').update(row).eq('id', id)
+    : await supabase.from('income_streams').insert(row);
+
+  if (error) return fail(explainIncome(error.message));
+
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+/** Deletes one income stream. RLS scopes it; no redundant user_id filter. */
+export async function deleteIncomeStream(
+  _prev: IncomeResult,
+  form: FormData,
+): Promise<IncomeResult> {
+  const id = String(form.get('id') ?? '').trim();
+  if (!id) return { ok: false, error: 'Nothing to delete.' };
+
+  const supabase = await createClient();
+  if (!supabase) return { ok: false, error: 'Supabase is not configured for this deployment.', id };
+
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) return { ok: false, error: 'You are signed out. Sign in again to save.', id };
+
+  const { error } = await supabase.from('income_streams').delete().eq('id', id);
+  if (error) return { ok: false, error: explainIncome(error.message), id };
+
   revalidatePath('/', 'layout');
   return { ok: true };
 }

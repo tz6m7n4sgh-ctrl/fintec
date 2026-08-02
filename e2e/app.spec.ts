@@ -228,6 +228,83 @@ test.describe('calendar', () => {
   });
 });
 
+test.describe('profile — income streams', () => {
+  /*
+   * Matched on the card's own title rather than `hasText`. HAD-80 gave the
+   * Money card help text reading "Derived from the income streams below", and a
+   * substring selector promptly matched two cards and failed on strict mode.
+   * The title is what identifies a card; its prose is not.
+   */
+  const streamsCard = (page: import('@playwright/test').Page) =>
+    page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Income streams$/ }),
+    });
+
+  test('US-27 — signed out, income streams are read-only and say why', async ({ page }) => {
+    await page.goto(url('/profile/'));
+    const card = streamsCard(page);
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add an income stream' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+  });
+
+  test('HAD-80 — the profile shows side income as derived, not as an input', async ({ page }) => {
+    /*
+     * The profile used to carry its own `monthlySideIncome` field, which was
+     * what `runway()` read, while the streams list beside it fed nothing. A
+     * user could add a stream, see it in the table, and watch runway not move.
+     *
+     * The number on this screen now comes from `runway.monthlySideIncome`, so
+     * there is no longer an input here to disagree with the list. Asserting the
+     * help text is the cheapest way to catch someone reinstating the field.
+     */
+    await page.goto(url('/profile/'));
+    const money = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Money$/ }),
+    });
+    await expect(money).toContainText('Monthly side income');
+    await expect(money).toContainText('Derived from the income streams below');
+    // An input would mean it is still a second source.
+    await expect(money.locator('input[name="monthlySideIncome"]')).toHaveCount(0);
+  });
+
+  test('US-27 — the salary carries the last working day as its end date', async ({ page }) => {
+    await page.goto(url('/profile/'));
+    const card = streamsCard(page);
+    // The seed's salary ends 30 Sep 2026, the same date as expectedLastDay.
+    // That agreement used to be a coincidence nothing checked; the engine now
+    // derives "salary stops when the job does" from this date, so it is worth
+    // pinning that the date is actually here.
+    await expect(card).toContainText('30 Sep 2026');
+  });
+});
+
+test.describe('loans', () => {
+  test('US-19 — signed out, the debts table is read-only and says why', async ({ page }) => {
+    await page.goto(url('/loans/'));
+    const card = page.locator('section.card', { hasText: 'Debts' }).first();
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add a loan or mortgage' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+  });
+
+  test('US-19 — the monthly total is what reaches the budget', async ({ page }) => {
+    await page.goto(url('/loans/'));
+    // 2,400 car + 3,600 mortgage = 6,000, which is the "Loan & mortgage
+    // payments" auto row on /budget. If these two ever disagree, one of the
+    // screens is lying about the same figure.
+    await expect(page.locator('section.card', { hasText: 'Debts' }).first().locator('tr.tot-row'))
+      .toContainText('6,000');
+    await page.goto(url('/budget/'));
+    const autoRow = page
+      .locator('section.card', { hasText: 'Categories' })
+      .locator('tbody tr', { hasText: 'Loan & mortgage payments' })
+      .first();
+    await expect(autoRow).toContainText('6,000');
+    await expect(autoRow).toContainText('computed — read-only');
+  });
+});
+
 test.describe('schedule', () => {
   test('shows the in-budget flag so double counting is auditable', async ({ page }) => {
     await page.goto(url('/schedule/'));
@@ -242,12 +319,22 @@ test.describe('schedule', () => {
    * and belongs to the manual pass in HAD-68. Saying so is the point: an
    * assertion that pretended to cover the write path would be worse than none.
    */
-  test('US-21 — the 12-month total survives the move into the tested engine', async ({ page }) => {
+  test('US-21 — the 12-month total no longer counts school terms three times', async ({ page }) => {
     await page.goto(url('/schedule/'));
-    // 396,900 over the window ending 2027-10-01, recurrences expanded. This
-    // figure was computed in a page component and asserted nowhere until now;
-    // `occurrencesWithin` now lives in lib/engine/schedule.ts with unit tests.
-    await expect(page.locator('tr.tot-row')).toContainText('396,900');
+    /*
+     * 360,900 over the window ending 2027-10-01, recurrences expanded.
+     *
+     * This was 396,900 until HAD-81. The difference is 36,000 of school fees
+     * the schedule was counting that the user does not owe: each term was
+     * stored as its own dated row *and* marked `termly`, so Term 2 recurred
+     * three times and Term 3 twice on top of the per-term rows already there.
+     *
+     * School-fee obligations are now derived from `school_fees` with
+     * `recurrence: 'none'` — one row per term, which is what a term is. The
+     * cheque exposure figures are unchanged at 113,000 / 161,000, because
+     * `chequeExposure` never used recurrence.
+     */
+    await expect(page.locator('tr.tot-row')).toContainText('360,900');
   });
 
   test('US-21 — signed out, the table is read-only and says why', async ({ page }) => {

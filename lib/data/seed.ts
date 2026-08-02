@@ -81,7 +81,6 @@ export const SEED_PROFILE: Profile = {
   iloeAvgBasic6m: 15_000,
   cashSavings: 80_000,
   otherLiquidAssets: 20_000,
-  monthlySideIncome: 0,
   dependents: 2,
   visaGraceDays: 90,
   healthCoverMonthsAfterEnd: 1,
@@ -146,10 +145,8 @@ export const SEED_PAYMENTS: ScheduledPayment[] = [
   { id: 'pay-daman', dueDate: '2026-10-20', payee: 'Daman — health cover', purpose: 'Insurance', amount: 600, account: 'ENBD ··4821', type: 'transfer', recurrence: 'monthly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-family', dueDate: '2026-12-10', payee: 'Family loan repayment', purpose: 'Personal obligation', amount: 20_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'none', includedInBudget: false, status: 'upcoming' },
   { id: 'pay-rent-q1', dueDate: '2027-01-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q1 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'upcoming' },
-  { id: 'pay-school-t2', dueDate: '2027-01-12', payee: 'GEMS school', purpose: 'School fees — Term 2', amount: 12_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'termly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-balloon', dueDate: '2027-03-15', payee: 'ADCB — car loan balloon', purpose: 'Final settlement instalment', amount: 45_000, account: 'ADCB ··9013', type: 'cheque', recurrence: 'none', includedInBudget: false, status: 'atRisk' },
   { id: 'pay-rent-q2', dueDate: '2027-04-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q2 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'upcoming' },
-  { id: 'pay-school-t3', dueDate: '2027-04-20', payee: 'GEMS school', purpose: 'School fees — Term 3', amount: 12_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'termly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-rent-q3', dueDate: '2027-07-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q3 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'upcoming' },
 ];
 

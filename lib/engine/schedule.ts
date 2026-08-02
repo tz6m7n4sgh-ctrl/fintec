@@ -1,4 +1,4 @@
-import type { IsoDate, Recurrence } from './types';
+import type { IsoDate, Recurrence, ScheduledPayment } from './types';
 
 /**
  * Recurrence expansion.
@@ -79,4 +79,96 @@ export function occurrenceCount(
   windowEnd: IsoDate,
 ): number {
   return occurrencesWithin(recurrence, firstDue, windowEnd).length;
+}
+
+// ---------------------------------------------------------------------------
+// Single-occurrence overrides (US-22 / OQ-4)
+// ---------------------------------------------------------------------------
+
+/**
+ * How far ahead recurring payments are generated.
+ *
+ * Matches `DEFAULT_HORIZON_MONTHS` in `projection.ts` deliberately — OQ-4 was
+ * decided as "18 months, to match the projection". A payment the projection
+ * subtracts but the calendar never shows would be the worst kind of
+ * disagreement between two screens about the same obligation.
+ *
+ * The Schedule screen's 12-month total is a separate reporting window and
+ * answers a different question; it is not this.
+ */
+export const GENERATION_HORIZON_MONTHS = 18;
+
+/** One dated instance of a payment, after overrides are applied. */
+export interface Occurrence {
+  /** The payment this instance renders from — the series, or a detached row. */
+  payment: ScheduledPayment;
+  date: IsoDate;
+  /** True when this instance replaces an occurrence of a recurring series. */
+  isOverride: boolean;
+}
+
+/**
+ * Expands every payment into dated occurrences across a window.
+ *
+ * The rule OQ-4 settled on: editing one occurrence **detaches** it into a
+ * standalone payment, and the series carries on unchanged. So expansion has to
+ * do two things that a naive `occurrencesWithin` per row does not:
+ *
+ * 1. **Skip** a series date that a detached row has taken over. Without this
+ *    the occurrence renders twice — once from the series, once from the
+ *    override — and a cheque counted twice is a wrong runway.
+ * 2. **Emit** the detached row at its own `dueDate`, which may differ from the
+ *    occurrence it replaced. "The March cheque, but on the 20th" is the case
+ *    this whole model exists for.
+ *
+ * A detached row is never itself expanded: the database refuses to let one
+ * recur, so it contributes exactly one occurrence.
+ */
+export function expandPayments(
+  payments: ScheduledPayment[],
+  windowEnd: IsoDate,
+  windowStart?: IsoDate,
+): Occurrence[] {
+  const overrides = payments.filter((p) => p.seriesId && p.detachedDate);
+
+  // Which dates each series no longer generates, because something replaced them.
+  const replaced = new Map<string, Set<string>>();
+  for (const o of overrides) {
+    const set = replaced.get(o.seriesId!) ?? new Set<string>();
+    set.add(o.detachedDate!);
+    replaced.set(o.seriesId!, set);
+  }
+
+  const out: Occurrence[] = [];
+
+  for (const p of payments) {
+    if (p.seriesId) {
+      // A detached row stands alone at its own date.
+      if (p.dueDate <= windowEnd && (!windowStart || p.dueDate >= windowStart)) {
+        out.push({ payment: p, date: p.dueDate, isOverride: true });
+      }
+      continue;
+    }
+
+    const skip = replaced.get(p.id);
+    for (const date of occurrencesWithin(p.recurrence, p.dueDate, windowEnd)) {
+      if (skip?.has(date)) continue;
+      if (windowStart && date < windowStart) continue;
+      out.push({ payment: p, date, isOverride: false });
+    }
+  }
+
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Total value of everything falling due in the window, overrides applied. */
+export function scheduledTotalWithin(
+  payments: ScheduledPayment[],
+  windowEnd: IsoDate,
+  windowStart?: IsoDate,
+): number {
+  return expandPayments(payments, windowEnd, windowStart).reduce(
+    (sum, o) => sum + o.payment.amount,
+    0,
+  );
 }
