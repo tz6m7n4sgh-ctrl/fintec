@@ -338,11 +338,62 @@ broken number (§11 edge case).
 
 ```bash
 npm test                 # 112 unit tests
-npm run build            # required before e2e — the suite tests the real export
+npm run build            # required before e2e — the suite tests the real server build
 npm run test:e2e         # 198 end-to-end tests (desktop + mobile)
 npm run test:a11y        # just the 48 axe accessibility tests
-npm run test:lighthouse  # Lighthouse CI against the built export
+npm run test:lighthouse  # Lighthouse CI
+npm run test:rls         # SEC-1 — cross-tenant isolation, against a real database
 ```
+
+### SEC-1 — proving cross-tenant isolation
+
+`supabase/tests/rls-isolation.sql` is the answer to a question the rest of the
+suite cannot ask: **can one user read another user's financial data?**
+
+RLS was applied to all 13 tables and verified by reading the schema. That is not
+the same as proving it. `0001_init.sql` generates all 52 policies from a single
+loop, so one mistake in that loop is a mistake in every policy at once.
+
+The test creates two users, gives each a row in all 13 tables, and then, acting
+as user A over a real connection:
+
+| Phase | Asks |
+|---|---|
+| A | Are RLS, `force`, and all four policies actually present on every table? |
+| C | Can A **see** B's rows? |
+| D | Can A insert a row owned by B, donate its own row to B, update B's row, or delete it? |
+| E | Can the `anon` role read anything at all? |
+| F | Can A list, overwrite or write into B's private statement folder? |
+| G | **Negative controls** — with RLS deliberately switched off, does this file notice? |
+
+Phase G is the one that makes the rest mean anything. A green test that cannot
+go red proves nothing, so the file breaks isolation on purpose in two ways — RLS
+disabled, and a policy weakened to `using (true)` — and fails if it does *not*
+detect them. It then restores the schema and asserts the restore.
+
+Three properties worth knowing:
+
+- **It runs against the real project, not a copy.** Two earlier defects on this
+  repo came from measuring a stand-in instead of the real host, and both produced
+  plausible numbers that were believed. The policies only exist in one place.
+- **It is non-destructive.** Everything, including the deliberate breakage, is
+  inside one transaction that always rolls back.
+- **`INCONCLUSIVE` fails the run.** If a check was blocked by a unique index
+  rather than by RLS, that table has no evidence behind it, and no evidence is
+  not a pass.
+
+Point it at the database directly — the transaction pooler will not work,
+because the test relies on transaction-scoped `SET LOCAL`:
+
+```bash
+export SUPABASE_DB_URL="postgresql://postgres:...@db.<ref>.supabase.co:5432/postgres"
+npm run test:rls
+```
+
+Without `SUPABASE_DB_URL` it prints a loud skip and exits 0. Set `RLS_REQUIRED=1`
+to make a missing connection string a failure instead — CI should do this once
+the secret exists, because a security gate that silently never runs is
+indistinguishable from one that passes.
 
 ### Unit tests
 

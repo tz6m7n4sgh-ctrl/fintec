@@ -92,3 +92,37 @@ jobs:
           # hidden files by default — without this the upload silently finds
           # nothing, which is how the first failing run lost its reports.
           include-hidden-files: true
+
+  # ---------------------------------------------------------------------------
+  # SEC-1 — cross-tenant isolation.
+  #
+  # Separate job because it needs a database, while `verify` deliberately runs
+  # unconfigured. It is the only check here that can fail for a reason that is
+  # a data-exposure incident rather than a bug.
+  #
+  # The SQL runs inside a transaction that always rolls back, so pointing this
+  # at the live project is safe — and the live project is the only place the
+  # real policies exist. Testing a copy would repeat the mistake that produced
+  # two earlier defects on this repo.
+  # ---------------------------------------------------------------------------
+  isolation:
+    name: SEC-1 cross-tenant isolation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prove isolation holds
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # TODO: set this to '1' once SUPABASE_DB_URL is configured in repo
+          # secrets. Until then the job reports loudly and passes, because a
+          # gate that has never been given credentials would otherwise block
+          # every PR. Once it is set, a missing secret becomes a failure —
+          # which is the point: a security check that silently does not run is
+          # indistinguishable from one that passes.
+          RLS_REQUIRED: '0'
+        run: npm run test:rls
