@@ -40,7 +40,7 @@ export default async function SettingsPage() {
               Not signed in, so these screens show the reference dataset rather than your own
               figures.
             </p>
-            <Link className="btn primary" href="/sign-in" style={{ display: 'inline-block', textDecoration: 'none' }}>
+            <Link className="btn primary" href="/sign-in" prefetch={false} style={{ display: 'inline-block', textDecoration: 'none' }}>
               Sign in
             </Link>
           </>

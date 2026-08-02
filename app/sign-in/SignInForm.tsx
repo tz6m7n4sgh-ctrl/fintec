@@ -50,9 +50,19 @@ export function SignInForm() {
 
     const { error } = await supabase!.auth.signInWithOtp({
       email: email.trim(),
-      // No account is created for an unknown address: this is a single-user
-      // app, and silently provisioning accounts for typos is not wanted.
-      options: { shouldCreateUser: false },
+      /*
+       * New addresses create an account. One flow covers both signing in and
+       * signing up, which is the natural shape for a one-time code: the code
+       * itself proves the address is real, so there is nothing a separate
+       * sign-up step would add.
+       *
+       * This was `false` while the app was single-user by assumption. It is
+       * not — the schema has always been multi-user, with `user_id` on every
+       * table and RLS keyed to it. A typo now creates a stray empty account
+       * rather than a confusing rejection; that is the better failure, since
+       * the code simply never arrives and nothing is lost.
+       */
+      options: { shouldCreateUser: true },
     });
 
     setBusy(false);
@@ -61,7 +71,7 @@ export function SignInForm() {
       return;
     }
     setStage('code');
-    setNotice(`Code sent to ${email.trim()}. It expires in about an hour.`);
+    setNotice(`Code sent to ${email.trim()}. It expires in about an hour. If this is your first time, signing in creates your account.`);
   }
 
   async function verifyCode(e: React.FormEvent) {
@@ -124,7 +134,8 @@ export function SignInForm() {
               aria-describedby="email-help"
             />
             <div className="help" id="email-help">
-              We send a six-digit code. No password to remember or lose.
+              We send a six-digit code. No password to remember or lose. New here? Entering your
+              email creates your account — there is no separate sign-up.
             </div>
           </div>
           <button className="btn primary" type="submit" disabled={busy || !email.trim()}>

@@ -66,14 +66,14 @@ export default async function DashboardPage() {
                 <b>▲ Reference figures, not yours.</b> You are signed in as{' '}
                 {m.user.email ?? 'your account'}, but no profile has been saved yet, so every
                 number below comes from the §11 reference dataset. Add your salary and
-                employment dates on <Link href="/profile" className="banner-link">Income &amp; profile</Link>{' '}
+                employment dates on <Link href="/profile" prefetch={false} className="banner-link">Income &amp; profile</Link>{' '}
                 and these become your own.
               </>
             ) : (
               <>
                 <b>▲ Reference figures, not yours.</b> These numbers are the §11 reference
                 dataset — real in shape, but not about you.{' '}
-                <Link href="/sign-in" className="banner-link">Sign in</Link> to see your own.
+                <Link href="/sign-in" prefetch={false} className="banner-link">Sign in</Link> to see your own.
               </>
             )}
           </div>

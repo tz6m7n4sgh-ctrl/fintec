@@ -460,6 +460,29 @@ test.describe('sign-in', () => {
     expect(problems).toEqual([]);
   });
 
+  test('tells a new user that signing in creates their account', async ({ page }) => {
+    await page.goto(url('/sign-in/'));
+    const body = await page.locator('body').innerText();
+    // There is no separate sign-up route, so the sign-in screen has to say so.
+    // Without this a first-time user has no way to know they can get in.
+    if (body.includes('Email address')) {
+      expect(body).toContain('creates your account');
+    } else {
+      // Unconfigured build — the form is absent, so there is nothing to claim.
+      expect(body).toContain('Sign-in is not configured');
+    }
+  });
+
+  test('the profile screen sends a signed-out visitor to sign in', async ({ page }) => {
+    await page.goto(url('/profile/'));
+    // Signed out, the figures shown are the reference profile, and the screen
+    // must say so rather than implying they are the visitor's own.
+    await expect(page.locator('body')).toContainText('Reference profile, not yours');
+    await expect(page.locator('a[href*="sign-in"]').first()).toBeVisible();
+    // No editable form without a session — there is nowhere to save to.
+    await expect(page.getByRole('button', { name: /save profile/i })).toHaveCount(0);
+  });
+
   test('explains what protects the data before asking for an email', async ({ page }) => {
     await page.goto(url('/sign-in/'));
     const body = await page.locator('body').innerText();
