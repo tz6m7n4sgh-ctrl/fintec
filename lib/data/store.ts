@@ -15,6 +15,9 @@ import type { LiveData } from './repository';
 import { computeReadiness, currentSpend, schoolFeeObligations, survivalSpend } from '@/lib/engine/uae';
 import { monthlyActuals, projectCash } from '@/lib/engine/projection';
 import { applySettlement } from '@/lib/engine/settle';
+import { remindersWithin, type Reminder } from '@/lib/engine/reminders';
+import { todayInDubai } from '@/lib/engine/dates';
+import { DEFAULT_PREFS, type NotificationPrefs } from '@/lib/settings/notifications';
 import type { CategoryRule } from '@/lib/engine/categorise';
 import { scoreReadiness } from '@/lib/engine/readiness';
 import type { MonthlyActual, Projection } from '@/lib/engine/projection';
@@ -64,6 +67,16 @@ export interface ReadModel {
   checklist: ChecklistItem[];
   /** Keyword categorisation rules (US-32). Proposals derive from these. */
   categoryRules: CategoryRule[];
+  /** Reminder settings (US-44). Defaults when no row exists. */
+  notificationPrefs: NotificationPrefs;
+  /**
+   * What US-16 would send, computed from the payments above.
+   *
+   * On the read model rather than per screen because three of them want it: the
+   * calendar draws a marker on every `sendOn`, Settings previews what is
+   * coming, and `missed` is a warning the dashboard should be able to raise.
+   */
+  reminders: Reminder[];
 
   // Derived
   readiness: Readiness;
@@ -96,6 +109,7 @@ const SEED_DATA: LiveData = {
   uploads: SEED_UPLOADS,
   categoryRules: SEED_CATEGORY_RULES,
   checklist: SEED_CHECKLIST,
+  notificationPrefs: DEFAULT_PREFS,
 };
 
 export async function getReadModel(): Promise<ReadModel> {
@@ -194,6 +208,18 @@ export async function getReadModel(): Promise<ReadModel> {
      */
     payments,
     checklist,
+    notificationPrefs: data.notificationPrefs,
+    /*
+     * Computed from the composed payment list, so school-fee terms and settled
+     * cheques are already accounted for — and from `todayInDubai`, because a
+     * reminder that fires on the server's local day is a reminder that fires on
+     * the wrong day for eight months of the year (R-7).
+     */
+    reminders: remindersWithin(
+      payments,
+      todayInDubai(),
+      data.notificationPrefs.leadDays,
+    ),
 
     readiness,
     projection,
