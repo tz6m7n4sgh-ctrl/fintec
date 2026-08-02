@@ -1,4 +1,5 @@
 import { Card, PageHead } from '@/components/ui';
+import { ChecklistToggle } from './ChecklistToggle';
 import { daysUntil, formatDate } from '@/lib/engine/dates';
 import { getReadModel, resolveDeadline } from '@/lib/data/store';
 
@@ -78,7 +79,13 @@ export default async function PlanPage() {
                 const hard = item.deadlineKey === 'iloeDeadline';
                 return (
                   <tr key={item.id}>
-                    <td><input type="checkbox" defaultChecked={item.done} disabled aria-label={item.title} /></td>
+                    <td>
+                      {m.isSeedData ? (
+                        <input type="checkbox" defaultChecked={item.done} disabled aria-label={item.title} />
+                      ) : (
+                        <ChecklistToggle id={item.id} done={item.done} title={item.title} />
+                      )}
+                    </td>
                     <td className="payee">
                       {item.title}
                       <span className="sub">{item.detail}</span>
