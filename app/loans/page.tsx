@@ -1,6 +1,7 @@
 import { Card, PageHead } from '@/components/ui';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
+import { DebtsEditor } from './DebtsEditor';
 import { monthlyDebtService, monthlySchoolFees } from '@/lib/engine/uae';
 import { aed, money } from '@/lib/format/money';
 
@@ -43,6 +44,12 @@ export default async function LoansPage() {
       </div>
 
       <Card title="Debts" sub="Monthly payments total into the read-only budget row">
+        {m.isSeedData ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+              These are the §11 reference figures. <b>Sign in to record your own</b> — editing is
+              disabled here because there is no account to save them against.
+            </p>
         <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
@@ -71,6 +78,10 @@ export default async function LoansPage() {
             </tbody>
           </table>
         </div>
+          </>
+        ) : (
+          <DebtsEditor debts={m.debts} />
+        )}
       </Card>
 
       <Card title="School fees" sub={`${unpaidFees.length} of ${m.schoolFees.length} terms still to pay`}>

@@ -228,6 +228,32 @@ test.describe('calendar', () => {
   });
 });
 
+test.describe('loans', () => {
+  test('US-19 — signed out, the debts table is read-only and says why', async ({ page }) => {
+    await page.goto(url('/loans/'));
+    const card = page.locator('section.card', { hasText: 'Debts' }).first();
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add a loan or mortgage' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+  });
+
+  test('US-19 — the monthly total is what reaches the budget', async ({ page }) => {
+    await page.goto(url('/loans/'));
+    // 2,400 car + 3,600 mortgage = 6,000, which is the "Loan & mortgage
+    // payments" auto row on /budget. If these two ever disagree, one of the
+    // screens is lying about the same figure.
+    await expect(page.locator('section.card', { hasText: 'Debts' }).first().locator('tr.tot-row'))
+      .toContainText('6,000');
+    await page.goto(url('/budget/'));
+    const autoRow = page
+      .locator('section.card', { hasText: 'Categories' })
+      .locator('tbody tr', { hasText: 'Loan & mortgage payments' })
+      .first();
+    await expect(autoRow).toContainText('6,000');
+    await expect(autoRow).toContainText('computed — read-only');
+  });
+});
+
 test.describe('schedule', () => {
   test('shows the in-budget flag so double counting is auditable', async ({ page }) => {
     await page.goto(url('/schedule/'));

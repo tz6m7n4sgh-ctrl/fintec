@@ -170,6 +170,36 @@ export function monthlySchoolFees(fees: SchoolFee[]): number {
  * Applies the computed values onto the auto rows so both the current and
  * survival columns agree, leaving editable rows untouched.
  */
+/**
+ * Stable ids for a derived row that has no database row behind it.
+ *
+ * `auto:` is not a uuid, which is the point — it cannot collide with a real
+ * `budget_categories.id`, and anything that tries to write one will fail loudly
+ * rather than create a duplicate.
+ */
+export const AUTO_ROW_ID = { debts: 'auto:debts', schoolFees: 'auto:schoolFees' } as const;
+
+/**
+ * Overlays the computed budget rows onto the stored ones.
+ *
+ * Two behaviours, and the second one was missing until it was measured.
+ *
+ * **Update.** A stored row marked `autoSource` has its amounts replaced by the
+ * live derivation and is forced read-only, so the budget can never disagree
+ * with the screen that owns the data.
+ *
+ * **Create.** If no stored row exists for a source that currently has a
+ * non-zero total, one is *derived* rather than skipped. Without this, a user
+ * whose budget has no seeded auto rows — which is every user who signs up,
+ * since per-user budget rows are not seeded (HAD-69) — could add a mortgage,
+ * see it on the Loans screen, and watch the budget total, the survival spend
+ * and the runway all ignore it completely. The debt would be real, every
+ * derived figure would be wrong, and nothing would look broken.
+ *
+ * Derived rather than inserted, deliberately: the amounts belong to the debts
+ * and school-fees tables, and a second write path into `budget_categories`
+ * would be a second place for them to drift. Nothing here writes.
+ */
 export function applyAutoRows(
   categories: BudgetCategory[],
   debts: Debt[],
@@ -177,7 +207,8 @@ export function applyAutoRows(
 ): BudgetCategory[] {
   const debt = monthlyDebtService(debts);
   const school = monthlySchoolFees(fees);
-  return categories.map((c) => {
+
+  const updated = categories.map((c) => {
     if (c.autoSource === 'debts') {
       return { ...c, currentAmount: debt, survivalAmount: debt, editable: false };
     }
@@ -186,6 +217,34 @@ export function applyAutoRows(
     }
     return c;
   });
+
+  const derived: BudgetCategory[] = [];
+  const has = (src: 'debts' | 'schoolFees') => updated.some((c) => c.autoSource === src);
+
+  // Zero total and no stored row means there is nothing to show. A row reading
+  // AED 0 would be noise on a budget the user is trying to read.
+  if (debt > 0 && !has('debts')) {
+    derived.push({
+      id: AUTO_ROW_ID.debts,
+      name: 'Loan & mortgage payments',
+      currentAmount: debt,
+      survivalAmount: debt,
+      editable: false,
+      autoSource: 'debts',
+    });
+  }
+  if (school > 0 && !has('schoolFees')) {
+    derived.push({
+      id: AUTO_ROW_ID.schoolFees,
+      name: 'School fees',
+      currentAmount: school,
+      survivalAmount: school,
+      editable: false,
+      autoSource: 'schoolFees',
+    });
+  }
+
+  return [...updated, ...derived];
 }
 
 export function survivalSpend(categories: BudgetCategory[]): number {
