@@ -52,9 +52,11 @@ export interface ReviewRow {
 function RowControls({
   row,
   categories,
+  payments,
 }: {
   row: ReviewRow;
   categories: Array<{ id: string; label: string }>;
+  payments: Array<{ id: string; label: string }>;
 }) {
   const [confirmState, confirmAction, confirming] = useActionState(confirmTransaction, INITIAL);
   const [discardState, discardAction, discarding] = useActionState(discardTransaction, INITIAL);
@@ -65,15 +67,32 @@ function RowControls({
       <form action={confirmAction} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <input type="hidden" name="id" value={row.id} />
         {/*
-          The proposed match travels back unchanged. Dropping it would silently
-          un-match a payment the parser had correctly identified, on the click
-          that was supposed to accept it.
+          Editable, not hidden — and that distinction became a defect the moment
+          US-33 started proposing matches.
+
+          While nothing proposed, the field was always empty and un-editable did
+          no harm. With a proposal in it, a user facing a *wrong* match had two
+          options: Confirm, which marks an outstanding payment paid (US-18, R-5),
+          or Discard, which loses a real transaction. The correct action —
+          "right transaction, wrong match, clear it" — did not exist.
+
+          It still defaults to the proposal, because dropping it would silently
+          un-match a payment the matcher had correctly identified.
         */}
-        <input
-          type="hidden"
+        <select
           name="matchedScheduledPaymentId"
-          value={row.matchedScheduledPaymentId ?? ''}
-        />
+          defaultValue={row.matchedScheduledPaymentId ?? ''}
+          aria-label={
+            row.isProposed
+              ? `Matched payment for ${row.description} — suggested, change or clear it`
+              : `Matched payment for ${row.description}`
+          }
+        >
+          <option value="">No match</option>
+          {payments.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
         <select
           name="categoryId"
           defaultValue={row.categoryId ?? ''}
@@ -140,9 +159,12 @@ function ConfirmAll({ count }: { count: number }) {
 export function ReviewInbox({
   rows,
   categories,
+  payments,
 }: {
   rows: ReviewRow[];
   categories: Array<{ id: string; label: string }>;
+  /** Selectable payments. Derived rows are excluded — they cannot be stored. */
+  payments: Array<{ id: string; label: string }>;
 }) {
   return (
     <>
@@ -185,7 +207,7 @@ export function ReviewInbox({
                     <span className="pill">No match</span>
                   )}
                 </td>
-                <td><RowControls row={row} categories={categories} /></td>
+                <td><RowControls row={row} categories={categories} payments={payments} /></td>
               </tr>
             ))}
           </tbody>
