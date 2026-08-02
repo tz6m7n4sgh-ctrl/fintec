@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, isSupabaseConfigured } from './config';
@@ -41,12 +42,20 @@ export async function createClient() {
  * the cookie and trusts it, while getUser revalidates against the auth server.
  * For a screen that decides whose financial data to show, that difference
  * matters.
+ *
+ * Wrapped in React's `cache()` because that revalidation is a network round
+ * trip to `/auth/v1/user`, and more than one caller wants the answer during a
+ * single render — `getReadModel` needs it to decide between live and seeded
+ * figures, and the page itself needs it to decide what to draw. Uncached, a
+ * page view spent two or three sequential auth requests answering the same
+ * question. `cache()` scopes the result to one request, so it stays as fresh as
+ * before and costs one call.
  */
-export async function getUser() {
+export const getUser = cache(async () => {
   const supabase = await createClient();
   if (!supabase) return null;
 
   const { data, error } = await supabase.auth.getUser();
   if (error) return null;
   return data.user ?? null;
-}
+});
