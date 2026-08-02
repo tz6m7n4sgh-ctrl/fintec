@@ -368,3 +368,51 @@ export function computeReadiness(
     deadlines: deadlines(profile, payments),
   };
 }
+
+/**
+ * School-fee terms, as the dated obligations they already are.
+ *
+ * `chequeExposure()`, the calendar and the projection all read
+ * `ScheduledPayment[]`. `SchoolFee` was not among their inputs, so a
+ * cheque-paid term reached the budget through `monthlySchoolFees()` and
+ * reached nothing else — invisible on the calendar, absent from both exposure
+ * tiles. For an obligation whose whole risk is a bounced cheque (R-5), that is
+ * the worst place to be invisible.
+ *
+ * The §11 figures hid it: the seed entered every cheque-paid term twice, once
+ * in `school_fees` and once in `scheduled_payments`. Correct only because a
+ * human remembered to do it twice, and impossible to reproduce through the UI.
+ *
+ * So the obligation is **derived** here rather than written a second time —
+ * the same choice as `applyAutoRows`, for the same reason: one source per
+ * fact, and nothing to drift.
+ *
+ * Two details that are load-bearing:
+ *
+ * - `includedInBudget: true`. School fees are already inside the monthly burn
+ *   via the "School fees" auto row, so the projection must **not** subtract
+ *   them again as lump sums. That is G-1, and getting it wrong here would
+ *   understate runway by the full annual fee.
+ * - `recurrence: 'none'`. Each term is its own row with its own date. Marking
+ *   these termly would expand one term into three and treble the exposure.
+ */
+export function schoolFeeObligations(fees: SchoolFee[]): ScheduledPayment[] {
+  return fees
+    // A paid term is not an exposure. The seed models this the same way: only
+    // the two unpaid terms had a matching scheduled payment.
+    .filter((f) => !f.paid)
+    .map((f) => ({
+      // `fee:` marks a derived row and cannot collide with a real uuid, so
+      // anything that tries to write one fails loudly.
+      id: `fee:${f.id}`,
+      dueDate: f.dueDate,
+      payee: `${f.school} school`,
+      purpose: `School fees — ${f.term}${f.child ? ` (${f.child})` : ''}`,
+      amount: f.amount,
+      account: '',
+      type: f.paidByCheque ? ('cheque' as const) : ('transfer' as const),
+      recurrence: 'none' as const,
+      includedInBudget: true,
+      status: 'upcoming' as const,
+    }));
+}
