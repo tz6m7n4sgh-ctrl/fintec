@@ -293,6 +293,18 @@ test.describe('budget screen', () => {
     await expect(totals).toContainText('23,000');
   });
 
+  test('US-23 — signed out, the budget is read-only and says why', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const card = page.locator('section.card', { hasText: 'Categories' });
+    await expect(card).toContainText('Sign in to build your own budget');
+    // No write affordance without a session. The survival total is the
+    // denominator of runway, so an editor rendered over the §11 reference
+    // figures would invite someone to plan against a stranger's numbers.
+    await expect(card.getByRole('button', { name: 'Save budget' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: 'Add a category' })).toHaveCount(0);
+    await expect(card.locator('input[type="number"]')).toHaveCount(0);
+  });
+
   test('US-24 — auto rows are marked read-only and link to their source', async ({ page }) => {
     await page.goto(url('/budget/'));
     const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
