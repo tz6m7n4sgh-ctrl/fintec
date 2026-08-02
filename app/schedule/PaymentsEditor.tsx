@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from 'react';
 import type { BudgetCategory, ScheduledPayment } from '@/lib/engine/types';
 import { formatDate } from '@/lib/engine/dates';
 import { money } from '@/lib/format/money';
-import { deletePayment, savePayment, type SaveResult } from './actions';
+import { deletePayment, savePayment, setPaymentPaid, type SaveResult } from './actions';
 
 /**
  * Editable scheduled payments (US-21 / §4.6).
@@ -273,6 +273,34 @@ function DeleteButton({ id, payee }: { id: string; payee: string }) {
   );
 }
 
+/**
+ * Manual mark-paid (US-18). The automatic path writes nothing — a confirmed
+ * transaction naming this payment derives `paid` in `lib/engine/settle.ts` —
+ * so this button is for what the transactions cannot show: cash, or a transfer
+ * from an account the app cannot see.
+ */
+function MarkPaid({ payment }: { payment: ScheduledPayment }) {
+  const [state, action, pending] = useActionState(setPaymentPaid, { ok: false } as SaveResult);
+  const isPaid = payment.status === 'paid';
+  return (
+    <form action={action} style={{ display: 'inline' }}>
+      <input type="hidden" name="id" value={payment.id} />
+      {/* Absent means unchecked, which is how a checkbox submits — so this
+          toggles rather than needing a separate action per direction. */}
+      {isPaid ? null : <input type="hidden" name="paid" value="on" />}
+      <button
+        className="btn"
+        type="submit"
+        disabled={pending}
+        title={state.error}
+        aria-label={isPaid ? `Mark ${payment.payee} unpaid` : `Mark ${payment.payee} paid`}
+      >
+        {pending ? '…' : isPaid ? 'Unpay' : 'Mark paid'}
+      </button>
+    </form>
+  );
+}
+
 export function PaymentsEditor({
   payments,
   categories,
@@ -456,6 +484,7 @@ export function PaymentsEditor({
                       This one only
                     </button>
                   ) : null}
+                  <MarkPaid payment={p} />
                   <DeleteButton id={p.id} payee={p.payee} />
                   </>
                   )}

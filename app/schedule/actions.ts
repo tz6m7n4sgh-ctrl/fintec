@@ -205,3 +205,50 @@ export async function deletePayment(_prev: SaveResult, form: FormData): Promise<
   revalidatePath('/', 'layout');
   return { ok: true };
 }
+
+/**
+ * Marks one payment paid, or un-marks it (US-18 / FR-B4).
+ *
+ * The *manual* half. The automatic half writes nothing at all: a confirmed
+ * transaction naming a payment marks it paid by derivation in
+ * `lib/engine/settle.ts`, so removing that match reverts the status for free
+ * and a stored `atRisk` is never destroyed.
+ *
+ * This is the other case — the user asserting something the transactions do
+ * not show, like a cash payment or a transfer from an account the app cannot
+ * see. That is a fact only they have, so it is stored, and stored `paid` wins
+ * over the absence of a match.
+ *
+ * Un-marking writes `upcoming` rather than restoring a previous value, and
+ * that is a real limitation rather than an oversight: nothing records what the
+ * status was before, so a payment manually marked paid from `atRisk` comes
+ * back as `upcoming`. The automatic path does not have this problem, which is
+ * the argument for preferring it. Filed as HAD-83.
+ */
+export async function setPaymentPaid(_prev: SaveResult, form: FormData): Promise<SaveResult> {
+  const id = s(form, 'id');
+  const fail = (error: string): SaveResult => ({ ok: false, error, id });
+
+  if (!id) return fail('Nothing to update.');
+  if (DERIVED_ID.test(id)) {
+    // A school-fee obligation is derived; its paid state lives on the term.
+    return fail('That row is a school-fee term — mark it paid on the Loans & fees screen.');
+  }
+
+  const supabase = await createClient();
+  if (!supabase) return fail(NOT_CONFIGURED);
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) return fail(SIGNED_OUT);
+
+  const paid = form.get('paid') === 'on';
+
+  const { error } = await supabase
+    .from('scheduled_payments')
+    .update({ status: paid ? 'paid' : 'upcoming' })
+    .eq('id', id);
+
+  if (error) return fail(explain(error.message));
+
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
