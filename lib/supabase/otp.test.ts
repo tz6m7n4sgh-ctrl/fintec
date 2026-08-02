@@ -71,10 +71,32 @@ describe('parseOtpInput', () => {
     expect(parseOtpInput(input)).toBeNull();
   });
 
-  it('returns null for a PKCE code link, which cannot be pasted across browsers', () => {
-    // Exchanging ?code= needs the verifier the *requesting* browser stored.
-    // Accepting it here would fail confusingly; /auth/confirm handles the click
-    // path instead, where the browser is right by construction.
-    expect(parseOtpInput('https://fintec-wheat.vercel.app/auth/confirm?code=abc-123')).toBeNull();
+  it('reads a PKCE ?code= URL so a misdirected click is recoverable', () => {
+    expect(parseOtpInput('https://fintec-wheat.vercel.app/auth/confirm?code=abc-123')).toEqual({
+      kind: 'exchange',
+      code: 'abc-123',
+    });
+  });
+
+  it('reads the localhost URL a click lands on when Site URL is unset', () => {
+    /*
+     * The case this was written for. Site URL defaults to
+     * http://localhost:3000, and that default is what `redirect_to` in the
+     * emailed link points at — so clicking on any other device lands on a dead
+     * address holding a perfectly good auth code. Pasting that address back in
+     * is the whole recovery path.
+     */
+    expect(parseOtpInput('http://localhost:3000/?code=48f56229-375a-4e1f-850c-b622246456f5')).toEqual({
+      kind: 'exchange',
+      code: '48f56229-375a-4e1f-850c-b622246456f5',
+    });
+  });
+
+  it('prefers a token hash over a code when a URL carries both', () => {
+    // token_hash has not been spent yet; a code already has. Verifying the
+    // hash is the path that does not depend on this browser holding a verifier.
+    expect(
+      parseOtpInput('https://example.com/auth/confirm?token_hash=abc&type=email&code=xyz'),
+    ).toEqual({ kind: 'hash', tokenHash: 'abc', type: 'email' });
   });
 });
