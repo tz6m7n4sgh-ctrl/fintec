@@ -416,14 +416,16 @@ test.describe('transactions ledger', () => {
   });
 });
 
-test.describe('sign-in', () => {
+test.describe('sign-in and sign-up', () => {
   /**
-   * US-39. These run unconfigured — no Supabase URL or key — which is the state
-   * CI builds in. That is deliberate: the app must degrade to "you cannot sign
-   * in" rather than crash a screen showing someone their termination deadlines.
+   * US-39. Email and password, completed entirely in the app — no code, no
+   * link, nothing sent to a mailbox.
    *
-   * The OTP round-trip itself cannot be asserted here; it needs a provisioned
-   * user and a real mailbox. What is asserted is everything around it.
+   * What still cannot be asserted here is the half that needs a real account:
+   * a successful sign-in, and per-user isolation once two accounts exist. Those
+   * are HAD-68. Everything up to the auth server's answer is asserted, and one
+   * test below does exercise a full server-action round trip — the password
+   * mismatch is rejected before any network call, so it needs no account.
    */
   test('renders correctly whether or not Supabase is configured', async ({ page }) => {
     const problems = collectPageProblems(page);
@@ -448,74 +450,139 @@ test.describe('sign-in', () => {
 
     if (configured) {
       await expect(emailField).toBeVisible();
-      await expect(page.getByRole('button', { name: /send code/i })).toBeVisible();
+      await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible();
       // Nothing should claim it is unavailable while the form is right there.
       await expect(page.locator('body')).not.toContainText('Sign-in is not configured');
     } else {
       await expect(page.locator('body')).toContainText('Sign-in is not configured');
-      await expect(page.getByRole('button', { name: /send code/i })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^sign in$/i })).toHaveCount(0);
     }
 
     // Either way, degrading or working must be quiet — no console errors.
     expect(problems).toEqual([]);
   });
 
-  test('tells a new user that signing in creates their account', async ({ page }) => {
+  test('sends a new user to a sign-up screen that exists', async ({ page }) => {
     await page.goto(url('/sign-in/'));
     const body = await page.locator('body').innerText();
-    // There is no separate sign-up route, so the sign-in screen has to say so.
-    // Without this a first-time user has no way to know they can get in.
-    if (body.includes('Email address')) {
-      expect(body).toContain('creates your account');
-    } else {
-      // Unconfigured build — the form is absent, so there is nothing to claim.
+    if (!body.includes('Email address')) {
+      // Unconfigured build — there is no account to create either.
       expect(body).toContain('Sign-in is not configured');
+      return;
     }
+
+    // Sign-up is its own route now, so the sign-in screen must link to it —
+    // otherwise a first-time visitor has no way to discover they can get in.
+    const link = page.locator('a[href*="sign-up"]').first();
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page).toHaveURL(/sign-up/);
+    await expect(page.locator('h1')).toHaveText('Create an account');
   });
 
-  test('the code box accepts a pasted link, and says so', async ({ page }) => {
-    /*
-     * Supabase's stock email template sends a magic link, not a code. A form
-     * that only accepts a code is then a dead end no user can debug, so the
-     * box takes either — and has to say it takes either, because nobody pastes
-     * a URL into a field labelled "six-digit code".
-     */
-    await page.goto(url('/sign-in/'));
+  test('the sign-up form asks for a password twice and nothing else', async ({ page }) => {
+    const problems = collectPageProblems(page);
+    const response = await page.goto(url('/sign-up/'));
+    expect(response?.status()).toBe(200);
+
     const email = page.getByLabel('Email address');
     if ((await email.count()) === 0) {
       expect(await page.locator('body').innerText()).toContain('Sign-in is not configured');
       return;
     }
 
-    await expect(page.locator('body')).toContainText('or a sign-in link');
+    await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+    await expect(page.locator('#confirm')).toHaveAttribute('type', 'password');
 
-    // The field must not be numeric-only, or a link cannot be entered on a
-    // phone at all — the exact device this is most likely to happen on.
-    await email.fill('someone@example.com');
-    const codeField = page.locator('#code');
-    if ((await codeField.count()) > 0) {
-      await expect(codeField).not.toHaveAttribute('inputmode', 'numeric');
-    }
+    /*
+     * The autocomplete values are the difference between a password manager
+     * offering to save the credential and staying silent. In an app with no
+     * reset email, a credential the manager never captured is a lockout.
+     */
+    await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'new-password');
+    await expect(page.locator('#confirm')).toHaveAttribute('autocomplete', 'new-password');
+    // `username`, not `email` — this field identifies the account, and it is
+    // what the manager pairs with the password when deciding what to save.
+    await expect(page.locator('#email')).toHaveAttribute('autocomplete', 'username');
+
+    expect(problems).toEqual([]);
   });
 
-  test('a failed link click explains itself on the sign-in screen', async ({ page }) => {
-    // /auth/confirm redirects here with the reason rather than rendering a dead
-    // end, because "Token has expired" and "invalid link" need different acts.
-    await page.goto(url('/sign-in/?error=Token+has+expired'));
+  test('sign-in hints the browser to fill a saved password, not create one', async ({ page }) => {
+    await page.goto(url('/sign-in/'));
+    const password = page.locator('#password');
+    if ((await password.count()) === 0) return;
+    await expect(password).toHaveAttribute('autocomplete', 'current-password');
+    // No confirm box on sign-in — asking an existing user to retype is noise.
+    await expect(page.locator('#confirm')).toHaveCount(0);
+  });
+
+  test('says plainly that there is no password reset', async ({ page }) => {
+    /*
+     * The one consequence of removing email that a user cannot recover from on
+     * their own. It has to be readable *before* the password is chosen, not
+     * discovered afterwards, so it is asserted on the sign-up screen itself.
+     */
+    await page.goto(url('/sign-up/'));
     const body = await page.locator('body').innerText();
-    if (body.includes('Email address')) {
-      expect(body).toContain('Token has expired');
-    } else {
-      expect(body).toContain('Sign-in is not configured');
+    if (!body.includes('Email address')) return;
+    expect(body.toLowerCase()).toContain('no password reset');
+  });
+
+  test('a mismatched confirmation is rejected and says why', async ({ page }) => {
+    /*
+     * A genuine round trip through the server action. It needs no account and no
+     * auth server, because the mismatch is caught by validation before any
+     * network call — which is exactly why it is worth asserting here: it proves
+     * the action is wired up, receives the form, and renders its error.
+     */
+    await page.goto(url('/sign-up/'));
+    if ((await page.getByLabel('Email address').count()) === 0) return;
+
+    await page.getByLabel('Email address').fill('someone@example.com');
+    await page.locator('#password').fill('correct horse battery');
+    await page.locator('#confirm').fill('correct horse batteries');
+    await page.getByRole('button', { name: /create account/i }).click();
+
+    // Scoped to the form's own error card: Next's route announcer is also
+    // role="alert", and an unscoped match resolves to both.
+    await expect(page.locator('.card[role="alert"]')).toContainText('do not match');
+    await expect(page).toHaveURL(/sign-up/);
+
+    /*
+     * The address must survive the rejection. React 19 resets an uncontrolled
+     * form once its action settles, so without an explicit defaultValue the
+     * email box empties on every failed attempt — and the failure most likely
+     * to repeat is a mistyped password, where clearing the address punishes the
+     * user for a mistake they did not make in that field.
+     */
+    await expect(page.locator('#email')).toHaveValue('someone@example.com');
+  });
+
+  test('nothing on either screen mentions a code, a link or an email being sent', async ({
+    page,
+  }) => {
+    /*
+     * The whole point of the rebuild. The previous flow told the user to copy a
+     * magic link rather than click it; if any of that copy survives, the screen
+     * is describing a flow the code no longer implements.
+     */
+    for (const path of ['/sign-in/', '/sign-up/']) {
+      await page.goto(url(path));
+      const body = (await page.locator('body').innerText()).toLowerCase();
+      expect(body).not.toContain('six-digit');
+      expect(body).not.toContain('one-time code');
+      expect(body).not.toContain('sign-in link');
+      expect(body).not.toContain('check spam');
     }
   });
 
-  test('a confirm link with no token does not dead-end', async ({ page }) => {
+  test('the old magic-link confirm route is gone', async ({ page }) => {
+    // Deleted with the OTP flow. Nothing links to it and nothing arrives at it;
+    // leaving a live route that consumes auth tokens would be worse than a 404.
     const response = await page.goto(url('/auth/confirm/'));
-    // Whatever happens, it must not be a 404 or a 500 — it redirects to
-    // sign-in carrying the reason.
-    expect(response?.status()).toBeLessThan(400);
-    await expect(page).toHaveURL(/sign-in/);
+    expect(response?.status()).toBe(404);
   });
 
   test('the two dates the engine cannot run without are marked required', async ({ page }) => {

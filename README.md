@@ -19,13 +19,15 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 | Cash projection with lump-sum cheques | **Done** — reports the real zero-crossing, not just flat-burn runway |
 | Readiness scoring (/18) | **Done** — explicit rubric, per-criterion explanations |
 | All ten screens | **Done** — server-rendered, light/dark, desktop/mobile |
-| Automated tests | **Done** — 82 unit + 164 end-to-end (incl. 40 axe accessibility), run in CI against a production server |
+| Automated tests | **Done** — 112 unit + 198 end-to-end (incl. 48 axe accessibility), run in CI against a production server |
 | Accessibility & performance gates | **Done** — axe-core sweeps every screen in both themes; Lighthouse CI scores the built artefact |
 | Deployment | **Server build** — needs a Node host provisioned (no deploy job in CI) |
 | Database schema + RLS | **Done and applied** — 13 tables, RLS enabled *and* forced, 0 security advisories |
 | Private statements bucket | **Done** — namespaced per user id |
-| Authentication (email/OTP + passkeys) | **Not built** — next step |
-| Writing/reading live data | **Not built** — screens read the §11 seed dataset |
+| Authentication (email + password) | **Done** — sign-up and sign-in run entirely in-app, no email sent |
+| Passkeys / biometric sign-in | **Not built** — needs a stable HTTPS origin (US-40) |
+| Password reset | **Not built, deliberately** — there is no email path; see below |
+| Writing/reading live data | **Done** — a signed-in user with a saved profile sees their own figures |
 | Statement ingestion job | **Not built** — pipeline designed; OQ-1 decided (Claude Cowork parses every statement) |
 | Email / web-push reminders | **Not built** — schema and preferences table exist |
 
@@ -43,7 +45,7 @@ npm run dev                    # http://localhost:3000
 ```
 
 ```bash
-npm test                       # 82 unit tests (engine, projection, readiness, formatting)
+npm test                       # 112 unit tests (engine, projection, readiness, formatting, credentials)
 npm run typecheck              # tsc --noEmit
 npm run build                  # production build
 ```
@@ -65,6 +67,9 @@ lib/engine/             Pure calculation engine — no I/O, no clock, fully unit
   readiness.ts          /18 readiness rubric
 lib/data/               seed.ts (§11 dataset), store.ts (read model)
 lib/format/             AED / en-AE formatting
+lib/auth/               credentials.ts — password/email rules, pure and unit-tested
+lib/supabase/           config.ts (connection), server.ts (server client + cached getUser)
+app/auth/               Server actions for sign in / sign up / sign out, plus the one client form
 supabase/migrations/    SQL migrations (schema, RLS, storage bucket, hardening)
 docs/                   Requirements, BRD, mockups, task board
 ```
@@ -253,42 +258,43 @@ trap left over from the migration.
 
 No `vercel.json` is needed; a Next server build is detected automatically.
 
-### Signing in, and the email-template trap
+### Signing in
 
-There is no separate sign-up. Entering an address that has never been seen creates the account, and
-the emailed credential proves the address is real — so a separate sign-up step would add nothing.
+**Email and a password, and nothing else leaves the app.** `/sign-up` creates the account and signs
+you straight in; `/sign-in` gets you back. No confirmation email, no one-time code, no magic link, no
+reset link. Both run as server actions in `app/auth/actions.ts` — the Supabase client is never
+loaded in the browser, which is why `/sign-in` costs the same first load as every other screen.
 
-The trap is that **Supabase decides between a code and a link by reading the email template**, not by
-which API you call. `{{ .Token }}` sends a six-digit code; `{{ .ConfirmationURL }}` sends a magic
-link; the stock template is the latter. So a project nobody has customised emails a link to a form
-asking for a code — a dead end the user cannot diagnose.
+This replaced an email one-time-code flow, and the reason is worth recording. Supabase decides
+between a code and a magic link by reading the **email template**, not by which API you call, and the
+stock template sends a link — so an untouched project emailed a link to a form asking for a code.
+Clickable links then depend on *Site URL* and the redirect allow-list, which default to
+`localhost:3000`. And the built-in SMTP is rate-limited and explicitly not for production, so real
+use needed a custom mail provider before anyone could sign in twice in an hour. The app had grown a
+link parser, a three-way verify branch and a paragraph of copy telling users to *copy* the link
+rather than click it — a lot of surface defending a configuration problem. A password depends on none
+of it.
 
-The app handles this rather than requiring a dashboard change. The code box accepts **either a
-six-digit code or the sign-in link pasted in whole**; `lib/supabase/otp.ts` pulls the token hash out
-of both URL shapes Supabase's own docs use (`?token=` and `?token_hash=`) and verifies it directly.
-Pasting never redirects, so it does not depend on Site URL or the allowed-redirect list — which is
-what makes sign-in work against a project whose URL configuration has never been touched.
+**One project setting is required:** Authentication → Providers → Email → **Confirm email = OFF**.
+With it on, `signUp` mails a confirmation link and returns no session, which is the exact behaviour
+this removed. The app detects that state and names the setting on screen rather than appearing to do
+nothing.
 
-Two optional dashboard changes make it nicer, neither required:
+**There is no password reset, and that is the trade.** No email path in means no email path out. A
+forgotten password can only be cleared from the Supabase dashboard, under Authentication → Users.
+Both auth screens say so before a password is chosen, rather than leaving it to be discovered. A
+signed-in change-password control is the obvious next step and is not built yet.
 
-1. **Authentication → Email Templates**: replace the body with
-   `<p>Your sign-in code: {{ .Token }}</p>` to send codes instead of links. This is **two**
-   templates, not one — `signInWithOtp` sends **Confirm signup** to an address it has never seen and
-   **Magic Link** to a returning one. Editing only Magic Link leaves every first-time user still
-   receiving a link, which is the case that matters most.
-2. **Authentication → URL Configuration**: set *Site URL* to the deployment origin and add it to
-   *Redirect URLs*, so a **clicked** link lands on `/auth/confirm` and signs the user straight in.
-   Site URL defaults to `http://localhost:3000`, and that default is exactly what `redirect_to` in
-   the emailed link points at — so until it is changed, clicking the link on any other device goes
-   nowhere.
+Two smaller rules the code enforces, both in `lib/auth/credentials.ts` and unit-tested:
 
-**Copy the link, do not click it.** Clicking sends the token through Supabase's `/verify` endpoint,
-which consumes it — so a click that lands on `localhost` has also spent the credential, and pasting
-that same link afterwards fails as already used. Right-click or long-press the button, copy the link
-address, and paste that into the code box.
+- **Minimum 8 characters**, above Supabase's default of 6, because the usual mitigation for a weak
+  password is a reset email and there isn't one.
+- **Maximum 72 bytes**, because bcrypt hashes at most 72 and silently discards the rest. Without the
+  check, a long passphrase and its first 72 bytes would both unlock the account — a weaker password
+  than the user believes they chose, with nothing on screen to reveal it. Bytes, not characters: an
+  emoji is four.
 
-A stable HTTPS origin is also what passkeys (US-40) and PWA install (US-47) need, so this unblocks
-both.
+A stable HTTPS origin is still what passkeys (US-40) and PWA install (US-47) need.
 
 **What the move bought, immediately:**
 
@@ -331,10 +337,10 @@ broken number (§11 edge case).
 ## Testing
 
 ```bash
-npm test                 # 82 unit tests
+npm test                 # 112 unit tests
 npm run build            # required before e2e — the suite tests the real export
-npm run test:e2e         # 164 end-to-end tests (desktop + mobile)
-npm run test:a11y        # just the 40 axe accessibility tests
+npm run test:e2e         # 198 end-to-end tests (desktop + mobile)
+npm run test:a11y        # just the 48 axe accessibility tests
 npm run test:lighthouse  # Lighthouse CI against the built export
 ```
 
@@ -436,8 +442,9 @@ ILOE deadline **30 Oct 2026**.
 
 ## Known gaps
 
-1. **No authentication yet** — so no live data. This is the next build step, and it unblocks
-   persistence, the review inbox and reminders.
+1. **No password reset and no passkeys.** Sign-in is email and password with nothing emailed, so a
+   forgotten password has to be cleared from the Supabase dashboard. Changing a password from inside
+   the app is unbuilt, as is biometric sign-in (US-40), which needs a stable HTTPS origin.
 2. ~~OQ-1 unresolved~~ **Closed** — Claude Cowork parses every statement, with no deterministic
    no-LLM path. The 7 ingestion stories are unblocked but still unbuilt, and every uploaded
    statement is read by an LLM (disclosed in-app on the Statements screen).

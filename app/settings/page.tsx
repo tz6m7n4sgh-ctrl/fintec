@@ -40,9 +40,14 @@ export default async function SettingsPage() {
               Not signed in, so these screens show the reference dataset rather than your own
               figures.
             </p>
-            <Link className="btn primary" href="/sign-in" prefetch={false} style={{ display: 'inline-block', textDecoration: 'none' }}>
-              Sign in
-            </Link>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link className="btn primary" href="/sign-in" prefetch={false} style={{ display: 'inline-block', textDecoration: 'none' }}>
+                Sign in
+              </Link>
+              <Link className="btn" href="/sign-up" prefetch={false} style={{ display: 'inline-block', textDecoration: 'none' }}>
+                Create an account
+              </Link>
+            </div>
           </>
         )}
       </Card>
@@ -98,9 +103,23 @@ export default async function SettingsPage() {
         </div>
       </Card>
 
+      <Card title="Passwords" sub="How you get in, and what happens if you lose it">
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+          Sign-in is email and password, completed entirely in the app. Nothing is emailed —
+          no code, no confirmation link, and <b>no reset link</b>.
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          That is the trade for a flow that never depends on a mailbox, an SMTP provider or a
+          redirect allow-list. It also means a forgotten password can only be cleared from the
+          Supabase dashboard, under Authentication → Users. Changing your password from inside the
+          app is not built yet.
+        </p>
+        <button className="btn" disabled>Change password</button>
+      </Card>
+
       <Card title="Passkeys — biometric sign-in" sub="Fingerprint or Face ID via WebAuthn">
         <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-          No passkeys registered yet. Email one-time-code sign-in is live and always remains
+          No passkeys registered yet. Email and password sign-in is live and always remains
           available as a recovery path, so a passkey is never the only way in (R-4).
         </p>
         <button className="btn" disabled>Register this device</button>
