@@ -279,6 +279,85 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('installable app (US-47)', () => {
+  test('the manifest is served, and says what installing gets you', async ({ request }) => {
+    /*
+     * HAD-30 noted the installable claim rested on the file existing rather
+     * than on a test. This is the test.
+     */
+    const res = await request.get(url('/manifest.webmanifest'));
+    expect(res.status()).toBe(200);
+
+    const manifest = JSON.parse(await res.text());
+    expect(manifest.display).toBe('standalone');
+    expect(manifest.lang).toBe('en-AE');
+    expect(manifest.icons.length).toBeGreaterThan(0);
+    // Maskable, or Android crops the icon into a circle and clips it.
+    expect(manifest.icons[0].purpose).toContain('maskable');
+  });
+
+  test('the service worker is served and registers', async ({ page }) => {
+    /*
+     * Push delivery has no other mechanism — no registration, no reminders on
+     * that channel at all.
+     *
+     * What this does NOT prove is the CSP's part in it. I checked: deleting
+     * `worker-src 'self'` from lib/security/csp.ts leaves this test green,
+     * because the policy is Report-Only and a report-only violation blocks
+     * nothing and logs nothing here. So this asserts that registration works
+     * today, not that the policy permits it once enforced. Said rather than
+     * implied, because a test that looks like it covers the CSP and does not is
+     * worse than no test.
+     */
+    const problems = collectPageProblems(page);
+    await page.goto(url('/'));
+
+    /*
+     * Waited for rather than sampled once. Registration happens in an effect,
+     * so it runs *after* hydration, which is after `goto` resolves — a single
+     * `getRegistration()` immediately afterwards is a race that passes alone
+     * and fails under parallel load. It did exactly that.
+     *
+     * `navigator.serviceWorker.ready` is the obvious wait and the wrong one: it
+     * never rejects, so a registration that fails hangs the test until the
+     * suite timeout and reports as a timeout rather than as "no worker". The
+     * bounded poll below fails with the actual answer.
+     */
+    const registered = await page.evaluate(async () => {
+      if (!('serviceWorker' in navigator)) return 'unsupported';
+      for (let i = 0; i < 50; i++) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) return 'registered';
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return 'none';
+    });
+
+    expect(registered).toBe('registered');
+    expect(problems, 'registering the worker must raise nothing').toEqual([]);
+  });
+
+  test('the worker does not cache HTML — a stale figure is worse than none', async ({ request }) => {
+    /*
+     * The design decision this whole file turns on. Every screen here is a
+     * number somebody is deciding on; a cached page serves one that was true at
+     * some point in the past, with nothing saying so. That is the app's
+     * signature defect — a plausible wrong number rather than a visible failure
+     * — delivered faster.
+     *
+     * Asserted against the worker's source because the alternative is
+     * simulating an offline navigation, and this is the property that must hold
+     * rather than the mechanism.
+     */
+    const sw = await (await request.get(url('/sw.js'))).text();
+    const precache = /const PRECACHE = \[([^\]]*)\]/.exec(sw);
+    expect(precache, 'PRECACHE must be declared as a literal list').toBeTruthy();
+    expect(precache![1]).not.toContain('.html');
+    expect(precache![1]).not.toMatch(/['"]\/['"]/); // the document root
+    expect(sw).toContain("addEventListener('push'");
+  });
+});
+
 test.describe('settings — reminders', () => {
   const card = (page: Page, title: RegExp) =>
     page.locator('section.card').filter({ has: page.locator('.card-title', { hasText: title }) });
@@ -314,8 +393,18 @@ test.describe('settings — reminders', () => {
 
     const delivery = card(page, /^Reminder delivery$/);
     await expect(delivery).toContainText('Email provider');
-    await expect(delivery).toContainText('Web-push keys');
+    await expect(delivery).toContainText('Web-push key');
     await expect(delivery).toContainText('Scheduled job');
+
+    /*
+     * The rows must distinguish built from configured, not blur them. HAD-30
+     * added the service worker, so that row is genuinely "Built" — while the
+     * VAPID key remains an operator step. A card that showed one state for both
+     * would be the "coming soon" summary this replaced.
+     */
+    const row = (name: string) => delivery.locator('tbody tr', { hasText: name }).first();
+    await expect(row('Service worker')).toContainText('Built');
+    await expect(row('Email provider')).toContainText('Not configured');
   });
 
   test('US-16 — the schedule is real and carries the copy US-16 specifies', async ({ page }) => {
