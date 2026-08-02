@@ -208,6 +208,23 @@ describe('proposeIncome', () => {
     expect(proposeIncome(salary, inactive).incomeStreamId).toBeUndefined();
   });
 
+  it('propose() routes a credit to income and a debit to a payment', () => {
+    /*
+     * The routing that migration 0009's check constraint also enforces:
+     * `transactions_one_match_kind` refuses a row claiming both. A debit cannot
+     * arrive from a salary and a credit cannot pay a cheque, and the
+     * consequence of confusing them is a payment marked paid by money coming
+     * *in*.
+     */
+    const credit = propose(salary, SEED_PAYMENTS, SEED_INCOME);
+    expect(credit.incomeStreamId).toBe('inc-salary');
+    expect(credit.paymentId).toBeUndefined();
+
+    const debit = propose(txn(), SEED_PAYMENTS, SEED_INCOME);
+    expect(debit.paymentId).toBe('pay-dewa');
+    expect(debit.incomeStreamId).toBeUndefined();
+  });
+
   it('a refund is not mistaken for salary', () => {
     // Same direction, wrong amount and payer. Both must disagree for this to be
     // a meaningful test of either.

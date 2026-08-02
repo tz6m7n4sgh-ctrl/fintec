@@ -40,6 +40,7 @@ export interface ReviewRow {
   direction: 'credit' | 'debit';
   categoryId?: string;
   matchedScheduledPaymentId?: string;
+  matchedIncomeStreamId?: string;
   matchLabel?: string;
   /** Why the match was proposed — shown so the user can evaluate it. */
   matchReason?: string;
@@ -53,10 +54,12 @@ function RowControls({
   row,
   categories,
   payments,
+  streams,
 }: {
   row: ReviewRow;
   categories: Array<{ id: string; label: string }>;
   payments: Array<{ id: string; label: string }>;
+  streams: Array<{ id: string; label: string }>;
 }) {
   const [confirmState, confirmAction, confirming] = useActionState(confirmTransaction, INITIAL);
   const [discardState, discardAction, discarding] = useActionState(discardTransaction, INITIAL);
@@ -79,20 +82,43 @@ function RowControls({
           It still defaults to the proposal, because dropping it would silently
           un-match a payment the matcher had correctly identified.
         */}
-        <select
-          name="matchedScheduledPaymentId"
-          defaultValue={row.matchedScheduledPaymentId ?? ''}
-          aria-label={
-            row.isProposed
-              ? `Matched payment for ${row.description} — suggested, change or clear it`
-              : `Matched payment for ${row.description}`
-          }
-        >
-          <option value="">No match</option>
-          {payments.map((p) => (
-            <option key={p.id} value={p.id}>{p.label}</option>
-          ))}
-        </select>
+        {/*
+          A debit settles a payment; a credit comes from an income stream.
+          Offering both would let one row claim it did each, which the database
+          refuses (`transactions_one_match_kind`) — and the consequence of
+          getting it wrong is a payment marked paid by money coming *in*.
+        */}
+        {row.direction === 'debit' ? (
+          <select
+            name="matchedScheduledPaymentId"
+            defaultValue={row.matchedScheduledPaymentId ?? ''}
+            aria-label={
+              row.isProposed
+                ? `Matched payment for ${row.description} — suggested, change or clear it`
+                : `Matched payment for ${row.description}`
+            }
+          >
+            <option value="">No match</option>
+            {payments.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+        ) : (
+          <select
+            name="matchedIncomeStreamId"
+            defaultValue={row.matchedIncomeStreamId ?? ''}
+            aria-label={
+              row.isProposed
+                ? `Income stream for ${row.description} — suggested, change or clear it`
+                : `Income stream for ${row.description}`
+            }
+          >
+            <option value="">No match</option>
+            {streams.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        )}
         <select
           name="categoryId"
           defaultValue={row.categoryId ?? ''}
@@ -160,11 +186,14 @@ export function ReviewInbox({
   rows,
   categories,
   payments,
+  streams,
 }: {
   rows: ReviewRow[];
   categories: Array<{ id: string; label: string }>;
   /** Selectable payments. Derived rows are excluded — they cannot be stored. */
   payments: Array<{ id: string; label: string }>;
+  /** Selectable income streams, offered on credits instead of payments. */
+  streams: Array<{ id: string; label: string }>;
 }) {
   return (
     <>
@@ -207,7 +236,7 @@ export function ReviewInbox({
                     <span className="pill">No match</span>
                   )}
                 </td>
-                <td><RowControls row={row} categories={categories} payments={payments} /></td>
+                <td><RowControls row={row} categories={categories} payments={payments} streams={streams} /></td>
               </tr>
             ))}
           </tbody>

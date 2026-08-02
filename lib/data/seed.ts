@@ -39,6 +39,8 @@ export interface Transaction {
   categoryId?: string;
   source: 'statement' | 'manual';
   matchedScheduledPaymentId?: string;
+  /** Which income stream a credit came from (US-33). Attribution only. */
+  matchedIncomeStreamId?: string;
   isDuplicate: boolean;
   reviewStatus: 'pending' | 'confirmed' | 'edited';
 }

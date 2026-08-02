@@ -135,13 +135,17 @@ export default async function StatementsPage() {
                      * place the e2e suite, which runs signed out, can see the
                      * matcher working end to end.
                      */
-                    const proposed = t.matchedScheduledPaymentId
+                    const sug = t.matchedScheduledPaymentId
                       ? undefined
-                      : propose(t, m.payments, m.income).paymentId;
-                    const matchId = t.matchedScheduledPaymentId ?? proposed;
-                    const match = matchId
-                      ? m.payments.find((p) => p.id === matchId)
+                      : propose(t, m.payments, m.income);
+                    const proposed = sug?.paymentId ?? sug?.incomeStreamId;
+                    const payMatch = m.payments.find(
+                      (x) => x.id === (t.matchedScheduledPaymentId ?? sug?.paymentId),
+                    );
+                    const incomeMatch = sug?.incomeStreamId
+                      ? m.income.find((x) => x.id === sug.incomeStreamId)
                       : undefined;
+                    const matchName = payMatch?.payee ?? incomeMatch?.name;
                     return (
                       <tr key={t.id}>
                         <td className="tnum">{formatDate(t.date)}</td>
@@ -151,9 +155,9 @@ export default async function StatementsPage() {
                           {t.direction === 'debit' ? '−' : '+'}{money(t.amount)}
                         </td>
                         <td>
-                          {match ? (
+                          {matchName ? (
                             <span className={proposed ? 'pill' : 'pill ok'}>
-                              <span aria-hidden>{proposed ? '?' : '✓'}</span> {match.payee}
+                              <span aria-hidden>{proposed ? '?' : '✓'}</span> {matchName}
                               {proposed ? ' (suggested)' : ''}
                             </span>
                           ) : (
@@ -210,14 +214,28 @@ export default async function StatementsPage() {
                   };
                 }
                 const p = propose(t, m.payments, m.income);
-                return p.paymentId
-                  ? {
-                      matchedScheduledPaymentId: p.paymentId,
-                      matchLabel: m.payments.find((x) => x.id === p.paymentId)?.payee,
-                      matchReason: p.reason,
-                      isProposed: true,
-                    }
-                  : {};
+                if (p.paymentId) {
+                  return {
+                    matchedScheduledPaymentId: p.paymentId,
+                    matchLabel: m.payments.find((x) => x.id === p.paymentId)?.payee,
+                    matchReason: p.reason,
+                    isProposed: true,
+                  };
+                }
+                /*
+                 * The salary half. `proposeIncome()` shipped with #26 and its
+                 * result was discarded — there was no column to put it in until
+                 * migration 0009.
+                 */
+                if (p.incomeStreamId) {
+                  return {
+                    matchedIncomeStreamId: p.incomeStreamId,
+                    matchLabel: m.income.find((x) => x.id === p.incomeStreamId)?.name,
+                    matchReason: p.reason,
+                    isProposed: true,
+                  };
+                }
+                return {};
               })(),
             }))}
             categories={m.budget.map((c) => ({ id: c.id, label: c.name }))}
@@ -229,6 +247,7 @@ export default async function StatementsPage() {
             payments={m.payments
               .filter((p) => !p.derivedFrom)
               .map((p) => ({ id: p.id, label: `${p.payee} — ${money(p.amount)}` }))}
+            streams={m.income.map((s) => ({ id: s.id, label: `${s.name} — ${money(s.amount)}` }))}
           />
         )}
       </Card>
