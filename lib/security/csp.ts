@@ -97,6 +97,34 @@ export function cspFor(nonce: string): string {
      */
     `connect-src 'self'`,
 
+    /*
+     * The service worker (HAD-30), stated explicitly rather than left to fall
+     * back.
+     *
+     * `worker-src` falls back to `child-src` and then to `script-src`, and
+     * `script-src` here carries `'nonce-…' 'strict-dynamic'`. A worker script
+     * cannot carry a nonce, and under `strict-dynamic` the `'self'`
+     * host-source is ignored — so the fallback is at best ambiguous and at
+     * worst a refusal to register `sw.js` at all. Push delivery and
+     * installability both depend on that registration.
+     *
+     * **This is not currently proven by a test, and the honest note is that I
+     * tried.** Deleting this line and re-running the e2e suite changes nothing:
+     * registration still succeeds and no console error appears, because the
+     * policy is Report-Only (`CSP_REPORT_ONLY = true`) and a report-only
+     * violation blocks nothing. So the directive is reasoning about what
+     * happens when the switch flips, not a measured result.
+     *
+     * That makes it exactly the thing to re-check when the policy is enforced:
+     * if `worker-src` is wrong, the symptom will be push silently never
+     * arriving, which is indistinguishable from having no cheques due.
+     */
+    `worker-src 'self'`,
+
+    // The manifest is same-origin and would otherwise fall back to default-src.
+    // Stated because installability is an acceptance criterion, not a nicety.
+    `manifest-src 'self'`,
+
     // Matches X-Frame-Options: DENY, which older browsers use instead.
     `frame-ancestors 'none'`,
 

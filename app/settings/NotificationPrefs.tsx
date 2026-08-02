@@ -44,6 +44,13 @@ export function NotificationPrefsEditor({ prefs }: { prefs: Prefs }) {
         </span>
       </fieldset>
 
+      {/*
+        No push control here. Push is enabled per *device*, by subscribing this
+        browser — see `PushToggle`. A checkbox in an account-level form would
+        set `push_enabled` with no subscription behind it, which is an app that
+        believes it can reach somebody it cannot, on the channel that warns
+        about bounced cheques. This form owns lead times.
+      */}
       <div className="tbl-wrap" tabIndex={0}>
         <table>
           <tbody>
@@ -55,22 +62,6 @@ export function NotificationPrefsEditor({ prefs }: { prefs: Prefs }) {
                 </span>
               </th>
               <td className="r"><span className="pill ok"><span aria-hidden>✓</span> On</span></td>
-            </tr>
-            <tr>
-              <th scope="row" className="rowhead">
-                Web push
-                <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
-                  Requires installing the app on iOS
-                </span>
-              </th>
-              <td className="r">
-                <input
-                  type="checkbox"
-                  name="push"
-                  defaultChecked={current.pushEnabled}
-                  aria-label="Web push reminders"
-                />
-              </td>
             </tr>
           </tbody>
         </table>

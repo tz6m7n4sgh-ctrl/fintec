@@ -27,7 +27,7 @@ describe('email cannot be turned off', () => {
     // The form does not carry an email field at all, so this asserts the shape
     // rather than a branch — which is the point. A field the form can carry is
     // a field a crafted form can set.
-    expect(parsePrefs({ push: false, leadDays: ['7'] }).prefs.emailEnabled).toBe(true);
+    expect(parsePrefs({ leadDays: ['7'] }).prefs.emailEnabled).toBe(true);
   });
 
   it('stays on even if a stored row says otherwise', () => {
@@ -41,17 +41,27 @@ describe('email cannot be turned off', () => {
 
 describe('parsePrefs', () => {
   it('keeps the chosen lead days, largest first', () => {
-    const r = parsePrefs({ push: true, leadDays: ['2', '14', '7'] });
+    const r = parsePrefs({ leadDays: ['2', '14', '7'] });
     expect(r.ok).toBe(true);
     expect(r.prefs.leadDays).toEqual([14, 7, 2]);
-    expect(r.prefs.pushEnabled).toBe(true);
+  });
+
+  it('never turns push on, whatever the form says', () => {
+    /*
+     * Push is derived from whether a subscription exists (`push-actions.ts`),
+     * never typed in. A form field that could set `push_enabled` produces an
+     * app that believes it can reach somebody it cannot — on the channel that
+     * warns about bounced cheques — and it would look enabled on screen while
+     * no browser anywhere held a subscription.
+     */
+    expect(parsePrefs({ leadDays: ['7'] }).prefs.pushEnabled).toBe(false);
   });
 
   it('drops values that are not offered', () => {
     // Anything outside LEAD_DAY_CHOICES came from a hand-edited form, not the
     // UI. Silently accepting 400 would schedule a reminder more than a year
     // ahead of a cheque.
-    expect(parsePrefs({ push: false, leadDays: ['7', '400', 'x'] }).prefs.leadDays).toEqual([7]);
+    expect(parsePrefs({ leadDays: ['7', '400', 'x'] }).prefs.leadDays).toEqual([7]);
   });
 
   it('refuses an empty selection rather than saving it', () => {
@@ -60,13 +70,13 @@ describe('parsePrefs', () => {
      * thing to reach by unticking boxes one at a time without noticing. Saving
      * it would leave someone believing they are covered.
      */
-    const r = parsePrefs({ push: false, leadDays: [] });
+    const r = parsePrefs({ leadDays: [] });
     expect(r.ok).toBe(false);
     expect(r.error).toContain('Nothing has been changed');
   });
 
   it('refuses a selection that is entirely invalid', () => {
-    expect(parsePrefs({ push: false, leadDays: ['999'] }).ok).toBe(false);
+    expect(parsePrefs({ leadDays: ['999'] }).ok).toBe(false);
   });
 
   it('offers the schema defaults among its choices', () => {

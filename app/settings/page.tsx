@@ -3,6 +3,8 @@ import { Card, PageHead } from '@/components/ui';
 import { EraseData } from './EraseData';
 import { ImportBackup } from './ImportBackup';
 import { NotificationPrefsEditor } from './NotificationPrefs';
+import { PushToggle } from './PushToggle';
+import { isPushConfigured } from '@/lib/settings/push';
 import { RemindersPreview } from './RemindersPreview';
 import { todayInDubai } from '@/lib/engine/dates';
 import { signOut } from '@/app/auth/actions';
@@ -11,6 +13,7 @@ import { getReadModel, isSupabaseConfigured } from '@/lib/data/store';
 export default async function SettingsPage() {
   const m = await getReadModel();
   const configured = isSupabaseConfigured();
+  const pushConfigured = isPushConfigured();
 
   return (
     <>
@@ -140,7 +143,14 @@ export default async function SettingsPage() {
             account here to store them against.
           </p>
         ) : (
-          <NotificationPrefsEditor prefs={m.notificationPrefs} />
+          <>
+            <NotificationPrefsEditor prefs={m.notificationPrefs} />
+
+            <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '16px 0' }} />
+
+            <h3 style={{ fontSize: 13.5, margin: '0 0 6px' }}>Web push on this device</h3>
+            <PushToggle enabled={m.notificationPrefs.pushEnabled} />
+          </>
         )}
 
         {/*
@@ -214,12 +224,25 @@ export default async function SettingsPage() {
               </tr>
               <tr>
                 <th scope="row" className="rowhead">
-                  Web-push keys
+                  Service worker
                   <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
-                    VAPID pair, plus a service worker (HAD-30)
+                    Registered on every page; carries the push handler
                   </span>
                 </th>
-                <td className="r"><span className="pill cheque"><span aria-hidden>✕</span> Not configured</span></td>
+                <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Built</span></td>
+              </tr>
+              <tr>
+                <th scope="row" className="rowhead">
+                  Web-push key
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    VAPID pair — public half in <code>NEXT_PUBLIC_VAPID_PUBLIC_KEY</code>, private half in Supabase
+                  </span>
+                </th>
+                <td className="r">
+                  {pushConfigured
+                    ? <span className="pill ok"><span aria-hidden>✓</span> Configured</span>
+                    : <span className="pill cheque"><span aria-hidden>✕</span> Not configured</span>}
+                </td>
               </tr>
               <tr>
                 <th scope="row" className="rowhead">

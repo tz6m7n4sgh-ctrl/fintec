@@ -29,10 +29,7 @@ export async function saveNotificationPrefs(
   _prev: PrefsResult,
   form: FormData,
 ): Promise<PrefsResult> {
-  const parsed = parsePrefs({
-    push: form.get('push') === 'on',
-    leadDays: form.getAll('leadDays').map(String),
-  });
+  const parsed = parsePrefs({ leadDays: form.getAll('leadDays').map(String) });
 
   // Validated before authenticating is the wrong order elsewhere in this app;
   // here it is deliberate and harmless — the rejection reveals nothing but the
@@ -46,6 +43,20 @@ export async function saveNotificationPrefs(
   const user = auth?.user;
   if (!user) return { ok: false, error: SIGNED_OUT };
 
+  /*
+   * Push is read back and written unchanged.
+   *
+   * An upsert replaces the whole conflicting row, so omitting these two would
+   * silently turn push off for anyone who saved a lead-time change — the
+   * subscription would survive in the browser while the database forgot it, and
+   * the app would show push as off on a device still holding a live
+   * subscription. This form owns lead times only; `push-actions.ts` owns push.
+   */
+  const { data: existing } = await supabase
+    .from('notification_prefs')
+    .select('push_enabled, push_subscription')
+    .maybeSingle();
+
   const { error } = await supabase
     .from('notification_prefs')
     .upsert(
@@ -55,7 +66,8 @@ export async function saveNotificationPrefs(
         // column default decide on insert and leave a stale `false` in place on
         // update — and `false` here is the one value this app must never store.
         email_enabled: true,
-        push_enabled: parsed.prefs.pushEnabled,
+        push_enabled: existing?.push_enabled ?? false,
+        push_subscription: existing?.push_subscription ?? null,
         lead_days: parsed.prefs.leadDays,
       },
       { onConflict: 'user_id' },

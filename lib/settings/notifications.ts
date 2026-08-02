@@ -63,10 +63,7 @@ export interface ParseResult {
  * control, which this app does not have yet. Until it does, the honest answer
  * is to refuse and say why.
  */
-export function parsePrefs(form: {
-  push: boolean;
-  leadDays: readonly string[];
-}): ParseResult {
+export function parsePrefs(form: { leadDays: readonly string[] }): ParseResult {
   const chosen = form.leadDays
     .map((v) => Number(v))
     .filter((n) => Number.isInteger(n) && (LEAD_DAY_CHOICES as readonly number[]).includes(n))
@@ -87,7 +84,14 @@ export function parsePrefs(form: {
       // Not read from the form at all. See EMAIL_IS_MANDATORY: a value the form
       // can carry is a value a crafted form can set.
       emailEnabled: true,
-      pushEnabled: form.push,
+      /*
+       * Nor is push. It is **derived from whether a subscription exists**
+       * (`PushToggle` / `push-actions.ts`), never typed in — a checkbox that
+       * sets `push_enabled` without one produces an app that believes it can
+       * reach somebody it cannot, on the channel that warns about bounced
+       * cheques. This form owns lead times; that flow owns push.
+       */
+      pushEnabled: false,
       leadDays: chosen,
     },
   };

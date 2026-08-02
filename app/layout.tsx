@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
 import { BottomTabs, Sidebar } from '@/components/Shell';
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 import { LegalFooter } from '@/components/ui';
 import './globals.css';
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <LegalFooter />
         <BottomTabs />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
