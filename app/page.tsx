@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { ActualSpendChart, BudgetBars, ProjectionChart } from '@/components/charts';
 import { Card, Money, PageHead, RunwayStatusBadge, ScenarioBadge, StatTile } from '@/components/ui';
-import { addDays, formatDate, formatMonthShort } from '@/lib/engine/dates';
-import { RULES, monthlyDebtService } from '@/lib/engine/uae';
+import { formatDate, formatMonthShort } from '@/lib/engine/dates';
+import { RULES, chequesInWindow, monthlyDebtService } from '@/lib/engine/uae';
 import { getReadModel } from '@/lib/data/store';
 import { aed, money, months, percent } from '@/lib/format/money';
 
@@ -18,14 +18,14 @@ export default async function DashboardPage() {
   const fixedShare = m.survivalTotal === 0 ? 0 : fixed / m.survivalTotal;
   const discretionary = m.survivalTotal - fixed;
 
-  // Must count the SAME cheques the 113,000 figure sums — i.e. only those inside
-  // the 6-month window — or the tile's caption contradicts its own number.
-  const window6mEnd = addDays(m.profile.expectedLastDay, RULES.CHEQUE_WINDOW_6M);
-  const cheques6mCount = m.payments.filter(
-    (p) =>
-      p.type === 'cheque' &&
-      p.dueDate >= m.profile.expectedLastDay &&
-      p.dueDate <= window6mEnd,
+  // Must count the SAME cheques the 113,000 figure sums, or the tile's caption
+  // contradicts its own number. It used to say that and then rebuild the filter
+  // by hand, which held only while nobody changed one side — HAD-82 changed one
+  // side. Now both come from `chequesInWindow`, so they cannot part company.
+  const cheques6mCount = chequesInWindow(
+    m.payments,
+    m.profile.expectedLastDay,
+    RULES.CHEQUE_WINDOW_6M,
   ).length;
 
   const lumpMonths = projection.points.filter((p) => p.lumpSum > 0);

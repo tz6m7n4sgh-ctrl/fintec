@@ -67,6 +67,44 @@ describe('cash projection', () => {
     expect(p.points.find((x) => x.label === 'Jan 27')!.lumpSum).toBe(0);
   });
 
+  /*
+   * HAD-82. The exposure tile and this projection both had to learn that a
+   * cleared cheque is history. Fixing only the tile would have swapped one
+   * silent disagreement for another — the headline dropping while the balance
+   * kept deducting money that had already left the account.
+   */
+  it('stops deducting a cleared lump sum', () => {
+    const settled = PAYMENTS.map((x) =>
+      x.id === 'family' ? { ...x, status: 'paid' as const } : x,
+    );
+    const q = projectCash(RUNWAY, settled, '2026-09-30', 18);
+
+    expect(q.points.find((x) => x.label === 'Dec 26')!.lumpSum).toBe(0);
+    expect(q.points.find((x) => x.label === 'Dec 26')!.lumpSumPayees).toEqual([]);
+    // 65,000 less the 20,000 that has cleared.
+    expect(q.totalLumpSums).toBe(45_000);
+  });
+
+  it('still deducts an atRisk lump sum', () => {
+    // The direction that matters. A cheque flagged as a problem is the thing
+    // this projection exists to show, and dropping it would erase the warning.
+    const risky = PAYMENTS.map((x) =>
+      x.id === 'balloon' ? { ...x, status: 'atRisk' as const } : x,
+    );
+    const q = projectCash(RUNWAY, risky, '2026-09-30', 18);
+    expect(q.points.find((x) => x.label === 'Mar 27')!.lumpSum).toBe(45_000);
+    expect(q.totalLumpSums).toBe(65_000);
+  });
+
+  it('clearing an in-budget cheque changes nothing — G-1 still governs', () => {
+    // It was never a lump sum, so the new filter must not make it one, and must
+    // not accidentally start deducting it either.
+    const settled = PAYMENTS.map((x) =>
+      x.id === 'rent-q4' ? { ...x, status: 'paid' as const } : x,
+    );
+    expect(projectCash(RUNWAY, settled, '2026-09-30', 18).totalLumpSums).toBe(65_000);
+  });
+
   it('computes the running balance correctly', () => {
     expect(Math.round(p.points[0].balance)).toBe(197_479); // Oct: −23,000
     expect(Math.round(p.points[1].balance)).toBe(174_479); // Nov: −23,000

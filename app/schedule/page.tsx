@@ -3,7 +3,7 @@ import { addDays, formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { occurrenceCount } from '@/lib/engine/schedule';
 import { PaymentsEditor } from './PaymentsEditor';
-import { RULES } from '@/lib/engine/uae';
+import { RULES, chequesInWindow } from '@/lib/engine/uae';
 import { aed, money } from '@/lib/format/money';
 
 const RECURRENCE_LABEL: Record<string, string> = {
@@ -26,8 +26,12 @@ export default async function SchedulePage() {
     .filter((p) => p.recurrence === 'monthly')
     .reduce((s, p) => s + p.amount, 0);
 
-  const cheques6 = m.payments.filter((p) => p.type === 'cheque' && p.dueDate >= last && p.dueDate <= end6);
-  const cheques12 = m.payments.filter((p) => p.type === 'cheque' && p.dueDate >= last && p.dueDate <= end12);
+  // From the engine, not rebuilt here: these counts render directly beside
+  // `deadlines.cheques6m` and `cheques12m`, so a filter that disagreed by one
+  // cheque would put "113,000" next to a count that does not produce it
+  // (HAD-82).
+  const cheques6 = chequesInWindow(m.payments, last, RULES.CHEQUE_WINDOW_6M);
+  const cheques12 = chequesInWindow(m.payments, last, RULES.CHEQUE_WINDOW_12M);
   const outOfBudget = m.payments.filter((p) => !p.includedInBudget);
 
   // 12-month total expands recurrences, so a monthly bill counts 12 times.

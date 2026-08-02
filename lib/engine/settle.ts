@@ -75,6 +75,52 @@ export function effectiveStatus(
 }
 
 /**
+ * Does this payment still need funding? (HAD-82)
+ *
+ * The one place that decides, because two figures read it and they must not
+ * disagree: `chequeExposure()` on the dashboard and the report, and the lump
+ * sums `projectCash()` subtracts from the forward balance. Written twice, they
+ * would drift the first time one of them was edited — and the symptom would be
+ * two numbers on adjacent screens quietly contradicting each other, which is
+ * this project's most-repeated defect.
+ *
+ * **Only `paid` is excluded, and that is deliberate.** `atRisk` is still
+ * exposure — more so, not less. A cheque the user has flagged as a problem is
+ * the single thing this app exists to keep in view (R-5), and a predicate that
+ * quietly dropped it would remove the warning at exactly the moment it matters.
+ * So this tests for `paid` rather than testing for `upcoming`: a status added
+ * later defaults to *counted*, which is the safe direction.
+ *
+ * ## Why cleared money must stop being projected
+ *
+ * A cleared cheque is history, not exposure. Continuing to count it overstates
+ * what is still owed, and — worse in the projection — subtracts an outflow that
+ * has already happened from a balance that already reflects it. The app's bias
+ * is toward caution, and overstating an obligation is the safe direction of the
+ * two, which is why this was worth doing deliberately rather than quickly. But
+ * "cautious" is not the same as "correct", and a figure the user cannot
+ * reconcile against their own bank balance is one they stop trusting.
+ *
+ * ## Why school fees are not filtered here
+ *
+ * `schoolFeeObligations()` drops a paid term before deriving anything, so a paid
+ * fee never becomes a payment and this predicate never sees one. That is not a
+ * second copy of this rule: it answers a different question. This one asks
+ * *"does this payment still need funding?"*; that one asks *"does this fee
+ * still produce an obligation at all?"* — and a term already paid produces
+ * nothing to put on a calendar.
+ *
+ * The alternative — deriving every term with a real status and letting this
+ * predicate filter — would put paid fee terms on the calendar and the schedule.
+ * That may well be an improvement, since a term you have paid currently
+ * disappears from the schedule entirely. It is a separate decision about what
+ * those screens show, not a correctness fix, so it is not made here.
+ */
+export function isOutstanding(payment: Pick<ScheduledPayment, 'status'>): boolean {
+  return payment.status !== 'paid';
+}
+
+/**
  * Applies the derivation across a list.
  *
  * Returns new objects rather than mutating: these payments are also the input

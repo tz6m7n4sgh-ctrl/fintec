@@ -561,6 +561,28 @@ test.describe('loans', () => {
     await expect(autoRow).toContainText('6,000');
     await expect(autoRow).toContainText('computed — read-only');
   });
+
+  test('HAD-82 — the cheque register shows status and totals only what is still owed', async ({ page }) => {
+    /*
+     * The card is headed "these cannot be missed" and had no status column at
+     * all, so a cleared cheque looked identical to one still to fund. Its total
+     * row said "Total cheque exposure listed" while summing both, directly
+     * above the engine's 6-month figure that (as of HAD-82) does not.
+     *
+     * Nothing in the §11 seed is cleared, so the figure itself is unchanged —
+     * which is the point of asserting it here. What must be visible is the
+     * distinction, so that the day something does clear, the table says so.
+     */
+    await page.goto(url('/loans/'));
+    const card = page.locator('section.card', { hasText: 'Post-dated cheques' });
+
+    await expect(card.getByRole('columnheader', { name: 'Status' })).toBeVisible();
+    await expect(card.locator('tr.tot-row')).toContainText('Still to fund');
+    // Nothing cleared in the seed, so no exclusion note and the register total
+    // still equals every cheque on it.
+    await expect(card.locator('tr.tot-row')).not.toContainText('cleared');
+    await expect(card.locator('tr.tot-row')).toContainText('161,000');
+  });
 });
 
 test.describe('schedule', () => {

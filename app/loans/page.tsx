@@ -4,6 +4,7 @@ import { getReadModel } from '@/lib/data/store';
 import { DebtsEditor } from './DebtsEditor';
 import { SchoolFeesEditor } from './SchoolFeesEditor';
 import { monthlyDebtService, monthlySchoolFees } from '@/lib/engine/uae';
+import { isOutstanding } from '@/lib/engine/settle';
 import { aed, money } from '@/lib/format/money';
 
 const DEBT_LABEL: Record<string, string> = {
@@ -16,7 +17,17 @@ export default async function LoansPage() {
   const debtService = monthlyDebtService(m.debts);
   const schoolMonthly = monthlySchoolFees(m.schoolFees);
   const outstanding = m.debts.reduce((s, d) => s + d.outstandingBalance, 0);
+  /*
+   * Every cheque, cleared ones included — this table is a register of what has
+   * been written, and a cheque you wrote is worth being able to look up after
+   * it clears. The exposure *total* below is a different question, so it sums
+   * only what is still outstanding (HAD-82); before that split, the total row
+   * said "exposure" while counting cleared cheques, and sat directly above the
+   * engine's 6-month figure that did not.
+   */
   const cheques = m.payments.filter((p) => p.type === 'cheque');
+  const outstandingCheques = cheques.filter(isOutstanding);
+  const clearedCount = cheques.length - outstandingCheques.length;
   const unpaidFees = m.schoolFees.filter((f) => !f.paid);
 
   return (
@@ -135,7 +146,7 @@ export default async function LoansPage() {
             <thead>
               <tr>
                 <th>Due</th><th>Payee</th><th>Purpose</th><th>Account</th>
-                <th className="r">Amount</th><th>In budget</th>
+                <th className="r">Amount</th><th>Status</th><th>In budget</th>
               </tr>
             </thead>
             <tbody>
@@ -146,6 +157,21 @@ export default async function LoansPage() {
                   <td>{p.purpose}</td>
                   <td>{p.account}</td>
                   <td className="r amt tnum">{money(p.amount)}</td>
+                  {/*
+                    Without this column a cleared cheque was indistinguishable
+                    from one still to fund, on a card headed "these cannot be
+                    missed". The schedule and the calendar have shown it all
+                    along; this table was the one that did not.
+                  */}
+                  <td>
+                    {p.status === 'atRisk' ? (
+                      <span className="pill risk"><span aria-hidden>▲</span> At risk</span>
+                    ) : p.status === 'paid' ? (
+                      <span className="pill ok"><span aria-hidden>✓</span> Cleared</span>
+                    ) : (
+                      <span className="pill">Due</span>
+                    )}
+                  </td>
                   <td>
                     {p.includedInBudget
                       ? <span className="pill ok"><span aria-hidden>✓</span> Yes</span>
@@ -154,9 +180,18 @@ export default async function LoansPage() {
                 </tr>
               ))}
               <tr className="tot-row">
-                <td colSpan={4}>Total cheque exposure listed</td>
-                <td className="r tnum">{money(cheques.reduce((s, p) => s + p.amount, 0))}</td>
-                <td />
+                <td colSpan={4}>
+                  Still to fund
+                  {clearedCount > 0 ? (
+                    <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>
+                      {' '}— excludes {clearedCount} cleared
+                    </span>
+                  ) : null}
+                </td>
+                <td className="r tnum">
+                  {money(outstandingCheques.reduce((s, p) => s + p.amount, 0))}
+                </td>
+                <td colSpan={2} />
               </tr>
             </tbody>
           </table>

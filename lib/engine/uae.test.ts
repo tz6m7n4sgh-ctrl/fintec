@@ -426,6 +426,49 @@ describe('cheque exposure', () => {
     expect(chequeExposure(q, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(0);
   });
 
+  /*
+   * HAD-82. The §11 assertions above are the control: no seed row carries
+   * `status: 'paid'`, so 113,000 / 161,000 must be unchanged by this rule.
+   * They are, which is what makes it safe to state that the change is inert on
+   * the reference profile rather than assume it.
+   *
+   * These three are the change itself.
+   */
+  it('drops a cleared cheque from exposure, by exactly its amount', () => {
+    const cleared = REF_CHEQUES.map((p) =>
+      p.id === 'p3' ? { ...p, status: 'paid' as const } : p,
+    );
+    // 113,000 less the 18,000 January rent cheque that has now cleared.
+    expect(chequeExposure(cleared, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(95_000);
+    // And the 12-month figure moves by the same amount, not a different one.
+    expect(chequeExposure(cleared, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M)).toBe(143_000);
+  });
+
+  it('keeps an atRisk cheque in exposure — it is more owed, not less', () => {
+    /*
+     * The trap in this issue. `atRisk` is the flag standing between the user
+     * and a bounced cheque (R-5), and a predicate written as
+     * `status === 'upcoming'` would have dropped it from the exposure tile
+     * while looking like a tidy filter. Flagging two of these as at risk must
+     * move the figure by nothing at all.
+     */
+    const flagged = REF_CHEQUES.map((p) =>
+      p.id === 'p1' || p.id === 'p5' ? { ...p, status: 'atRisk' as const } : p,
+    );
+    expect(chequeExposure(flagged, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(113_000);
+    expect(chequeExposure(flagged, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M)).toBe(161_000);
+  });
+
+  it('a cheque cleared outside the window changes nothing', () => {
+    // Clearing something that was never counted must not move the figure — the
+    // filter has to be an AND, not a replacement for the date test.
+    const paidPast: ScheduledPayment[] = [
+      { ...REF_CHEQUES[0], id: 'past', dueDate: '2026-09-29', amount: 99_000, status: 'paid' },
+      ...REF_CHEQUES,
+    ];
+    expect(chequeExposure(paidPast, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(113_000);
+  });
+
   it('visa grace end follows the profile grace days', () => {
     expect(deadlines(REF).visaGraceEnd).toBe('2026-12-29');
     expect(deadlines({ ...REF, visaGraceDays: 180 }).visaGraceEnd).toBe('2027-03-29');
