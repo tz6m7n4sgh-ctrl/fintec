@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
 import { signOut } from '@/app/auth/actions';
 import { getReadModel, isSupabaseConfigured } from '@/lib/data/store';
@@ -39,9 +40,9 @@ export default async function SettingsPage() {
               Not signed in, so these screens show the reference dataset rather than your own
               figures.
             </p>
-            <a className="btn primary" href="/sign-in" style={{ display: 'inline-block', textDecoration: 'none' }}>
+            <Link className="btn primary" href="/sign-in" style={{ display: 'inline-block', textDecoration: 'none' }}>
               Sign in
-            </a>
+            </Link>
           </>
         )}
       </Card>

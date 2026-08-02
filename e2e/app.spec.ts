@@ -425,14 +425,38 @@ test.describe('sign-in', () => {
    * The OTP round-trip itself cannot be asserted here; it needs a provisioned
    * user and a real mailbox. What is asserted is everything around it.
    */
-  test('renders and says plainly that sign-in is unavailable when unconfigured', async ({ page }) => {
+  test('renders correctly whether or not Supabase is configured', async ({ page }) => {
     const problems = collectPageProblems(page);
     const response = await page.goto(url('/sign-in/'));
     expect(response?.status()).toBe(200);
-
     await expect(page.locator('h1')).toHaveText('Sign in');
-    await expect(page.locator('body')).toContainText('Sign-in is not configured');
-    // Degrading must be quiet, not a wall of console errors.
+
+    /*
+     * The build's configuration is not fixed: ci.yml injects
+     * NEXT_PUBLIC_SUPABASE_* from repository variables, so the same commit
+     * produces a configured build when those are set and an unconfigured one
+     * when they are not. Asserting only the unconfigured copy would pass today
+     * and fail the moment someone populates those variables — a test that
+     * breaks on a correct change.
+     *
+     * So assert whichever state this build is in, and assert it properly. Both
+     * branches are real requirements: the form must work when configured, and
+     * the degradation must be explicit when not.
+     */
+    const emailField = page.getByLabel('Email address');
+    const configured = (await emailField.count()) > 0;
+
+    if (configured) {
+      await expect(emailField).toBeVisible();
+      await expect(page.getByRole('button', { name: /send code/i })).toBeVisible();
+      // Nothing should claim it is unavailable while the form is right there.
+      await expect(page.locator('body')).not.toContainText('Sign-in is not configured');
+    } else {
+      await expect(page.locator('body')).toContainText('Sign-in is not configured');
+      await expect(page.getByRole('button', { name: /send code/i })).toHaveCount(0);
+    }
+
+    // Either way, degrading or working must be quiet — no console errors.
     expect(problems).toEqual([]);
   });
 

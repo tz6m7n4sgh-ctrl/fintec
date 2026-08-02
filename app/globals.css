@@ -109,6 +109,17 @@ body {
 h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
 a { color: var(--s1-ink); }
 
+/**
+ * Links inside a status-tinted banner.
+ *
+ * `--s1-ink` is tuned against the plain surfaces and fails 4.5:1 on the
+ * warning-tinted banner in dark mode — the axe sweep caught it the moment the
+ * first such link was added. Rather than tune a fourth blue for one background,
+ * these inherit the banner's own ink (15:1 or better on any surface) and carry
+ * an underline so they still read as links without relying on colour.
+ */
+.banner-link { color: var(--ink-1); text-decoration: underline; text-underline-offset: 2px; }
+
 .mono { font-variant-numeric: tabular-nums; }
 
 /* --- app shell ----------------------------------------------------------- */
