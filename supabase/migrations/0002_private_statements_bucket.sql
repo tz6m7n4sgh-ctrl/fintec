@@ -10,9 +10,25 @@ on conflict (id) do update
       file_size_limit = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
 
--- Objects are namespaced by user id: statements/<uid>/<file>. Each policy checks
--- the first path segment against auth.uid(), so one user can never read,
--- overwrite or delete another user's statement files.
+-- Objects are namespaced by user id. The object key is `<uid>/<file>` — the
+-- path *inside* the bucket, which never repeats the bucket name. In Supabase
+-- Storage `bucket_id` and `name` are separate columns.
+--
+-- This comment previously said `statements/<uid>/<file>`, and that was not a
+-- typo with no consequence (HAD-76). Each policy below tests the first path
+-- segment against auth.uid():
+--
+--   <uid>/payslip.pdf              foldername[1] = <uid>          matches
+--   statements/<uid>/payslip.pdf   foldername[1] = 'statements'   never matches
+--
+-- With the bucket name prefixed, every select, insert, update and delete is
+-- refused — for every user, including the owner. It fails closed, so nothing
+-- leaks; it fails *silently and universally*, and the obvious diagnosis points
+-- at these policies, which are correct. The bug would be in the caller, taught
+-- by this comment.
+--
+-- `statement_uploads.storage_path` stores the same object key, and 0006 adds a
+-- constraint so a row cannot name an object the policy would refuse.
 create policy statements_select on storage.objects
   for select to authenticated
   using (bucket_id = 'statements' and (storage.foldername(name))[1] = (select auth.uid())::text);

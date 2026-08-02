@@ -123,8 +123,11 @@ begin
     -- trips a check constraint would look like an RLS failure.
     insert into public.scheduled_payments (user_id, due_date, payee, type, included_in_budget)
       values (u, date '2026-09-01', 'Probe payee', 'cheque', false);
+    -- The object key, NOT bucket-qualified (HAD-76). This probe used to write
+    -- 'statements/<uid>/probe.pdf', which is the exact mistake that makes every
+    -- storage policy stop matching — in the test meant to be the reference.
     insert into public.statement_uploads (user_id, file_name, storage_path, file_type)
-      values (u, 'probe.pdf', 'statements/' || u::text || '/probe.pdf', 'pdf');
+      values (u, 'probe.pdf', u::text || '/probe.pdf', 'pdf');
     insert into public.transactions (user_id, date, amount, direction, dedupe_hash)
       values (u, date '2026-08-01', 1234.56, 'debit', 'probe-' || u::text);
   end loop;
@@ -342,6 +345,33 @@ begin
       values ('F storage', 'CONTROL — A can write to its own folder', 'FAIL',
               'refused ' || sqlstate || ' — the policy blocks every user, so the '
               'isolation results below prove nothing');
+  end;
+
+  /*
+   * HAD-76, asserted rather than described. The bucket-prefixed key is the
+   * mistake US-28 is most likely to make, because the bucket name is right
+   * there in the API call and repeating it reads as natural.
+   *
+   * The policy refuses it — segment 1 is the literal 'statements', which
+   * equals no uid. That refusal is the correct behaviour and it is also what
+   * makes the bug so hard to diagnose: uploads break for everyone, and the
+   * policies that get blamed are innocent. Pinning it here means the day
+   * somebody "fixes" the policies to accept this shape, the isolation proof
+   * fails instead of the isolation.
+   */
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('statements', 'statements/aaaaaaaa-0000-4000-8000-000000000001/mine.pdf',
+            'aaaaaaaa-0000-4000-8000-000000000001');
+    insert into sec1 (phase, check_name, verdict, detail)
+      values ('F storage', 'a bucket-prefixed key is refused (HAD-76)', 'FAIL',
+              'accepted — segment 1 is ''statements'', so this object is '
+              'unreachable by its own owner and the policies now match on '
+              'something other than the uid');
+  exception when insufficient_privilege then
+    insert into sec1 (phase, check_name, verdict, detail)
+      values ('F storage', 'a bucket-prefixed key is refused (HAD-76)', 'pass',
+              'refused — the key must be <uid>/<file>, never statements/<uid>/<file>');
   end;
 
   begin

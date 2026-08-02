@@ -183,9 +183,9 @@ export const SEED_TRANSACTIONS: Transaction[] = (() => {
 })();
 
 export const SEED_UPLOADS: StatementUpload[] = [
-  { id: 'up-1', bankAccountId: 'acc-enbd', fileName: 'ENBD-statement-Sep2026.pdf', storagePath: 'statements/seed/ENBD-Sep2026.pdf', fileType: 'pdf', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 2, createdAt: '2026-09-30' },
-  { id: 'up-2', bankAccountId: 'acc-adcb', fileName: 'ADCB-Sep2026.csv', storagePath: 'statements/seed/ADCB-Sep2026.csv', fileType: 'csv', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 1, createdAt: '2026-09-30' },
-  { id: 'up-3', bankAccountId: 'acc-fab', fileName: 'FAB-scan-Sep2026.pdf', storagePath: 'statements/seed/FAB-scan.pdf', fileType: 'pdf', status: 'failed', errorMessage: 'The PDF contains no extractable text — it looks like a scanned image. Re-export the statement as text or CSV from your bank, or enter the transactions manually.', createdAt: '2026-09-30' },
+  { id: 'up-1', bankAccountId: 'acc-enbd', fileName: 'ENBD-statement-Sep2026.pdf', storagePath: 'seed/ENBD-Sep2026.pdf', fileType: 'pdf', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 2, createdAt: '2026-09-30' },
+  { id: 'up-2', bankAccountId: 'acc-adcb', fileName: 'ADCB-Sep2026.csv', storagePath: 'seed/ADCB-Sep2026.csv', fileType: 'csv', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 1, createdAt: '2026-09-30' },
+  { id: 'up-3', bankAccountId: 'acc-fab', fileName: 'FAB-scan-Sep2026.pdf', storagePath: 'seed/FAB-scan.pdf', fileType: 'pdf', status: 'failed', errorMessage: 'The PDF contains no extractable text — it looks like a scanned image. Re-export the statement as text or CSV from your bank, or enter the transactions manually.', createdAt: '2026-09-30' },
 ];
 
 /** §8 action plan. Deadline dates are computed, not stored. */
