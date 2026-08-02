@@ -279,6 +279,34 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('settings — erase all data', () => {
+  const dataCard = (page: import('@playwright/test').Page) =>
+    page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Your data$/ }),
+    });
+
+  test('US-46 — signed out, there is nothing to erase and it says so', async ({ page }) => {
+    await page.goto(url('/settings/'));
+    const card = dataCard(page);
+    await expect(card).toContainText('Sign in to erase your data');
+    await expect(card.getByRole('button', { name: /Erase/ })).toHaveCount(0);
+  });
+
+  test('US-46 — the export buttons stay disabled rather than looking usable', async ({ page }) => {
+    /*
+     * HAD-15 is not built. A button that looks live and does nothing is the
+     * same class of claim as a status the app cannot back up, and this card
+     * previously rendered a live-looking "Delete all data" button that did
+     * nothing at all.
+     */
+    await page.goto(url('/settings/'));
+    const card = dataCard(page);
+    await expect(card.getByRole('button', { name: 'Export all data (JSON)' })).toBeDisabled();
+    await expect(card.getByRole('button', { name: 'Import from JSON' })).toBeDisabled();
+    await expect(card).toContainText('not built yet');
+  });
+});
+
 test.describe('plan — action checklist', () => {
   test('HAD-85 — signed out, the checklist is visible but not tickable', async ({ page }) => {
     await page.goto(url('/plan/'));
