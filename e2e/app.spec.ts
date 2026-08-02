@@ -303,6 +303,41 @@ test.describe('statements — uploads', () => {
 });
 
 test.describe('loans', () => {
+  test('US-20 — signed out, school fees are read-only and say why', async ({ page }) => {
+    await page.goto(url('/loans/'));
+    const card = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^School fees$/ }),
+    });
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add a school fee' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Delete / })).toHaveCount(0);
+  });
+
+  test('US-20 — the annual total divides by 12 into the budget row', async ({ page }) => {
+    /*
+     * The derivation US-20 exists for, asserted end to end across two screens
+     * rather than in the engine alone: 36,000 a year is 3,000 a month, and the
+     * budget line that shows it is computed and read-only.
+     */
+    await page.goto(url('/loans/'));
+    const card = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^School fees$/ }),
+    });
+    await expect(card.locator('tr.tot-row')).toContainText('36,000');
+
+    // The tile on this same screen must agree with the table above it. Taken
+    // from Codex's PR #18 — a third surface showing the same derivation, and
+    // this app has already shipped one tile that disagreed with its own
+    // caption (HAD-81).
+    await expect(page.locator('.tile', { hasText: 'School fees / month' })).toContainText('3,000');
+
+    await page.goto(url('/budget/'));
+    const row = page.locator('tbody tr', { hasText: 'School fees' }).first();
+    await expect(row).toContainText('3,000');
+    await expect(row).toContainText('computed — read-only');
+  });
+
   test('US-19 — signed out, the debts table is read-only and says why', async ({ page }) => {
     await page.goto(url('/loans/'));
     const card = page.locator('section.card', { hasText: 'Debts' }).first();
