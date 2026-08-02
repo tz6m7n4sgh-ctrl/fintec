@@ -193,13 +193,30 @@ export async function saveSchoolFee(
     return fail('A due date is required — without one the term cannot reach the calendar.');
   }
 
+  /*
+   * Parsed here rather than through `n()`, which is the helper the debts
+   * actions use. `n()` coerces anything unparseable to 0 — fine for an
+   * optional balance, wrong for this.
+   *
+   * A fee silently stored as 0 does not fail: it drops out of the budget's
+   * annual ÷ 12, and if it is cheque-paid it renders on the calendar as a
+   * cheque for nothing. The user typed an amount, saw "saved", and now owes
+   * money the app does not know about. Codex caught this in PR #18 and it is
+   * the better call, so it is taken from there.
+   */
+  const rawAmount = s(form, 'amount');
+  const amount = Number(rawAmount);
+  if (rawAmount === '' || !Number.isFinite(amount) || amount < 0) {
+    return fail('Enter the fee amount as a number — a term saved without one would vanish from the budget and show on the calendar as a cheque for nothing.');
+  }
+
   const row = {
     user_id: c.user.id,
     child: s(form, 'child'),
     school: s(form, 'school'),
     term: s(form, 'term'),
     due_date: dueDate,
-    amount: n(form, 'amount'),
+    amount,
     paid_by_cheque: form.get('paidByCheque') === 'on',
     paid: form.get('paid') === 'on',
   };

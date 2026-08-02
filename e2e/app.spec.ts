@@ -326,6 +326,12 @@ test.describe('loans', () => {
     });
     await expect(card.locator('tr.tot-row')).toContainText('36,000');
 
+    // The tile on this same screen must agree with the table above it. Taken
+    // from Codex's PR #18 — a third surface showing the same derivation, and
+    // this app has already shipped one tile that disagreed with its own
+    // caption (HAD-81).
+    await expect(page.locator('.tile', { hasText: 'School fees / month' })).toContainText('3,000');
+
     await page.goto(url('/budget/'));
     const row = page.locator('tbody tr', { hasText: 'School fees' }).first();
     await expect(row).toContainText('3,000');
