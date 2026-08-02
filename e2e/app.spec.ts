@@ -293,6 +293,29 @@ test.describe('statements — review inbox', () => {
     await expect(card.getByRole('button', { name: /^Discard / })).toHaveCount(0);
   });
 
+  test('US-33 — a matching debit is suggested, and an unmatchable one is not', async ({ page }) => {
+    /*
+     * Precision, asserted end to end. The §11 seed has three pending rows:
+     *
+     *   DEWA SEP BILL 690        → matches pay-dewa (700, 1 Oct)
+     *   ADCB CAR LOAN 2,400      → matches pay-car  (2,400, 6 Oct)
+     *   SALIK TOLL RECHARGE 100  → matches nothing, and must stay that way
+     *
+     * A matcher that fired on Salik would be finding the two and also inviting
+     * a confirmation that marks something paid which was never owed.
+     */
+    await page.goto(url('/statements/'));
+    const card = inbox(page);
+
+    const dewa = card.locator('tbody tr', { hasText: 'DEWA SEP BILL' });
+    await expect(dewa).toContainText('DEWA');
+    await expect(dewa).toContainText('suggested');
+
+    const salik = card.locator('tbody tr', { hasText: 'SALIK TOLL RECHARGE' });
+    await expect(salik).toContainText('No match');
+    await expect(salik).not.toContainText('suggested');
+  });
+
   test('US-31 — the card states that pending rows count toward nothing', async ({ page }) => {
     /*
      * R-2's safety net, asserted where the user reads it. `monthlyActuals()`
