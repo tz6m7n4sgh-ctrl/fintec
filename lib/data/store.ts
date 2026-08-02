@@ -14,6 +14,7 @@ import { loadLiveData } from './repository';
 import type { LiveData } from './repository';
 import { computeReadiness, currentSpend, schoolFeeObligations, survivalSpend } from '@/lib/engine/uae';
 import { monthlyActuals, projectCash } from '@/lib/engine/projection';
+import { applySettlement } from '@/lib/engine/settle';
 import { scoreReadiness } from '@/lib/engine/readiness';
 import type { MonthlyActual, Projection } from '@/lib/engine/projection';
 import type { ReadinessScore } from '@/lib/engine/readiness';
@@ -142,7 +143,16 @@ export async function getReadModel(): Promise<ReadModel> {
    * knew it — see HAD-81. Derived here rather than stored twice, so the
    * calendar, the cheque exposure tiles and the projection all see one source.
    */
-  const payments = [...data.payments, ...schoolFeeObligations(schoolFees)];
+  /*
+   * Settlement is applied last, over the composed list (US-18 / HAD-14). A
+   * confirmed transaction that names a payment marks it paid by *derivation* —
+   * nothing writes `status`, so removing the match reverts it for free and a
+   * stored `atRisk` is never destroyed. See `lib/engine/settle.ts`.
+   */
+  const payments = applySettlement(
+    [...data.payments, ...schoolFeeObligations(schoolFees)],
+    data.transactions,
+  );
 
   const readiness = computeReadiness(profile, budget, payments, data.income);
   const projection = projectCash(readiness.runway, payments, profile.expectedLastDay);
