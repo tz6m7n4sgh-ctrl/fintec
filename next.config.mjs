@@ -19,11 +19,15 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
  * configuration named as "restore these if this moves to a host that can set
  * them" — so they are restored.
  *
- * Deliberately NOT here: Content-Security-Policy. Next's App Router emits
- * inline scripts, so a useful CSP needs per-request nonces rather than
- * `unsafe-inline`, and a CSP with `unsafe-inline` on scripts implies protection
- * it does not provide. Same principle the old comment applied to headers as a
- * whole: absent beats misleadingly present. Tracked separately.
+ * Content-Security-Policy is **not** here, and still should not be — but the
+ * reason has changed. It now lives in `middleware.ts`, because the nonce it
+ * depends on has to be generated per request and this file is evaluated once at
+ * build time. The policy itself is in `lib/security/csp.ts` (HAD-79).
+ *
+ * The old note said a useful CSP needs per-request nonces rather than
+ * `unsafe-inline`, since a CSP with `unsafe-inline` on scripts implies
+ * protection it does not provide. That reasoning was correct and is what the
+ * middleware implements, rather than something it worked around.
  */
 const securityHeaders = [
   // Stop the browser second-guessing declared content types.

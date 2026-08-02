@@ -786,6 +786,90 @@ test.describe('security headers', () => {
     expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
     expect(headers['permissions-policy']).toContain('camera=()');
   });
+
+  /*
+   * HAD-79. Report-Only for now — an enforcing policy that is wrong blanks a
+   * screen somebody opened to check a legal deadline, so it is trialled before
+   * it is enforced.
+   */
+  test('a nonce-based CSP is present, and never uses unsafe-inline for scripts', async ({ page }) => {
+    const response = await page.goto(url('/'));
+    const csp = (response?.headers() ?? {})['content-security-policy-report-only'];
+
+    expect(csp, 'CSP-Report-Only header').toBeTruthy();
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toMatch(/script-src [^;]*'nonce-[^']+'/);
+    expect(csp).toContain("'strict-dynamic'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+
+    /*
+     * Not present while report-only, and that is the assertion rather than an
+     * omission. The directive is inert in a report-only policy and Chromium
+     * logs a console error saying so — on every screen, which would bury a real
+     * violation in noise the policy generated about itself. `CSP_REPORT_ONLY`
+     * drops it and picks the header name from the same switch, so the two
+     * cannot drift.
+     */
+    expect(csp).not.toContain('upgrade-insecure-requests');
+
+    /*
+     * The assertion the issue exists for. A CSP with unsafe-inline on scripts
+     * scores well and protects nothing, which is worse than no CSP at all —
+     * it is the difference between an honest gap and a false claim.
+     *
+     * Sliced to script-src on purpose: style-src *does* carry unsafe-inline,
+     * deliberately and for a documented reason, so asserting against the whole
+     * header would either fail or have to be loosened into meaninglessness.
+     */
+    const scriptSrc = csp!.split(';').find((d) => d.trim().startsWith('script-src'))!;
+    expect(scriptSrc).not.toContain('unsafe-inline');
+    expect(scriptSrc).not.toContain('unsafe-eval');
+  });
+
+  test('the nonce differs between requests', async ({ page }) => {
+    // A fixed nonce is a nonce in name only — anything that could inject a
+    // script could read the constant and use it.
+    const nonceOf = async () => {
+      const r = await page.goto(url('/'));
+      return /'nonce-([^']+)'/.exec(
+        (r?.headers() ?? {})['content-security-policy-report-only'] ?? '',
+      )?.[1];
+    };
+    const first = await nonceOf();
+    const second = await nonceOf();
+    expect(first).toBeTruthy();
+    expect(second).not.toBe(first);
+  });
+
+  for (const route of ROUTES) {
+    test(`${route.path} raises no CSP violation`, async ({ page }) => {
+      /*
+       * This is what "read the reports before enforcing" means here. A
+       * `report-uri` would post violations to a collector nobody reads; the
+       * browser driving the test *is* the collector, across every screen.
+       *
+       * `securitypolicyviolation` rather than console text: the console message
+       * is a Chromium string that could be reworded, and a report-only
+       * violation that stopped matching a substring would silently become a
+       * passing test.
+       */
+      const violations: string[] = [];
+      await page.exposeFunction('__cspViolation', (d: string) => void violations.push(d));
+      await page.addInitScript(() => {
+        document.addEventListener('securitypolicyviolation', (e) => {
+          const ev = e as SecurityPolicyViolationEvent;
+          (window as unknown as { __cspViolation: (d: string) => void }).__cspViolation(
+            `${ev.violatedDirective} blocked ${ev.blockedURI || '(inline)'}`,
+          );
+        });
+      });
+
+      await page.goto(url(route.path));
+      await page.waitForLoadState('networkidle');
+      expect(violations, `CSP violations on ${route.path}`).toEqual([]);
+    });
+  }
 });
 
 test.describe('settings', () => {
