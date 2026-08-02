@@ -271,11 +271,21 @@ what makes sign-in work against a project whose URL configuration has never been
 
 Two optional dashboard changes make it nicer, neither required:
 
-1. **Authentication → Email Templates → Magic Link**: replace the body with
-   `<p>Your sign-in code: {{ .Token }}</p>` to send codes instead of links.
-2. **Authentication → URL Configuration**: add the deployment origin to *Site URL* and *Redirect
-   URLs*, so a **clicked** link lands on `/auth/confirm` and signs the user straight in. Without it
-   the link still works — it just has to be pasted rather than clicked.
+1. **Authentication → Email Templates**: replace the body with
+   `<p>Your sign-in code: {{ .Token }}</p>` to send codes instead of links. This is **two**
+   templates, not one — `signInWithOtp` sends **Confirm signup** to an address it has never seen and
+   **Magic Link** to a returning one. Editing only Magic Link leaves every first-time user still
+   receiving a link, which is the case that matters most.
+2. **Authentication → URL Configuration**: set *Site URL* to the deployment origin and add it to
+   *Redirect URLs*, so a **clicked** link lands on `/auth/confirm` and signs the user straight in.
+   Site URL defaults to `http://localhost:3000`, and that default is exactly what `redirect_to` in
+   the emailed link points at — so until it is changed, clicking the link on any other device goes
+   nowhere.
+
+**Copy the link, do not click it.** Clicking sends the token through Supabase's `/verify` endpoint,
+which consumes it — so a click that lands on `localhost` has also spent the credential, and pasting
+that same link afterwards fails as already used. Right-click or long-press the button, copy the link
+address, and paste that into the code box.
 
 A stable HTTPS origin is also what passkeys (US-40) and PWA install (US-47) need, so this unblocks
 both.

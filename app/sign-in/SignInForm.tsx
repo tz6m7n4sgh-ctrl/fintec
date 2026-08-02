@@ -193,8 +193,9 @@ export function SignInForm() {
             />
             <div className="help" id="code-help">
               Sent to {email.trim()}. Enter the six-digit code if the email has one. If it has a
-              button or link instead, copy that link and paste it here — that works too, and is
-              more reliable than clicking it. Check spam if nothing has arrived.
+              button or link instead, <b>copy the link and paste it here rather than clicking it</b>
+              {' '}— clicking spends the token on a redirect that may go nowhere, and it only works
+              once. Check spam if nothing has arrived.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
