@@ -14,7 +14,8 @@
     "test:a11y": "playwright test e2e/a11y.spec.ts",
     "test:rls": "node scripts/rls-isolation.mjs",
     "test:secrets": "node scripts/secret-guard.mjs",
-    "test:lighthouse": "lhci autorun"
+    "test:lighthouse": "lhci autorun",
+    "vendor:engine": "node scripts/vendor-engine.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

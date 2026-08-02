@@ -14,6 +14,12 @@ export default defineConfig({
      * `app/schedule/actions.ts` (HAD-81) is the first of them. Anything past
      * that boundary needs a session and belongs to the manual pass (HAD-68).
      */
-    include: ['lib/**/*.test.ts', 'app/**/*.test.ts'],
+    /*
+     * `scripts/` carries the drift check for the Edge Function's vendored copy
+     * of the reminder engine. It belongs in the same gate as everything else,
+     * because a stale copy means the daily job and the screen showing the same
+     * reminders quietly disagree.
+     */
+    include: ['lib/**/*.test.ts', 'app/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
 });
