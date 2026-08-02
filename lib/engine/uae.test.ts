@@ -27,12 +27,13 @@ import {
   runway,
   runwayFrom,
   runwayStatus,
+  schoolFeeObligations,
   scenarios,
   servicePeriod,
   survivalSpend,
 } from './uae';
 import type { BudgetCategory, Debt, Profile, ScheduledPayment, SchoolFee } from './types';
-import { SEED_BUDGET, SEED_PROFILE } from '@/lib/data/seed';
+import { SEED_BUDGET, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
 
 /** The §11 reference profile. */
 const REF: Profile = {
@@ -554,5 +555,73 @@ describe('applyAutoRows — derived rows for an unseeded budget', () => {
     const row = applyAutoRows(plain, debts, []).find((c) => c.autoSource === 'debts')!;
     expect(row.id).toBe(AUTO_ROW_ID.debts);
     expect(row.id).not.toMatch(/^[0-9a-f-]{36}$/i);
+  });
+});
+
+/**
+ * HAD-81 — school-fee terms as dated obligations.
+ *
+ * Before this, `chequeExposure()` took `ScheduledPayment[]` and `SchoolFee` was
+ * not among its inputs, so a cheque-paid term reached the budget through
+ * `monthlySchoolFees()` and reached nothing else. The §11 figures hid it: the
+ * seed entered every cheque-paid term twice, in two tables. R-5 says a cheque
+ * the calendar does not show is the worst defect this app can produce.
+ */
+describe('schoolFeeObligations', () => {
+  const fees: SchoolFee[] = [
+    { id: 'f1', child: 'Layla', school: 'GEMS', term: 'Term 1', dueDate: '2026-09-05', amount: 12_000, paidByCheque: true, paid: true },
+    { id: 'f2', child: 'Layla', school: 'GEMS', term: 'Term 2', dueDate: '2027-01-12', amount: 12_000, paidByCheque: true, paid: false },
+    { id: 'f3', child: 'Layla', school: 'GEMS', term: 'Term 3', dueDate: '2027-04-20', amount: 12_000, paidByCheque: false, paid: false },
+  ];
+
+  it('a paid term is not an outstanding obligation', () => {
+    expect(schoolFeeObligations(fees).map((o) => o.dueDate)).toEqual(['2027-01-12', '2027-04-20']);
+  });
+
+  it('a cheque-paid term becomes a cheque and reaches exposure', () => {
+    // The whole point. Before, this was 0.
+    const derived = schoolFeeObligations(fees);
+    expect(chequeExposure(derived, '2026-09-30', RULES.CHEQUE_WINDOW_12M)).toBe(12_000);
+  });
+
+  it('a term paid by transfer is not counted as cheque exposure', () => {
+    const derived = schoolFeeObligations(fees);
+    expect(derived.find((o) => o.dueDate === '2027-04-20')!.type).toBe('transfer');
+  });
+
+  it('every derived obligation is in-budget — G-1', () => {
+    // School fees are already inside the monthly burn via the auto row. Marking
+    // these out-of-budget would make the projection subtract the full annual
+    // fee a second time as lump sums, understating runway.
+    expect(schoolFeeObligations(fees).every((o) => o.includedInBudget)).toBe(true);
+  });
+
+  it('never recurs — a term is one dated obligation', () => {
+    // Marking these termly would expand one term into three. That is precisely
+    // the 36,000 of phantom school fees the 12-month schedule total carried.
+    expect(schoolFeeObligations(fees).every((o) => o.recurrence === 'none')).toBe(true);
+  });
+
+  it('carries a non-uuid id so nothing can write one by mistake', () => {
+    expect(schoolFeeObligations(fees)[0].id).toBe('fee:f2');
+  });
+
+  it('is marked derived, so the editor knows not to offer to change it', () => {
+    /*
+     * The id guard is real but it is a *database* guard: `scheduled_payments.id`
+     * is a uuid, so `.eq('id', 'fee:f2')` fails with 22P02, verified against the
+     * live project rather than assumed.
+     *
+     * Failing loudly is right. Failing loudly *at the user*, on a row whose Edit
+     * button the app itself rendered, is not — and that is what the schedule
+     * editor did the moment these rows joined `m.payments`. This flag is what
+     * the editor reads to show "computed — edit on Loans & fees" instead.
+     */
+    expect(schoolFeeObligations(fees).every((o) => o.derivedFrom === 'schoolFees')).toBe(true);
+  });
+
+  it('a stored payment is never marked derived', () => {
+    // The flag has to distinguish, or the editor would refuse to edit anything.
+    expect(SEED_PAYMENTS.every((p) => p.derivedFrom === undefined)).toBe(true);
   });
 });

@@ -414,6 +414,22 @@ export function PaymentsEditor({
                   )}
                 </td>
                 <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 6 }}>
+                  {p.derivedFrom ? (
+                    /*
+                     * A school-fee term, derived rather than stored (HAD-81).
+                     * There is no `scheduled_payments` row behind it: its id is
+                     * `fee:<uuid>`, and a write against that is refused by
+                     * Postgres with `invalid input syntax for type uuid`.
+                     * Offering Edit here would surface that as a raw database
+                     * error on a row the user was invited to change. Point at
+                     * the screen that owns the term instead — the same contract
+                     * the budget's computed rows already keep.
+                     */
+                    <span className="sub">
+                      computed — edit on <a href="/loans/">Loans &amp; fees</a>
+                    </span>
+                  ) : (
+                  <>
                   <button
                     className="btn"
                     type="button"
@@ -441,6 +457,8 @@ export function PaymentsEditor({
                     </button>
                   ) : null}
                   <DeleteButton id={p.id} payee={p.payee} />
+                  </>
+                  )}
                 </td>
               </tr>
             ))}

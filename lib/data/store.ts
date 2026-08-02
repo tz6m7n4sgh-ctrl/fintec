@@ -12,7 +12,7 @@
 import { createClient, getUser } from '@/lib/supabase/server';
 import { loadLiveData } from './repository';
 import type { LiveData } from './repository';
-import { computeReadiness, currentSpend, survivalSpend } from '@/lib/engine/uae';
+import { computeReadiness, currentSpend, schoolFeeObligations, survivalSpend } from '@/lib/engine/uae';
 import { monthlyActuals, projectCash } from '@/lib/engine/projection';
 import { scoreReadiness } from '@/lib/engine/readiness';
 import type { MonthlyActual, Projection } from '@/lib/engine/projection';
@@ -135,7 +135,14 @@ export async function getReadModel(): Promise<ReadModel> {
     }
   }
 
-  const { profile, budget, payments } = data;
+  const { profile, budget, schoolFees } = data;
+
+  /*
+   * School-fee terms are obligations too, and until now nothing but the budget
+   * knew it — see HAD-81. Derived here rather than stored twice, so the
+   * calendar, the cheque exposure tiles and the projection all see one source.
+   */
+  const payments = [...data.payments, ...schoolFeeObligations(schoolFees)];
 
   const readiness = computeReadiness(profile, budget, payments);
   const projection = projectCash(readiness.runway, payments, profile.expectedLastDay);
@@ -145,6 +152,19 @@ export async function getReadModel(): Promise<ReadModel> {
   return {
     user,
     ...data,
+
+    /*
+     * After `...data`, deliberately. The spread carries the raw stored
+     * payments, and every screen that lists or counts obligations reads this
+     * field — while `readiness` above was computed from the composed list.
+     *
+     * Leaving the spread to win produced exactly the defect this project keeps
+     * repeating: the dashboard's cheque tile showed 113,000 (composed) beside
+     * a caption reading "4 cheques" (raw). One obligation, two numbers, both
+     * plausible. The e2e test that pins the tile's figure against its own
+     * caption is what caught it.
+     */
+    payments,
 
     readiness,
     projection,

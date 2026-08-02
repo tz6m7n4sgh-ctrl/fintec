@@ -288,12 +288,22 @@ test.describe('schedule', () => {
    * and belongs to the manual pass in HAD-68. Saying so is the point: an
    * assertion that pretended to cover the write path would be worse than none.
    */
-  test('US-21 — the 12-month total survives the move into the tested engine', async ({ page }) => {
+  test('US-21 — the 12-month total no longer counts school terms three times', async ({ page }) => {
     await page.goto(url('/schedule/'));
-    // 396,900 over the window ending 2027-10-01, recurrences expanded. This
-    // figure was computed in a page component and asserted nowhere until now;
-    // `occurrencesWithin` now lives in lib/engine/schedule.ts with unit tests.
-    await expect(page.locator('tr.tot-row')).toContainText('396,900');
+    /*
+     * 360,900 over the window ending 2027-10-01, recurrences expanded.
+     *
+     * This was 396,900 until HAD-81. The difference is 36,000 of school fees
+     * the schedule was counting that the user does not owe: each term was
+     * stored as its own dated row *and* marked `termly`, so Term 2 recurred
+     * three times and Term 3 twice on top of the per-term rows already there.
+     *
+     * School-fee obligations are now derived from `school_fees` with
+     * `recurrence: 'none'` — one row per term, which is what a term is. The
+     * cheque exposure figures are unchanged at 113,000 / 161,000, because
+     * `chequeExposure` never used recurrence.
+     */
+    await expect(page.locator('tr.tot-row')).toContainText('360,900');
   });
 
   test('US-21 — signed out, the table is read-only and says why', async ({ page }) => {
