@@ -51,6 +51,28 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
+      - name: Secret guard
+        # Fails if a credential reached .env.example or the client bundle. Runs
+        # after Build because the bundle check needs .next/static to exist.
+        # Verified able to go red — a planted service-role JWT trips it.
+        run: node scripts/secret-guard.mjs
+
+      - name: Dependency audit — production tree
+        # Blocking at `critical` only, and only over dependencies that actually
+        # ship. Three `high` advisories currently sit inside Next's own tree
+        # (postcss sourceMappingURL, sharp/libvips) with no patched 15.x release
+        # to move to, and neither is reachable here: the app uses no next/image,
+        # so sharp is never invoked, and all CSS is repo-authored. Gating at
+        # `high` today would mean a permanently red build, which teaches people
+        # to ignore the one check that should never be ignored.
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Dependency audit — full report
+        # Informational. Runs even when something above failed, because a build
+        # that broke is exactly when you want to see what moved.
+        if: always()
+        run: npm audit --omit=dev || true
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 

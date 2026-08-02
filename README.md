@@ -395,6 +395,65 @@ to make a missing connection string a failure instead — CI should do this once
 the secret exists, because a security gate that silently never runs is
 indistinguishable from one that passes.
 
+### SEC-3 — secrets and dependencies
+
+```bash
+npm run build && npm run test:secrets
+```
+
+`scripts/secret-guard.mjs` covers the two gaps GitHub's own push protection
+leaves:
+
+- **A real value committed into `.env.example`.** That file is a template, so it
+  is *meant* to be committed — push protection sees a file that belongs there
+  holding a key shaped like the placeholder it replaced.
+- **A server-only secret inlined into the client bundle.** In Next.js the only
+  thing separating a server secret from a public one is the `NEXT_PUBLIC_`
+  prefix, and that boundary is one typo wide.
+
+It is not a generic entropy scanner. Those fire on hashes and minified code, and
+a check people learn to ignore is worse than no check. Like the isolation proof,
+it was verified able to go red: a planted service-role JWT trips it.
+
+Current state, verified against a production build:
+
+| Check | Result |
+|---|---|
+| Secret-shaped strings in `.next/static` | none |
+| Non-`NEXT_PUBLIC_` env vars referenced in app code | none — only the URL and publishable key |
+| Real credentials in git history | none; `.env.example` holds empty placeholders |
+| `.env` tracked by git | no, and `.gitignore` covers it |
+
+Worth noting: since the browser Supabase client was deleted, **even the
+publishable key no longer ships to the browser**. Nothing in `.next/static`
+talks to Supabase at all.
+
+#### Dependency audit
+
+CI blocks at `critical` over the production tree only. Three `high` advisories
+currently sit inside Next's own dependencies:
+
+| Advisory | Reachable here? |
+|---|---|
+| `postcss` — path traversal via `sourceMappingURL` | No. All CSS is repo-authored; none is attacker-supplied. |
+| `sharp`/libvips CVEs | No. The app uses no `next/image`, so sharp is never invoked. The only asset is `icon.svg`. |
+| `tmp`, `uuid` | Dev-only, via `@lhci/cli`. Never shipped. |
+
+There is no patched 15.x release to move to — 15.5.22 is current and 15.6 is
+canary. Gating at `high` today would mean a permanently red build, which teaches
+people to ignore the one check that should never be ignored. The upgrade path is
+tracked as its own issue instead.
+
+#### Content-Security-Policy
+
+Still deliberately absent, and the reasoning in `next.config.mjs` still holds:
+the App Router emits inline scripts, so a useful CSP needs per-request nonces,
+and one with `unsafe-inline` on scripts implies protection it does not give.
+
+That calculus changes when statement ingestion lands. Once an LLM is writing
+transaction descriptions into pages, a stored-XSS path through parsed statement
+text becomes a real shape rather than a theoretical one. Tracked separately.
+
 ### Unit tests
 
 | File | Covers |
