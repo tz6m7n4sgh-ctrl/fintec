@@ -56,6 +56,25 @@ const nextConfig = {
    */
   trailingSlash: true,
 
+  /**
+   * Server actions default to a 1 MB body, which the backup import (US-45)
+   * would quietly exceed.
+   *
+   * It posts the file twice: once to be counted, and once more as a hidden
+   * field on the confirm step. A backup with a few thousand transactions in it
+   * is several megabytes, so the default would fail with an opaque "Body
+   * exceeded 1mb limit" at exactly the moment somebody is restoring their
+   * finances — a limit they never chose, expressed in words about HTTP.
+   *
+   * 12 MB, against the 10 MB ceiling `MAX_BACKUP_BYTES` states on the screen,
+   * leaves room for multipart overhead so the message the user gets is the
+   * app's own sentence about their file rather than the framework's about its
+   * body size.
+   */
+  experimental: {
+    serverActions: { bodySizeLimit: '12mb' },
+  },
+
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
 import { EraseData } from './EraseData';
+import { ImportBackup } from './ImportBackup';
 import { signOut } from '@/app/auth/actions';
 import { getReadModel, isSupabaseConfigured } from '@/lib/data/store';
 
@@ -154,14 +155,44 @@ export default async function SettingsPage() {
       </Card>
 
       <Card title="Your data" sub="Export, import, or erase everything">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-          <button className="btn" disabled>Export all data (JSON)</button>
-          <button className="btn" disabled>Import from JSON</button>
-        </div>
-        <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
-          Export and import are not built yet (HAD-15). The buttons stay disabled rather than
-          appearing to work.
-        </p>
+        {m.isSeedData ? (
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+            <b>Sign in to export or import.</b> These screens are showing the §11 reference
+            dataset, which is not stored anywhere — exporting it would hand you a copy of the
+            sample figures rather than your own.
+          </p>
+        ) : (
+          <>
+            {/*
+              A plain `<a>`, not a button and not `next/link`. The download is a
+              GET route handler (`export/route.ts`), so this works with
+              JavaScript disabled and the browser names the file — which matters
+              on the day the thing that is broken is this app. `next/link` would
+              intercept the click and try to route to it.
+
+              The trailing slash matches `trailingSlash: true`, and the base
+              path is applied by hand because only `next/link` gets it for free.
+              Under a sub-path deployment a bare href would 404, and an escape
+              hatch that silently stops working is worse than not having one.
+            */}
+            <a
+              className="btn"
+              href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/settings/export/`}
+              download
+              style={{ display: 'inline-block', textDecoration: 'none' }}
+            >
+              Export all data (JSON)
+            </a>
+            <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 10 }}>
+              Every figure you have entered, in one file you can read. Your uploaded statement
+              PDFs are <b>not</b> in it — those stay in storage.
+            </p>
+
+            <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '16px 0' }} />
+
+            <ImportBackup />
+          </>
+        )}
 
         <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '16px 0' }} />
 

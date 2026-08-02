@@ -292,18 +292,39 @@ test.describe('settings — erase all data', () => {
     await expect(card.getByRole('button', { name: /Erase/ })).toHaveCount(0);
   });
 
-  test('US-46 — the export buttons stay disabled rather than looking usable', async ({ page }) => {
+  test('US-45 — signed out, export offers the sample data to nobody', async ({ page }) => {
     /*
-     * HAD-15 is not built. A button that looks live and does nothing is the
-     * same class of claim as a status the app cannot back up, and this card
-     * previously rendered a live-looking "Delete all data" button that did
-     * nothing at all.
+     * These screens are the §11 reference dataset, which is not stored
+     * anywhere. An export link here would hand somebody a file of sample
+     * figures labelled as their backup — a plausible-looking wrong answer,
+     * which is the defect class this project keeps finding.
      */
     await page.goto(url('/settings/'));
     const card = dataCard(page);
-    await expect(card.getByRole('button', { name: 'Export all data (JSON)' })).toBeDisabled();
-    await expect(card.getByRole('button', { name: 'Import from JSON' })).toBeDisabled();
-    await expect(card).toContainText('not built yet');
+    await expect(card).toContainText('Sign in to export or import');
+    await expect(card.getByRole('link', { name: /Export all data/ })).toHaveCount(0);
+    await expect(card.getByLabel('Import from JSON')).toHaveCount(0);
+  });
+
+  test('US-45 — the export route hands nothing to a caller with no session', async ({ request }) => {
+    /*
+     * The route is a GET that returns every figure the user owns, so the one
+     * assertion that must hold is that a request without a session gets a
+     * refusal and not a file.
+     *
+     * Both refusals are accepted because both are correct: 503 when the suite
+     * runs with no backend configured, 401 when it runs against a real project
+     * signed out. Pinning one would make this test pass or fail on which
+     * machine ran it rather than on the app's behaviour.
+     *
+     * The content-type assertion is the second half. An unhandled throw would
+     * return an HTML error page to somebody who clicked "export my data", which
+     * reads as data loss rather than as "you are signed out".
+     */
+    const res = await request.get(url('/settings/export/'), { maxRedirects: 0 });
+    expect([401, 503]).toContain(res.status());
+    expect(res.headers()['content-type']).toContain('text/plain');
+    expect(await res.text()).not.toContain('"version"');
   });
 });
 
