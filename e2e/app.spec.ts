@@ -235,6 +235,41 @@ test.describe('schedule', () => {
     // The two out-of-budget cheques are the ones the projection deducts as lumps.
     await expect(page.locator('body')).toContainText('65,000');
   });
+
+  /*
+   * US-21 (HAD-24). The suite runs signed out, so what is assertable here is
+   * the read-only path and the arithmetic — the editor itself needs a session
+   * and belongs to the manual pass in HAD-68. Saying so is the point: an
+   * assertion that pretended to cover the write path would be worse than none.
+   */
+  test('US-21 — the 12-month total survives the move into the tested engine', async ({ page }) => {
+    await page.goto(url('/schedule/'));
+    // 396,900 over the window ending 2027-10-01, recurrences expanded. This
+    // figure was computed in a page component and asserted nowhere until now;
+    // `occurrencesWithin` now lives in lib/engine/schedule.ts with unit tests.
+    await expect(page.locator('tr.tot-row')).toContainText('396,900');
+  });
+
+  test('US-21 — signed out, the table is read-only and says why', async ({ page }) => {
+    await page.goto(url('/schedule/'));
+    const card = page.locator('section.card', { hasText: 'Scheduled payments' });
+    await expect(card).toContainText('Sign in to record your own');
+    // No write affordance may appear without a session. If this ever fails it
+    // means the editor rendered against the §11 seed, which would invite
+    // someone to edit a stranger's figures believing they were their own.
+    await expect(card.getByRole('button', { name: 'Add a payment' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Delete / })).toHaveCount(0);
+  });
+
+  test('US-21 — every cheque in the table carries a non-colour marker', async ({ page }) => {
+    await page.goto(url('/schedule/'));
+    // R-5: cheques outrank everything else in this app's hierarchy, and the
+    // distinction must survive a greyscale or colourblind reading.
+    const cheques = page.locator('span.pill.cheque');
+    expect(await cheques.count()).toBeGreaterThan(0);
+    await expect(cheques.first()).toContainText('Cheque');
+  });
 });
 
 /**

@@ -1,6 +1,8 @@
 import { Card, PageHead } from '@/components/ui';
 import { addDays, formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
+import { occurrenceCount } from '@/lib/engine/schedule';
+import { PaymentsEditor } from './PaymentsEditor';
 import { RULES } from '@/lib/engine/uae';
 import { aed, money } from '@/lib/format/money';
 
@@ -11,29 +13,6 @@ const RECURRENCE_LABEL: Record<string, string> = {
   termly: 'Termly',
   yearly: 'Yearly',
 };
-
-/** Occurrences of a recurring payment inside a window — used for the 12-month total. */
-function occurrencesWithin(
-  recurrence: string,
-  firstDue: string,
-  windowEnd: string,
-): number {
-  const stepMonths =
-    recurrence === 'monthly' ? 1 : recurrence === 'quarterly' ? 3 : recurrence === 'termly' ? 4 : recurrence === 'yearly' ? 12 : 0;
-  if (stepMonths === 0) return firstDue <= windowEnd ? 1 : 0;
-
-  let count = 0;
-  const [fy, fm, fd] = firstDue.split('-').map(Number);
-  for (let k = 0; k < 24; k++) {
-    const total = fy * 12 + (fm - 1) + k * stepMonths;
-    const y = Math.floor(total / 12);
-    const mo = (total % 12) + 1;
-    const iso = `${y}-${String(mo).padStart(2, '0')}-${String(fd).padStart(2, '0')}`;
-    if (iso > windowEnd) break;
-    count++;
-  }
-  return count;
-}
 
 export default async function SchedulePage() {
   const m = await getReadModel();
@@ -53,7 +32,7 @@ export default async function SchedulePage() {
 
   // 12-month total expands recurrences, so a monthly bill counts 12 times.
   const total12 = m.payments.reduce(
-    (s, p) => s + p.amount * occurrencesWithin(p.recurrence, p.dueDate, end12),
+    (s, p) => s + p.amount * occurrenceCount(p.recurrence, p.dueDate, end12),
     0,
   );
 
@@ -93,8 +72,18 @@ export default async function SchedulePage() {
 
       <Card
         title="Scheduled payments"
-        sub='"In budget" means the amount is already inside a monthly budget line, so the projection must not subtract it twice'
+        sub={
+          m.isSeedData
+            ? '"In budget" means the amount is already inside a monthly budget line, so the projection must not subtract it twice'
+            : 'Add every cheque and standing obligation. "In budget" decides whether the projection counts it once or twice'
+        }
       >
+        {m.isSeedData ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+              These are the §11 reference figures. <b>Sign in to record your own</b> — editing is
+              disabled here because there is no account to save them against.
+            </p>
         <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
@@ -146,6 +135,10 @@ export default async function SchedulePage() {
             </tbody>
           </table>
         </div>
+          </>
+        ) : (
+          <PaymentsEditor payments={m.payments} categories={m.budget} />
+        )}
       </Card>
 
       <Card title="Why some cheques sit outside the budget">
