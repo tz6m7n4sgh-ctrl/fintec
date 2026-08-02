@@ -204,6 +204,36 @@ export function runwayStatus(runwayMonths: number): RunwayStatus {
   return 'critical';
 }
 
+/**
+ * Runway from three already-computed figures.
+ *
+ * Split out of `runway()` so the budget editor can recompute live as the user
+ * types without a second copy of the formula. It needs the same answer as the
+ * server, and "the same answer" is a property worth having structurally rather
+ * than by two implementations agreeing today.
+ *
+ * The floor at zero is load-bearing: side income above survival spending means
+ * the money never runs out, and `Infinity` is the honest answer. The UI renders
+ * it as "Unlimited". Removing the floor would produce a negative burn and a
+ * negative runway, which reads as a deadline rather than as safety.
+ */
+export function runwayFrom(
+  totalResources: number,
+  spend: number,
+  monthlySideIncome: number,
+): Runway {
+  const netMonthlyBurn = Math.max(spend - monthlySideIncome, 0);
+  const runwayMonths = netMonthlyBurn === 0 ? Infinity : totalResources / netMonthlyBurn;
+
+  return {
+    totalResources,
+    survivalSpend: spend,
+    netMonthlyBurn,
+    runwayMonths,
+    status: runwayStatus(runwayMonths),
+  };
+}
+
 export function runway(
   profile: Profile,
   categories: BudgetCategory[],
@@ -215,17 +245,8 @@ export function runway(
 
   const totalResources =
     profile.cashSavings + profile.otherLiquidAssets + s.finalSettlement + i.iloeTotal;
-  const spend = survivalSpend(categories);
-  const netMonthlyBurn = Math.max(spend - profile.monthlySideIncome, 0);
-  const runwayMonths = netMonthlyBurn === 0 ? Infinity : totalResources / netMonthlyBurn;
 
-  return {
-    totalResources,
-    survivalSpend: spend,
-    netMonthlyBurn,
-    runwayMonths,
-    status: runwayStatus(runwayMonths),
-  };
+  return runwayFrom(totalResources, survivalSpend(categories), profile.monthlySideIncome);
 }
 
 export const SCENARIO_MONTHS = [3, 6, 9, 12] as const;

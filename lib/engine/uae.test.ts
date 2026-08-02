@@ -24,12 +24,14 @@ import {
   monthlySchoolFees,
   noticePayInLieu,
   runway,
+  runwayFrom,
   runwayStatus,
   scenarios,
   servicePeriod,
   survivalSpend,
 } from './uae';
 import type { BudgetCategory, Debt, Profile, ScheduledPayment, SchoolFee } from './types';
+import { SEED_BUDGET, SEED_PROFILE } from '@/lib/data/seed';
 
 /** The §11 reference profile. */
 const REF: Profile = {
@@ -432,5 +434,54 @@ describe('date helpers', () => {
   it('rejects malformed dates rather than silently coercing', () => {
     expect(() => daysBetween('2026-13-01', '2026-01-01')).toThrow();
     expect(() => addDays('not-a-date', 1)).toThrow();
+  });
+});
+
+/**
+ * `runwayFrom` — the core `runway()` delegates to, and the budget editor calls
+ * directly so it can recompute live as the user types.
+ *
+ * It exists so there is one formula rather than two that agree today. These
+ * tests pin the behaviour the editor depends on, including the one case where
+ * the honest answer is not a number.
+ */
+describe('runwayFrom', () => {
+  it('matches runway() for the reference profile', () => {
+    const full = runway(SEED_PROFILE, SEED_BUDGET);
+    const direct = runwayFrom(full.totalResources, full.survivalSpend, SEED_PROFILE.monthlySideIncome);
+    expect(direct).toEqual(full);
+  });
+
+  it('divides resources by net burn', () => {
+    const r = runwayFrom(120_000, 12_000, 2_000);
+    expect(r.netMonthlyBurn).toBe(10_000);
+    expect(r.runwayMonths).toBe(12);
+  });
+
+  it('side income covering survival spend gives unlimited runway, not a negative one', () => {
+    // The floor at zero is load-bearing. Without it the burn goes negative and
+    // so does the runway, which reads as a deadline rather than as safety.
+    const r = runwayFrom(120_000, 8_000, 9_000);
+    expect(r.netMonthlyBurn).toBe(0);
+    expect(r.runwayMonths).toBe(Infinity);
+    expect(r.status).toBe('good');
+  });
+
+  it('side income exactly equal to survival spend is still unlimited', () => {
+    expect(runwayFrom(1, 5_000, 5_000).runwayMonths).toBe(Infinity);
+  });
+
+  it('carries the band boundaries the dashboard colours depend on', () => {
+    // OQ-3: >=6 good, 3 <= r < 6 warning, r < 3 critical.
+    expect(runwayFrom(60_000, 10_000, 0).status).toBe('good');
+    expect(runwayFrom(59_999, 10_000, 0).status).toBe('warning');
+    expect(runwayFrom(30_000, 10_000, 0).status).toBe('warning');
+    expect(runwayFrom(29_999, 10_000, 0).status).toBe('critical');
+  });
+
+  it('no resources is zero months, not unlimited', () => {
+    const r = runwayFrom(0, 10_000, 0);
+    expect(r.runwayMonths).toBe(0);
+    expect(r.status).toBe('critical');
   });
 });

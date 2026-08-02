@@ -2,6 +2,7 @@ import { Card, PageHead } from '@/components/ui';
 import { getReadModel } from '@/lib/data/store';
 import { monthlyActuals } from '@/lib/engine/projection';
 import { aed, money, percent } from '@/lib/format/money';
+import { BudgetEditor } from './BudgetEditor';
 
 export default async function BudgetPage() {
   const m = await getReadModel();
@@ -14,6 +15,9 @@ export default async function BudgetPage() {
     actualByCategory.set(t.categoryId, (actualByCategory.get(t.categoryId) ?? 0) + t.amount);
   }
   const monthsOfActuals = monthlyActuals(m.transactions).length || 1;
+  const actualPerMonth = Object.fromEntries(
+    [...actualByCategory].map(([id, total]) => [id, total / monthsOfActuals]),
+  );
 
   const cut = m.currentTotal - m.survivalTotal;
 
@@ -21,85 +25,108 @@ export default async function BudgetPage() {
     <>
       <PageHead
         title="Budget"
-        sub="Current spending against the survival plan · auto rows are computed from their source screens"
+        sub={
+          m.isSeedData
+            ? 'Current spending against the survival plan · auto rows are computed from their source screens'
+            : 'Edit a line and watch the runway respond · auto rows are computed from their source screens'
+        }
       />
 
-      <div className="grid g3">
-        <div className="card tile">
-          <div className="lbl">Current monthly spend</div>
-          <div className="val mono">{money(m.currentTotal)}</div>
-          <div className="foot">Sum of all categories</div>
-        </div>
-        <div className="card tile">
-          <div className="lbl">Survival monthly spend</div>
-          <div className="val mono">{money(m.survivalTotal)}</div>
-          <div className="foot">Drives runway and scenarios</div>
-        </div>
-        <div className="card tile">
-          <div className="lbl">Monthly saving if you switch</div>
-          <div className="val mono">{money(cut)}</div>
-          <div className="foot">{percent(m.currentTotal ? cut / m.currentTotal : 0)} of current spend</div>
-        </div>
-      </div>
+      {m.isSeedData ? (
+        <>
+          <div className="grid g3">
+            <div className="card tile">
+              <div className="lbl">Current monthly spend</div>
+              <div className="val mono">{money(m.currentTotal)}</div>
+              <div className="foot">Sum of all categories</div>
+            </div>
+            <div className="card tile">
+              <div className="lbl">Survival monthly spend</div>
+              <div className="val mono">{money(m.survivalTotal)}</div>
+              <div className="foot">Drives runway and scenarios</div>
+            </div>
+            <div className="card tile">
+              <div className="lbl">Monthly saving if you switch</div>
+              <div className="val mono">{money(cut)}</div>
+              <div className="foot">
+                {percent(m.currentTotal ? cut / m.currentTotal : 0)} of current spend
+              </div>
+            </div>
+          </div>
 
-      <Card
-        title="Categories"
-        sub="Auto rows are read-only — edit them on the screen that owns the data"
-      >
-        <div className="tbl-wrap" tabIndex={0}>
-          <table className="wide">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th className="r">Current</th>
-                <th className="r">Survival</th>
-                <th className="r">Difference</th>
-                <th className="r">Actual / mo</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {m.budget.map((c) => {
-                const diff = c.currentAmount - c.survivalAmount;
-                const actualTotal = actualByCategory.get(c.id);
-                const actualPerMonth = actualTotal === undefined ? undefined : actualTotal / monthsOfActuals;
-                return (
-                  <tr key={c.id}>
-                    <td className="payee">
-                      {c.name}
-                      {c.autoSource ? <span className="sub">computed — read-only</span> : null}
-                    </td>
-                    <td className="r mono">{money(c.currentAmount)}</td>
-                    <td className="r mono">{money(c.survivalAmount)}</td>
-                    <td className="r mono" style={diff > 0 ? { color: 'var(--good-ink)' } : undefined}>
-                      {diff > 0 ? `−${money(diff)}` : '—'}
-                    </td>
-                    <td className="r mono" style={{ color: 'var(--ink-2)' }}>
-                      {actualPerMonth === undefined ? '—' : money(actualPerMonth)}
-                    </td>
-                    <td>
-                      {c.autoSource === 'debts' ? (
-                        <a className="pill" href="/loans">Loans →</a>
-                      ) : c.autoSource === 'schoolFees' ? (
-                        <a className="pill" href="/loans">School fees →</a>
-                      ) : (
-                        <span className="pill">Editable</span>
-                      )}
-                    </td>
+          <Card
+            title="Categories"
+            sub="Auto rows are read-only — edit them on the screen that owns the data"
+          >
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+              These are the §11 reference figures. <b>Sign in to build your own budget</b> — editing
+              is disabled here because there is no account to save it against.
+            </p>
+            <div className="tbl-wrap" tabIndex={0}>
+              <table className="wide">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th className="r">Current</th>
+                    <th className="r">Survival</th>
+                    <th className="r">Difference</th>
+                    <th className="r">Actual / mo</th>
+                    <th>Source</th>
                   </tr>
-                );
-              })}
-              <tr className="tot-row">
-                <td>Total</td>
-                <td className="r mono">{money(m.currentTotal)}</td>
-                <td className="r mono">{money(m.survivalTotal)}</td>
-                <td className="r mono">−{money(cut)}</td>
-                <td colSpan={2} />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                </thead>
+                <tbody>
+                  {m.budget.map((c) => {
+                    const diff = c.currentAmount - c.survivalAmount;
+                    return (
+                      <tr key={c.id}>
+                        <td className="payee">
+                          {c.name}
+                          {c.autoSource ? <span className="sub">computed — read-only</span> : null}
+                        </td>
+                        <td className="r mono">{money(c.currentAmount)}</td>
+                        <td className="r mono">{money(c.survivalAmount)}</td>
+                        <td
+                          className="r mono"
+                          style={diff > 0 ? { color: 'var(--good-ink)' } : undefined}
+                        >
+                          {diff > 0 ? `−${money(diff)}` : '—'}
+                        </td>
+                        <td className="r mono" style={{ color: 'var(--ink-2)' }}>
+                          {actualPerMonth[c.id] === undefined ? '—' : money(actualPerMonth[c.id])}
+                        </td>
+                        <td>
+                          {c.autoSource === 'debts' ? (
+                            <a className="pill" href="/loans">Loans →</a>
+                          ) : c.autoSource === 'schoolFees' ? (
+                            <a className="pill" href="/loans">School fees →</a>
+                          ) : (
+                            <span className="pill">Editable</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="tot-row">
+                    <td>Total</td>
+                    <td className="r mono">{money(m.currentTotal)}</td>
+                    <td className="r mono">{money(m.survivalTotal)}</td>
+                    <td className="r mono">−{money(cut)}</td>
+                    <td colSpan={2} />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      ) : (
+        <BudgetEditor
+          categories={m.budget}
+          totalResources={m.readiness.runway.totalResources}
+          monthlySideIncome={m.profile.monthlySideIncome}
+          savedRunwayMonths={m.readiness.runway.runwayMonths}
+          actualPerMonth={actualPerMonth}
+        />
+      )}
 
       <Card title="How the survival budget drives runway">
         <ul className="insights">
