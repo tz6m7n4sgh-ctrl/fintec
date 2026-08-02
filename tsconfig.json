@@ -17,5 +17,6 @@
     "paths": { "@/*": ["./*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "//exclude": "supabase/functions runs on Deno, not Next: `jsr:` specifiers, the Deno global, and the explicit .ts extensions Deno requires are all errors under this config. Its _engine/ directory is a mechanical copy of lib/engine/, which IS typechecked here — and scripts/vendor-engine.test.ts proves the copy matches, so excluding it costs no coverage.",
+  "exclude": ["node_modules", "supabase/functions"]
 }
