@@ -97,6 +97,23 @@ export interface ScheduledPayment {
    * belongs; this is the form's copy, not a second source of truth.
    */
   budgetCategoryId?: string;
+  /**
+   * The recurring payment this row was detached from (US-22 / OQ-4).
+   *
+   * Set together with `detachedDate` or not at all — the database enforces that
+   * pairing, because a row claiming to replace an occurrence without saying
+   * which one cannot be expanded either way.
+   */
+  seriesId?: string;
+  /**
+   * Which occurrence of `seriesId` this row replaces.
+   *
+   * Deliberately distinct from `dueDate`: detaching an occurrence and then
+   * moving it is the normal case, and without a fixed record of the occurrence
+   * being replaced the series would keep generating the original date and the
+   * payment would appear twice.
+   */
+  detachedDate?: IsoDate;
   status: PaymentStatus;
 }
 
