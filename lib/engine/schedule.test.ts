@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { occurrenceCount, occurrenceOn, occurrencesWithin } from './schedule';
+import {
+  GENERATION_HORIZON_MONTHS,
+  expandPayments,
+  occurrenceCount,
+  occurrenceOn,
+  occurrencesWithin,
+  scheduledTotalWithin,
+} from './schedule';
+import type { ScheduledPayment } from './types';
 
 /**
  * These figures drive the 12-month schedule total and, through it, what the
@@ -108,5 +116,123 @@ describe('occurrenceOn — short-month clamping', () => {
       const [y, m, d] = iso.split('-').map(Number);
       expect(new Date(Date.UTC(y, m - 1, d)).getUTCDate()).toBe(d);
     }
+  });
+});
+
+/**
+ * US-22 / OQ-4 — single-occurrence overrides.
+ *
+ * The decided model: editing one occurrence detaches it into a standalone
+ * payment and the series carries on. The two failure modes this guards are
+ * opposites and both are R-5: an occurrence rendered twice inflates what the
+ * user believes they owe, and one rendered zero times is a cheque nobody funds.
+ */
+
+const series: ScheduledPayment = {
+  id: 'ser-rent',
+  dueDate: '2026-10-05',
+  payee: 'Landlord',
+  purpose: 'Rent',
+  amount: 18_000,
+  account: 'ENBD ··4821',
+  type: 'cheque',
+  recurrence: 'monthly',
+  includedInBudget: false,
+  status: 'upcoming',
+};
+
+const override = (over: Partial<ScheduledPayment>): ScheduledPayment => ({
+  ...series,
+  id: 'ovr-1',
+  recurrence: 'none',
+  seriesId: 'ser-rent',
+  detachedDate: '2026-12-05',
+  dueDate: '2026-12-05',
+  ...over,
+});
+
+describe('expandPayments — overrides', () => {
+  it('a series with no overrides expands normally', () => {
+    const out = expandPayments([series], '2027-01-05');
+    expect(out.map((o) => o.date)).toEqual([
+      '2026-10-05', '2026-11-05', '2026-12-05', '2027-01-05',
+    ]);
+    expect(out.every((o) => !o.isOverride)).toBe(true);
+  });
+
+  it('an override replaces its occurrence rather than adding to it', () => {
+    // The double-count guard. Four dates before, four after — not five.
+    const out = expandPayments([series, override({ amount: 19_000 })], '2027-01-05');
+    expect(out).toHaveLength(4);
+    expect(out.filter((o) => o.date === '2026-12-05')).toHaveLength(1);
+    expect(out.find((o) => o.date === '2026-12-05')!.payment.amount).toBe(19_000);
+    expect(out.find((o) => o.date === '2026-12-05')!.isOverride).toBe(true);
+  });
+
+  it('a moved override leaves its original date empty and appears on the new one', () => {
+    // "The December cheque, but on the 20th." detachedDate stays 05 so the
+    // series knows to skip it; dueDate moves so the calendar shows the truth.
+    const out = expandPayments(
+      [series, override({ dueDate: '2026-12-20' })],
+      '2027-01-05',
+    );
+    const dates = out.map((o) => o.date);
+    expect(dates).not.toContain('2026-12-05');
+    expect(dates).toContain('2026-12-20');
+    expect(out).toHaveLength(4);
+  });
+
+  it('the series is untouched by the override — later occurrences still generate', () => {
+    const out = expandPayments([series, override({})], '2027-03-05');
+    expect(out.map((o) => o.date)).toContain('2027-01-05');
+    expect(out.map((o) => o.date)).toContain('2027-03-05');
+  });
+
+  it('deleting one occurrence is an override with a zero amount, not a gap in the series', () => {
+    const out = expandPayments([series, override({ amount: 0 })], '2027-01-05');
+    expect(out).toHaveLength(4);
+    expect(scheduledTotalWithin([series, override({ amount: 0 })], '2027-01-05')).toBe(54_000);
+  });
+
+  it('two different occurrences can both be overridden', () => {
+    const out = expandPayments(
+      [
+        series,
+        override({ id: 'o1', detachedDate: '2026-11-05', dueDate: '2026-11-05', amount: 1 }),
+        override({ id: 'o2', detachedDate: '2026-12-05', dueDate: '2026-12-05', amount: 2 }),
+      ],
+      '2027-01-05',
+    );
+    expect(out).toHaveLength(4);
+    expect(out.find((o) => o.date === '2026-11-05')!.payment.amount).toBe(1);
+    expect(out.find((o) => o.date === '2026-12-05')!.payment.amount).toBe(2);
+  });
+
+  it('an override outside the window does not resurrect its skipped occurrence', () => {
+    // If the user pushes the December cheque into next year, December is empty
+    // and the payment shows up when it is actually due — not silently dropped
+    // from both, which is the shape that loses a cheque.
+    const out = expandPayments([series, override({ dueDate: '2027-06-20' })], '2027-01-05');
+    expect(out.map((o) => o.date)).not.toContain('2026-12-05');
+    expect(out).toHaveLength(3);
+    const wide = expandPayments([series, override({ dueDate: '2027-06-20' })], '2027-07-05');
+    expect(wide.map((o) => o.date)).toContain('2027-06-20');
+  });
+
+  it('an ordinary one-off is unaffected', () => {
+    const oneOff: ScheduledPayment = { ...series, id: 'p1', recurrence: 'none', dueDate: '2026-12-10' };
+    expect(expandPayments([oneOff], '2027-01-05').map((o) => o.date)).toEqual(['2026-12-10']);
+  });
+
+  it('occurrences come back in date order regardless of input order', () => {
+    const out = expandPayments([override({ dueDate: '2026-12-20' }), series], '2027-01-05');
+    expect(out.map((o) => o.date)).toEqual([...out.map((o) => o.date)].sort());
+  });
+
+  it('the generation horizon matches the projection', () => {
+    // OQ-4: 18 months, to match DEFAULT_HORIZON_MONTHS. A payment the
+    // projection subtracts but the calendar never shows would be two screens
+    // disagreeing about one obligation.
+    expect(GENERATION_HORIZON_MONTHS).toBe(18);
   });
 });

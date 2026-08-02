@@ -63,6 +63,15 @@ function explain(message: string): string {
   if (message.includes('violates check constraint') && message.includes('amount')) {
     return 'The amount cannot be negative.';
   }
+  if (message.includes('scheduled_one_override_per_occurrence')) {
+    return 'That occurrence has already been changed once. Edit the existing entry rather than detaching it again — two overrides for one date would show the payment twice.';
+  }
+  if (message.includes('scheduled_detached_is_one_off')) {
+    return 'A single changed occurrence cannot itself repeat.';
+  }
+  if (message.includes('scheduled_detach_needs_both')) {
+    return 'That occurrence could not be identified. Reload the page and try again.';
+  }
   if (message.includes('violates foreign key constraint')) {
     return 'That budget line or bank account no longer exists. Reload the page and pick again.';
   }
@@ -94,6 +103,18 @@ export async function savePayment(_prev: SaveResult, form: FormData): Promise<Sa
     return fail('A due date is required — without one the payment cannot reach the calendar.');
   }
 
+  /*
+   * Detaching one occurrence (US-22 / OQ-4). Both fields travel together or not
+   * at all — the database enforces that pairing, because a row claiming to
+   * replace an occurrence without saying which one cannot be expanded either
+   * way. A detached row must also not recur, so the form forces `none`.
+   */
+  const seriesId = s(form, 'seriesId') || null;
+  const detachedDate = s(form, 'detachedDate') || null;
+  if ((seriesId === null) !== (detachedDate === null)) {
+    return fail('That occurrence could not be identified. Reload the page and try again.');
+  }
+
   const includedInBudget = form.get('includedInBudget') === 'on';
   const budgetCategoryId = s(form, 'budgetCategoryId') || null;
 
@@ -116,7 +137,11 @@ export async function savePayment(_prev: SaveResult, form: FormData): Promise<Sa
     amount: n(form, 'amount'),
     account_label: s(form, 'accountLabel'),
     type: s(form, 'type') || 'transfer',
-    recurrence: s(form, 'recurrence') || 'none',
+    // A detached occurrence stands alone; two levels of recurrence would make
+    // "which occurrence does this replace" unanswerable.
+    recurrence: seriesId ? 'none' : s(form, 'recurrence') || 'none',
+    series_id: seriesId,
+    detached_date: detachedDate,
     included_in_budget: includedInBudget,
     // Null rather than '' — the column is a uuid foreign key, and an empty
     // string is not a uuid.

@@ -178,6 +178,8 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       recurrence: r.recurrence,
       includedInBudget: r.included_in_budget,
       budgetCategoryId: r.budget_category_id ?? undefined,
+      seriesId: r.series_id ?? undefined,
+      detachedDate: r.detached_date ?? undefined,
       status: r.status,
     })),
     income: (income.data ?? []).map((r) => ({
