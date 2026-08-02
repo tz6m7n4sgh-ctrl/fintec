@@ -20,9 +20,37 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
  * fall through to the browser `playwright install` provides.
  */
 const PREINSTALLED_CHROMIUM = '/opt/pw-browsers/chromium';
-const launchOptions = existsSync(PREINSTALLED_CHROMIUM)
-  ? { executablePath: PREINSTALLED_CHROMIUM }
-  : undefined;
+
+/**
+ * Flags added after HAD-30, and worth recording why rather than leaving as
+ * cargo cult.
+ *
+ * Registering a service worker adds a process per browser context, and the run
+ * that introduced it produced five Chromium crashes on the CI runner — none of
+ * them assertion failures:
+ *
+ *   [pid=3986][err] [sandbox_linux.cc:405] InitializeSandbox() called with
+ *                   multiple threads in process gpu-process.
+ *   [pid=3986][err] Received signal 11 SEGV_MAPERR 0000000001b0
+ *
+ * The crash is at *launch*, inside GPU-process init, before any navigation —
+ * so it is resource pressure on a constrained runner rather than anything the
+ * worker does. `--disable-gpu` removes the process that is actually crashing,
+ * and `--disable-dev-shm-usage` moves shared memory to /tmp, which is the
+ * standard fix for Chromium in a container with a small `/dev/shm`.
+ *
+ * Neither weakens a single assertion: this suite renders and reads the DOM, and
+ * has no GPU-dependent expectation anywhere. It does **not** reproduce on this
+ * dev machine (`/dev/shm` is 7.9G here), so this is a mitigation for an
+ * observed CI failure rather than a fix verified locally — said plainly because
+ * the honest version of "CI is green now" matters more than the claim.
+ */
+const HEADLESS_ARGS = ['--disable-dev-shm-usage', '--disable-gpu'];
+
+const launchOptions = {
+  args: HEADLESS_ARGS,
+  ...(existsSync(PREINSTALLED_CHROMIUM) ? { executablePath: PREINSTALLED_CHROMIUM } : {}),
+};
 
 export default defineConfig({
   testDir: './e2e',
