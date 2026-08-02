@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { addDays, daysBetween, addMonths, formatDate, isWithin, todayInDubai } from './dates';
 import {
+  AUTO_ROW_ID,
   RULES,
   applyAutoRows,
   chequeExposure,
@@ -483,5 +484,75 @@ describe('runwayFrom', () => {
     const r = runwayFrom(0, 10_000, 0);
     expect(r.runwayMonths).toBe(0);
     expect(r.status).toBe('critical');
+  });
+});
+
+/**
+ * `applyAutoRows` creating a row that is not stored anywhere.
+ *
+ * Measured, not assumed: before this, `applyAutoRows` only *updated* rows that
+ * already carried an `autoSource`. Per-user budget rows are not seeded on
+ * sign-up (HAD-69), so a real user could add a mortgage, see it on the Loans
+ * screen, and watch the budget total, survival spend and runway ignore it
+ * entirely. Nothing would look broken — which is what makes it the shape of
+ * defect this project keeps producing.
+ */
+describe('applyAutoRows — derived rows for an unseeded budget', () => {
+  const debts: Debt[] = [
+    { id: 'd1', type: 'carLoan', name: 'Car', outstandingBalance: 50_000, monthlyPayment: 2_400, monthsRemaining: 20, lender: 'ADCB' },
+    { id: 'd2', type: 'mortgage', name: 'Home', outstandingBalance: 900_000, monthlyPayment: 3_600, monthsRemaining: 200, lender: 'FAB' },
+  ];
+  const fees: SchoolFee[] = [
+    { id: 'f1', child: 'A', school: 'GEMS', term: 'T1', dueDate: '2026-09-01', amount: 12_000, paidByCheque: true, paid: false },
+    { id: 'f2', child: 'A', school: 'GEMS', term: 'T2', dueDate: '2027-01-12', amount: 12_000, paidByCheque: true, paid: false },
+    { id: 'f3', child: 'A', school: 'GEMS', term: 'T3', dueDate: '2027-04-20', amount: 12_000, paidByCheque: true, paid: false },
+  ];
+  const plain: BudgetCategory[] = [
+    { id: 'c1', name: 'Groceries', currentAmount: 3_000, survivalAmount: 2_000, editable: true },
+  ];
+
+  it('derives the debts row when the budget has none', () => {
+    const out = applyAutoRows(plain, debts, []);
+    const row = out.find((c) => c.autoSource === 'debts');
+    expect(row).toBeDefined();
+    expect(row!.currentAmount).toBe(6_000);
+    expect(row!.survivalAmount).toBe(6_000);
+    expect(row!.editable).toBe(false);
+  });
+
+  it('a derived debt row reaches the survival total, and therefore runway', () => {
+    // The assertion that would have caught the gap: without the derived row,
+    // survivalSpend stays at 2,000 and the mortgage is invisible to runway.
+    const out = applyAutoRows(plain, debts, []);
+    expect(survivalSpend(out)).toBe(8_000);
+    expect(survivalSpend(applyAutoRows(plain, [], []))).toBe(2_000);
+  });
+
+  it('derives the school-fees row at annual ÷ 12', () => {
+    const row = applyAutoRows(plain, [], fees).find((c) => c.autoSource === 'schoolFees');
+    expect(row!.currentAmount).toBe(3_000);
+  });
+
+  it('does not duplicate a row the budget already stores', () => {
+    const stored: BudgetCategory[] = [
+      ...plain,
+      { id: 'c2', name: 'Loan & mortgage payments', currentAmount: 0, survivalAmount: 0, editable: false, autoSource: 'debts' },
+    ];
+    const out = applyAutoRows(stored, debts, []);
+    expect(out.filter((c) => c.autoSource === 'debts')).toHaveLength(1);
+    // The stored row is still the one that wins, updated to the live figure.
+    expect(out.find((c) => c.autoSource === 'debts')!.id).toBe('c2');
+    expect(out.find((c) => c.autoSource === 'debts')!.currentAmount).toBe(6_000);
+  });
+
+  it('adds nothing when there is nothing to derive', () => {
+    // A row reading AED 0 would be noise on a budget someone is trying to read.
+    expect(applyAutoRows(plain, [], [])).toHaveLength(1);
+  });
+
+  it('a derived row carries a non-uuid id, so nothing can write it by mistake', () => {
+    const row = applyAutoRows(plain, debts, []).find((c) => c.autoSource === 'debts')!;
+    expect(row.id).toBe(AUTO_ROW_ID.debts);
+    expect(row.id).not.toMatch(/^[0-9a-f-]{36}$/i);
   });
 });
