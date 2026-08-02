@@ -144,6 +144,19 @@ export async function getReadModel(): Promise<ReadModel> {
   const { profile, budget, schoolFees } = data;
 
   /*
+   * The §8 action plan, with each item's stored done state laid over it
+   * (HAD-85). The list itself always comes from SEED_CHECKLIST — the items are
+   * legal and procedural steps, not user content, so a correction to the ILOE
+   * wording or its deadline must reach a user who signed up last year. Only the
+   * boolean is theirs.
+   */
+  const doneByKey = new Map(data.checklist.map((c) => [c.id, c.done]));
+  const checklist = SEED_CHECKLIST.map((item) => ({
+    ...item,
+    done: doneByKey.get(item.id) ?? item.done,
+  }));
+
+  /*
    * School-fee terms are obligations too, and until now nothing but the budget
    * knew it — see HAD-81. Derived here rather than stored twice, so the
    * calendar, the cheque exposure tiles and the projection all see one source.
@@ -180,6 +193,7 @@ export async function getReadModel(): Promise<ReadModel> {
      * caption is what caught it.
      */
     payments,
+    checklist,
 
     readiness,
     projection,

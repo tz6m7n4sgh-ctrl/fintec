@@ -279,6 +279,25 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('plan — action checklist', () => {
+  test('HAD-85 — signed out, the checklist is visible but not tickable', async ({ page }) => {
+    await page.goto(url('/plan/'));
+    const card = page.locator('section.card').filter({ hasText: 'Claim ILOE' }).first();
+    await expect(card).toContainText('Claim ILOE');
+    await expect(card.getByRole('button', { name: /^Mark / })).toHaveCount(0);
+  });
+
+  test('HAD-85 — the screen still says ticking does not change the score', async ({ page }) => {
+    /*
+     * Asserted on the page as well as in readiness.test.ts, because the claim
+     * and the code are two different things and this is the one the user reads.
+     * A checklist that moved the score would reward ticking over doing.
+     */
+    await page.goto(url('/plan/'));
+    await expect(page.locator('body')).toContainText('does not inflate the score');
+  });
+});
+
 test.describe('profile — bank accounts', () => {
   const accountsCard = (page: import('@playwright/test').Page) =>
     page.locator('section.card').filter({

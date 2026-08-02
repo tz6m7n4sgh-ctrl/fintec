@@ -239,9 +239,16 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       transactionCount: r.transaction_count ?? undefined,
       createdAt: r.created_at,
     })),
+    /*
+     * Only the done state is per-user (HAD-85). The item text is the §8 plan
+     * and lives in SEED_CHECKLIST so a corrected deadline reaches everybody, so
+     * this maps `seed_key` onto the item id and the rest is composed in
+     * `store.ts`. Rows without a seed_key are pre-HAD-85 and carry their own
+     * text; they are mapped as they were.
+     */
     checklist: (checklist.data ?? []).map((r) => ({
-      id: r.id,
-      title: r.title,
+      id: r.seed_key ?? r.id,
+      title: r.title ?? '',
       detail: r.detail,
       deadlineKey: r.deadline_key ?? undefined,
       done: r.done,

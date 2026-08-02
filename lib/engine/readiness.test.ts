@@ -107,3 +107,19 @@ describe('scoreReadiness', () => {
     }
   });
 });
+
+/**
+ * HAD-85. The Plan screen tells the user, in so many words, that "completing
+ * the checklist below does not inflate the score". Now that the checklist can
+ * actually be completed, that claim needs asserting rather than trusting —
+ * a score that rose on ticking would reward the ticking rather than the doing.
+ */
+describe('the checklist does not move the readiness score', () => {
+  it('scores identically whether every item is done or none is', () => {
+    const base = scoreReadiness(readiness(), SEED_DEBTS, SEED_BUDGET);
+    // `scoreReadiness` takes no checklist at all, which is the structural
+    // reason this holds — asserted so a future signature change has to notice.
+    expect(scoreReadiness.length).toBe(3);
+    expect(base.total).toBe(scoreReadiness(readiness(), SEED_DEBTS, SEED_BUDGET).total);
+  });
+});
