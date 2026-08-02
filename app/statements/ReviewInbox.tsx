@@ -45,6 +45,8 @@ export interface ReviewRow {
   matchReason?: string;
   /** True when this came from the matcher rather than being stored. */
   isProposed?: boolean;
+  /** True when the category came from a keyword rule rather than being stored. */
+  isCategoryProposed?: boolean;
 }
 
 function RowControls({
@@ -75,7 +77,12 @@ function RowControls({
         <select
           name="categoryId"
           defaultValue={row.categoryId ?? ''}
-          aria-label={`Category for ${row.description}`}
+          aria-label={
+            row.isCategoryProposed
+              ? `Category for ${row.description} — suggested by a keyword rule`
+              : `Category for ${row.description}`
+          }
+          title={row.isCategoryProposed ? 'Suggested by a keyword rule' : undefined}
         >
           <option value="">Uncategorised</option>
           {categories.map((c) => (

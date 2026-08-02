@@ -3,6 +3,8 @@ import { getReadModel } from '@/lib/data/store';
 import { monthlyActuals } from '@/lib/engine/projection';
 import { aed, money, percent } from '@/lib/format/money';
 import { BudgetEditor } from './BudgetEditor';
+import { RulesEditor } from './RulesEditor';
+import type { CategoryRule } from '@/lib/engine/categorise';
 
 export default async function BudgetPage() {
   const m = await getReadModel();
@@ -148,6 +150,67 @@ export default async function BudgetPage() {
           </li>
         </ul>
       </Card>
+
+      <Card
+        title="Categorisation rules"
+        sub="Keywords that suggest a category when a statement transaction arrives"
+      >
+        {m.isSeedData ? (
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+            These are the §11 reference rules. <b>Sign in to record your own</b> — editing is
+            disabled here because there is no account to save them against.
+          </p>
+        ) : null}
+        <RulesEditorOrPreview
+          isSeedData={m.isSeedData}
+          rules={m.categoryRules}
+          categories={m.budget.map((c) => ({ id: c.id, label: c.name }))}
+        />
+      </Card>
     </>
+  );
+}
+
+/**
+ * Signed out, the rules are shown but not editable — the same degradation
+ * every other editor on this app uses. Split out rather than inlined so the
+ * seed branch and the editor branch cannot drift in what they display.
+ */
+function RulesEditorOrPreview({
+  isSeedData,
+  rules,
+  categories,
+}: {
+  isSeedData: boolean;
+  rules: CategoryRule[];
+  categories: Array<{ id: string; label: string }>;
+}) {
+  if (!isSeedData) return <RulesEditor rules={rules} categories={categories} />;
+
+  const label = (id: string) => categories.find((c) => c.id === id)?.label ?? '—';
+  const ordered = [...rules].sort(
+    (a, b) =>
+      a.priority - b.priority ||
+      b.keyword.length - a.keyword.length ||
+      a.keyword.localeCompare(b.keyword),
+  );
+
+  return (
+    <div className="tbl-wrap" tabIndex={0}>
+      <table className="wide">
+        <thead>
+          <tr><th>Keyword</th><th>Sorts into</th><th className="r">Priority</th></tr>
+        </thead>
+        <tbody>
+          {ordered.map((r) => (
+            <tr key={r.id}>
+              <td className="payee">{r.keyword}</td>
+              <td>{label(r.categoryId)}</td>
+              <td className="r tnum">{r.priority}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

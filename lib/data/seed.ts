@@ -7,6 +7,7 @@
  * don't tune them to make a screen look better.
  */
 
+import type { CategoryRule } from '@/lib/engine/categorise';
 import type {
   BudgetCategory,
   Debt,
@@ -181,6 +182,21 @@ export const SEED_TRANSACTIONS: Transaction[] = (() => {
   );
   return rows;
 })();
+
+/**
+ * Categorisation rules for the reference profile (US-32).
+ *
+ * Chosen to demonstrate the ordering rules rather than to be exhaustive:
+ * `ADCB CAR LOAN` is longer than `ADCB` and beats it on specificity at equal
+ * priority, which is the tie-break most likely to be got wrong.
+ */
+export const SEED_CATEGORY_RULES: CategoryRule[] = [
+  { id: 'rule-dewa', keyword: 'DEWA', categoryId: 'cat-util', priority: 100 },
+  { id: 'rule-salik', keyword: 'SALIK', categoryId: 'cat-transport', priority: 100 },
+  { id: 'rule-etisalat', keyword: 'ETISALAT', categoryId: 'cat-phone', priority: 100 },
+  { id: 'rule-carrefour', keyword: 'CARREFOUR', categoryId: 'cat-groc', priority: 100 },
+  { id: 'rule-adcb-car', keyword: 'ADCB CAR LOAN', categoryId: 'cat-debt', priority: 100 },
+];
 
 export const SEED_UPLOADS: StatementUpload[] = [
   { id: 'up-1', bankAccountId: 'acc-enbd', fileName: 'ENBD-statement-Sep2026.pdf', storagePath: 'seed/ENBD-Sep2026.pdf', fileType: 'pdf', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 2, createdAt: '2026-09-30' },

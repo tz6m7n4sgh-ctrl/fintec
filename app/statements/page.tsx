@@ -3,6 +3,7 @@ import { TransactionsLedger } from './TransactionsLedger';
 import { UploadsEditor } from './UploadsEditor';
 import { ReviewInbox } from './ReviewInbox';
 import { propose } from '@/lib/engine/match';
+import { categorise } from '@/lib/engine/categorise';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { money } from '@/lib/format/money';
@@ -175,7 +176,20 @@ export default async function StatementsPage() {
               accountLabel: accountName(t.bankAccountId),
               amount: t.amount,
               direction: t.direction,
-              categoryId: t.categoryId,
+              /*
+               * A stored category wins; otherwise a keyword rule proposes one
+               * (US-32). Same precedence as the payment match, and for the same
+               * reason: a fresh proposal must not replace something the parser
+               * recorded or the user chose.
+               *
+               * Derived at render, so editing a rule updates every pending
+               * suggestion at once — which is the whole of "rules re-runnable
+               * over existing transactions" for anything still pending, with no
+               * re-run to invoke because nothing was stored.
+               */
+              categoryId: t.categoryId ?? categorise(t.description, m.categoryRules),
+              isCategoryProposed: !t.categoryId
+                && categorise(t.description, m.categoryRules) !== undefined,
               /*
                * A stored match wins; otherwise the matcher proposes one
                * (US-33). Stored first because it is either something the
