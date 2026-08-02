@@ -312,7 +312,7 @@ export function BudgetBars({
               <div className="bar cur" style={{ width: `${(r.currentAmount / max) * 100}%` }} />
               <div className="bar sur" style={{ width: `${(r.survivalAmount / max) * 100}%` }} />
             </div>
-            <div className="bar-val mono">
+            <div className="bar-val tnum">
               {money(r.currentAmount)} → {money(r.survivalAmount)}
             </div>
           </div>

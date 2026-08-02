@@ -143,8 +143,8 @@ export default async function ProfilePage() {
                 <tr key={i.id}>
                   <td className="payee">{i.name}</td>
                   <td>{i.frequency === 'monthly' ? 'Monthly' : 'One-off'}</td>
-                  <td className="r amt mono">{money(i.amount)}</td>
-                  <td className="mono">{i.endDate ? formatDate(i.endDate) : '—'}</td>
+                  <td className="r amt tnum">{money(i.amount)}</td>
+                  <td className="tnum">{i.endDate ? formatDate(i.endDate) : '—'}</td>
                   <td>{i.active ? <span className="pill ok"><span aria-hidden>✓</span> Active</span> : <span className="pill">Inactive</span>}</td>
                 </tr>
               ))}

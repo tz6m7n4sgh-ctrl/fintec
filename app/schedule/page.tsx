@@ -50,22 +50,22 @@ export default async function SchedulePage() {
       <div className="grid g4">
         <div className="card tile">
           <div className="lbl">Monthly committed</div>
-          <div className="val mono">{money(monthlyCommitted)}</div>
+          <div className="val tnum">{money(monthlyCommitted)}</div>
           <div className="foot">EMIs + bills, recurring</div>
         </div>
         <div className="card tile">
           <div className="lbl">Cheques — next 6 months</div>
-          <div className="val mono">{money(m.readiness.deadlines.cheques6m)}</div>
+          <div className="val tnum">{money(m.readiness.deadlines.cheques6m)}</div>
           <div className="foot">{cheques6.length} cheques</div>
         </div>
         <div className="card tile">
           <div className="lbl">Cheques — next 12 months</div>
-          <div className="val mono">{money(m.readiness.deadlines.cheques12m)}</div>
+          <div className="val tnum">{money(m.readiness.deadlines.cheques12m)}</div>
           <div className="foot">{cheques12.length} cheques</div>
         </div>
         <div className="card tile">
           <div className="lbl">Not in monthly budget</div>
-          <div className="val mono">{money(outOfBudget.reduce((s, p) => s + p.amount, 0))}</div>
+          <div className="val tnum">{money(outOfBudget.reduce((s, p) => s + p.amount, 0))}</div>
           <div className="foot">Hits the projection as lump sums</div>
         </div>
       </div>
@@ -96,7 +96,7 @@ export default async function SchedulePage() {
             <tbody>
               {rows.map((p) => (
                 <tr key={p.id}>
-                  <td className="mono">{formatDate(p.dueDate)}</td>
+                  <td className="tnum">{formatDate(p.dueDate)}</td>
                   <td className="payee">{p.payee}</td>
                   <td>{p.purpose}</td>
                   <td>
@@ -108,7 +108,7 @@ export default async function SchedulePage() {
                   </td>
                   <td>{RECURRENCE_LABEL[p.recurrence]}</td>
                   <td>{p.account}</td>
-                  <td className="r amt mono">{money(p.amount)}</td>
+                  <td className="r amt tnum">{money(p.amount)}</td>
                   <td>
                     {p.includedInBudget ? (
                       <span className="pill ok"><span aria-hidden>✓</span> Yes</span>
@@ -129,7 +129,7 @@ export default async function SchedulePage() {
               ))}
               <tr className="tot-row">
                 <td colSpan={6}>Total — next 12 months (recurrences expanded)</td>
-                <td className="r mono">{money(total12)}</td>
+                <td className="r tnum">{money(total12)}</td>
                 <td colSpan={2} />
               </tr>
             </tbody>

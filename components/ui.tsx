@@ -97,7 +97,7 @@ export function StatTile({
   return (
     <Link className="card tile" href={href}>
       <div className="lbl">{label}</div>
-      <div className="val mono">{value}</div>
+      <div className="val tnum">{value}</div>
       <div className="foot">
         <span className="arrow" aria-hidden>→</span> {foot}
       </div>
@@ -109,14 +109,14 @@ export function Money({ value, signed = false }: { value: number; signed?: boole
   const negative = value < 0;
   const text = signed && negative ? `−${money(Math.abs(value))}` : money(value);
   return (
-    <span className="mono" style={negative ? { color: 'var(--critical-ink)' } : undefined}>
+    <span className="tnum" style={negative ? { color: 'var(--critical-ink)' } : undefined}>
       {text}
     </span>
   );
 }
 
 export function AedTotal({ value }: { value: number }) {
-  return <span className="mono">{aed(value)}</span>;
+  return <span className="tnum">{aed(value)}</span>;
 }
 
 export function LegalFooter() {

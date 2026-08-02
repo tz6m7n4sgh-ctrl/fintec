@@ -120,7 +120,9 @@ a { color: var(--s1-ink); }
  */
 .banner-link { color: var(--ink-1); text-decoration: underline; text-underline-offset: 2px; }
 
-.mono { font-variant-numeric: tabular-nums; }
+/* Tabular figures so AED columns align. NOT a monospace family — monospace
+   letterforms read as code rather than money. */
+.tnum { font-variant-numeric: tabular-nums; }
 
 /* --- app shell ----------------------------------------------------------- */
 

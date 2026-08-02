@@ -88,13 +88,13 @@ export default async function ReportPage() {
                 <tr key={label}>
                   <td className="payee">{label}</td>
                   <td style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>{basis}</td>
-                  <td className="r mono">{value < 0 ? `(${moneyPrecise(Math.abs(value))})` : moneyPrecise(value)}</td>
+                  <td className="r tnum">{value < 0 ? `(${moneyPrecise(Math.abs(value))})` : moneyPrecise(value)}</td>
                 </tr>
               ))}
               <tr className="tot-row">
                 <td>Total final settlement</td>
                 <td />
-                <td className="r mono">{moneyPrecise(r.settlement.finalSettlement)}</td>
+                <td className="r tnum">{moneyPrecise(r.settlement.finalSettlement)}</td>
               </tr>
             </tbody>
           </table>
@@ -136,15 +136,15 @@ export default async function ReportPage() {
         <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
-              <tr><th scope="row" className="rowhead">Cash savings</th><td className="r mono">{money(m.profile.cashSavings)}</td></tr>
-              <tr><th scope="row" className="rowhead">Other liquid assets</th><td className="r mono">{money(m.profile.otherLiquidAssets)}</td></tr>
-              <tr><th scope="row" className="rowhead">Final settlement</th><td className="r mono">{money(r.settlement.finalSettlement)}</td></tr>
-              <tr><th scope="row" className="rowhead">ILOE total</th><td className="r mono">{money(r.iloe.iloeTotal)}</td></tr>
-              <tr className="tot-row"><th scope="row" className="rowhead">Total resources</th><td className="r mono">{money(r.runway.totalResources)}</td></tr>
-              <tr><th scope="row" className="rowhead">Survival spending per month</th><td className="r mono">{money(r.runway.survivalSpend)}</td></tr>
-              <tr><th scope="row" className="rowhead">Less side income</th><td className="r mono">{money(r.runway.monthlySideIncome)}</td></tr>
-              <tr className="tot-row"><th scope="row" className="rowhead">Net monthly burn</th><td className="r mono">{money(r.runway.netMonthlyBurn)}</td></tr>
-              <tr className="tot-row"><th scope="row" className="rowhead">Runway</th><td className="r mono">{months(r.runway.runwayMonths)} months</td></tr>
+              <tr><th scope="row" className="rowhead">Cash savings</th><td className="r tnum">{money(m.profile.cashSavings)}</td></tr>
+              <tr><th scope="row" className="rowhead">Other liquid assets</th><td className="r tnum">{money(m.profile.otherLiquidAssets)}</td></tr>
+              <tr><th scope="row" className="rowhead">Final settlement</th><td className="r tnum">{money(r.settlement.finalSettlement)}</td></tr>
+              <tr><th scope="row" className="rowhead">ILOE total</th><td className="r tnum">{money(r.iloe.iloeTotal)}</td></tr>
+              <tr className="tot-row"><th scope="row" className="rowhead">Total resources</th><td className="r tnum">{money(r.runway.totalResources)}</td></tr>
+              <tr><th scope="row" className="rowhead">Survival spending per month</th><td className="r tnum">{money(r.runway.survivalSpend)}</td></tr>
+              <tr><th scope="row" className="rowhead">Less side income</th><td className="r tnum">{money(r.runway.monthlySideIncome)}</td></tr>
+              <tr className="tot-row"><th scope="row" className="rowhead">Net monthly burn</th><td className="r tnum">{money(r.runway.netMonthlyBurn)}</td></tr>
+              <tr className="tot-row"><th scope="row" className="rowhead">Runway</th><td className="r tnum">{months(r.runway.runwayMonths)} months</td></tr>
             </tbody>
           </table>
         </div>
@@ -152,7 +152,7 @@ export default async function ReportPage() {
           {r.scenarios.map((sc) => (
             <div className="card" key={sc.months}>
               <div style={{ fontSize: 12, color: 'var(--ink-2)', fontWeight: 550 }}>After {sc.months} months</div>
-              <div className="mono" style={{ fontSize: 19, fontWeight: 620, margin: '7px 0 8px', color: sc.shortfall ? 'var(--critical-ink)' : undefined }}>
+              <div className="tnum" style={{ fontSize: 19, fontWeight: 620, margin: '7px 0 8px', color: sc.shortfall ? 'var(--critical-ink)' : undefined }}>
                 {sc.remaining < 0 ? `−${money(Math.abs(sc.remaining))}` : money(sc.remaining)}
               </div>
               <ScenarioBadge remaining={sc.remaining} netMonthlyBurn={r.runway.netMonthlyBurn} />
@@ -170,7 +170,7 @@ export default async function ReportPage() {
                   <th scope="row" className="rowhead payee">
                     {c.label}<span className="sub">{c.detail}</span>
                   </th>
-                  <td className="r mono amt">{c.score} / {c.max}</td>
+                  <td className="r tnum amt">{c.score} / {c.max}</td>
                 </tr>
               ))}
             </tbody>

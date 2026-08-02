@@ -200,9 +200,9 @@ export function DebtsEditor({ debts }: { debts: Debt[] }) {
                 <td className="payee">{d.name}</td>
                 <td><span className="pill">{DEBT_LABEL[d.type]}</span></td>
                 <td>{d.lender}</td>
-                <td className="r mono">{money(d.outstandingBalance)}</td>
-                <td className="r amt mono">{money(d.monthlyPayment)}</td>
-                <td className="r mono">{d.monthsRemaining}</td>
+                <td className="r tnum">{money(d.outstandingBalance)}</td>
+                <td className="r amt tnum">{money(d.monthlyPayment)}</td>
+                <td className="r tnum">{d.monthsRemaining}</td>
                 <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 6 }}>
                   <button
                     className="btn"
@@ -226,8 +226,8 @@ export function DebtsEditor({ debts }: { debts: Debt[] }) {
             ) : null}
             <tr className="tot-row">
               <td colSpan={3}>Total</td>
-              <td className="r mono">{money(outstanding)}</td>
-              <td className="r mono">{money(monthly)}</td>
+              <td className="r tnum">{money(outstanding)}</td>
+              <td className="r tnum">{money(monthly)}</td>
               <td colSpan={2} />
             </tr>
           </tbody>

@@ -188,7 +188,7 @@ export default async function CalendarPage() {
             <tbody>
               {agenda.map((p) => (
                 <tr key={p.id}>
-                  <td className="mono">{formatDate(p.dueDate)}</td>
+                  <td className="tnum">{formatDate(p.dueDate)}</td>
                   <td className="payee">
                     {p.payee}
                     <span className="sub">{p.purpose}</span>
@@ -201,7 +201,7 @@ export default async function CalendarPage() {
                     )}
                   </td>
                   <td>{p.account}</td>
-                  <td className="r amt mono">{money(p.amount)}</td>
+                  <td className="r amt tnum">{money(p.amount)}</td>
                   <td>
                     {p.status === 'atRisk' ? (
                       <span className="pill risk"><span aria-hidden>▲</span> Fund by {formatDate(addDays(p.dueDate, -2)).slice(0, 6)}</span>

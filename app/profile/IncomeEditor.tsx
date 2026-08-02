@@ -201,9 +201,9 @@ export function IncomeEditor({
               <tr key={i.id}>
                 <td className="payee">{i.name}</td>
                 <td>{i.frequency === 'monthly' ? 'Monthly' : 'One-off'}</td>
-                <td className="r amt mono">{money(i.amount)}</td>
-                <td className="mono">{i.startDate ? formatDate(i.startDate) : '—'}</td>
-                <td className="mono">{i.endDate ? formatDate(i.endDate) : '—'}</td>
+                <td className="r amt tnum">{money(i.amount)}</td>
+                <td className="tnum">{i.startDate ? formatDate(i.startDate) : '—'}</td>
+                <td className="tnum">{i.endDate ? formatDate(i.endDate) : '—'}</td>
                 <td>
                   {i.active ? (
                     <span className="pill ok"><span aria-hidden>✓</span> Active</span>
@@ -243,12 +243,12 @@ export function IncomeEditor({
       <div className="grid g2" style={{ marginTop: 14 }}>
         <div className="card tile">
           <div className="lbl">Monthly income on {formatDate(expectedLastDay)}</div>
-          <div className="val mono">{money(nowTotal)}</div>
+          <div className="val tnum">{money(nowTotal)}</div>
           <div className="foot">Everything still running on your last working day</div>
         </div>
         <div className="card tile">
           <div className="lbl">Monthly income the day after</div>
-          <div className="val mono">{money(afterTotal)}</div>
+          <div className="val tnum">{money(afterTotal)}</div>
           <div className="foot">
             {ending.length === 0
               ? 'Nothing ends on your last day — check your salary carries an end date'

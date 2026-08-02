@@ -384,7 +384,7 @@ export function PaymentsEditor({
           <tbody>
             {rows.map((p) => (
               <tr key={p.id}>
-                <td className="mono">{formatDate(p.dueDate)}</td>
+                <td className="tnum">{formatDate(p.dueDate)}</td>
                 <td className="payee">{p.payee}</td>
                 <td>{p.purpose}</td>
                 <td>
@@ -396,7 +396,7 @@ export function PaymentsEditor({
                 </td>
                 <td>{RECURRENCE_LABEL[p.recurrence]}</td>
                 <td>{p.account}</td>
-                <td className="r amt mono">{money(p.amount)}</td>
+                <td className="r amt tnum">{money(p.amount)}</td>
                 <td>
                   {p.includedInBudget ? (
                     <span className="pill ok"><span aria-hidden>✓</span> Yes</span>
