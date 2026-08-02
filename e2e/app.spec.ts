@@ -279,6 +279,51 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('profile — bank accounts', () => {
+  const accountsCard = (page: import('@playwright/test').Page) =>
+    page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Bank accounts$/ }),
+    });
+
+  test('US-28 — the accounts card exists at all (HAD-84)', async ({ page }) => {
+    /*
+     * The regression this exists to prevent. `UploadsEditor` told a signed-in
+     * user with no accounts to "add a bank account on your profile", and no
+     * such control existed anywhere — so statement upload, and with it every
+     * downstream part of M3, was unreachable for every real user. It looked
+     * fine signed out because the §11 seed has three accounts.
+     */
+    await page.goto(url('/profile/'));
+    await expect(accountsCard(page)).toBeVisible();
+    // 'Emirates NBD' is the stored bankName; 'ENBD ··4821' is the abbreviated
+    // form the statements screen composes. Asserting the stored value keeps
+    // this test about the card existing rather than about label formatting.
+    await expect(accountsCard(page)).toContainText('Emirates NBD');
+  });
+
+  test('US-28 — signed out, accounts are read-only and say why', async ({ page }) => {
+    await page.goto(url('/profile/'));
+    const card = accountsCard(page);
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add a bank account' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Delete .* account$/ })).toHaveCount(0);
+  });
+
+  test('US-28 — the statements empty state links somewhere that exists', async ({ page }) => {
+    // The other half of HAD-84: prose describing a destination is what let the
+    // dead end ship. A link is checkable; a sentence is not.
+    await page.goto(url('/statements/'));
+    const link = page.getByRole('link', { name: 'Add a bank account' });
+    if (await link.count() > 0) {
+      await expect(link.first()).toHaveAttribute('href', '/profile/');
+    }
+    // Signed out the seed has accounts, so the empty state may not render. What
+    // must always hold is that the profile it points at carries the card.
+    await page.goto(url('/profile/'));
+    await expect(accountsCard(page)).toBeVisible();
+  });
+});
+
 test.describe('budget — categorisation rules', () => {
   const rulesCard = (page: import('@playwright/test').Page) =>
     page.locator('section.card').filter({
