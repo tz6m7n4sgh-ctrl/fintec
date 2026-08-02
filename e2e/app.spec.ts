@@ -303,6 +303,150 @@ test.describe('settings — password', () => {
   });
 });
 
+test.describe('typographic hierarchy (HAD-65)', () => {
+  /**
+   * The bug this guards is invisible to every other check, and it is also
+   * invisible to the obvious test — which is worth recording, because I wrote
+   * that test first and it passed with the font removed entirely.
+   *
+   * `globals.css` uses 550, 580, 620, 640 and 650. Those only resolve as
+   * written on a variable face. `system-ui` is variable on Apple platforms and
+   * is Segoe UI on Windows and Roboto on Android, neither of which is — so 550
+   * and 620 both snap to 600, and the distinction between a figure and its
+   * caption disappears on the machines most people use.
+   *
+   * **`getComputedStyle().fontWeight` cannot see this.** It reports the
+   * *declared* value, 550, whether or not any face can render 550. The snapping
+   * happens during font selection and is never exposed to script. So the
+   * assertion everyone reaches for first — read two weights, assert they differ
+   * — passes identically with and without a variable font, and proves nothing.
+   *
+   * What is observable is the **rendering**. Two identical strings at 550 and
+   * 620 have different advance widths on a variable face and byte-identical
+   * ones on a face that snapped both to 600. That is measurable, and it is what
+   * these tests do.
+   */
+
+  /** Renders one string twice at two weights and returns both widths. */
+  const widthsAt = (page: Page, a: number, b: number) =>
+    page.evaluate(
+      async ([w1, w2]) => {
+        const make = (weight: number) => {
+          const el = document.createElement('span');
+          // Long enough that a per-glyph difference accumulates past rounding,
+          // and digits because that is what this app renders in these weights.
+          el.textContent = '220,479 113,000 9.6 months';
+          el.style.cssText =
+            `position:absolute;left:-9999px;top:0;white-space:nowrap;font-size:40px;font-weight:${weight};`;
+          document.body.appendChild(el);
+          return el;
+        };
+        const first = make(w1);
+        const second = make(w2);
+        await document.fonts.ready;
+        const out = [
+          first.getBoundingClientRect().width,
+          second.getBoundingClientRect().width,
+        ];
+        first.remove();
+        second.remove();
+        return out;
+      },
+      [a, b],
+    );
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto(url('/'));
+    await page.evaluate(() => document.fonts.ready);
+  });
+
+  test('550 and 620 render differently — the pair that collapses without a variable font', async ({ page }) => {
+    /*
+     * A stat tile's label against its value. On Segoe UI or Roboto both become
+     * 600 and these two widths are equal, which is the defect. This is the
+     * assertion that actually fails when the variable font is removed.
+     */
+    const [light, heavy] = await widthsAt(page, 550, 620);
+    expect(light).toBeGreaterThan(0);
+    expect(heavy, `550 rendered ${light}px, 620 rendered ${heavy}px`).not.toBe(light);
+  });
+
+  test('640 and 650 render differently — the hero number against the brand', async ({ page }) => {
+    // The other collapsing pair: both snap to 700 on a non-variable face.
+    const [a, b] = await widthsAt(page, 640, 650);
+    expect(b, `640 rendered ${a}px, 650 rendered ${b}px`).not.toBe(a);
+  });
+
+  test('weight increases width monotonically across the axis', async ({ page }) => {
+    // A face with only 400 and 700 produces two distinct widths across five
+    // requests. A variable one produces five.
+    const widths = await page.evaluate(async () => {
+      const out: number[] = [];
+      for (const weight of [300, 450, 550, 620, 800]) {
+        const el = document.createElement('span');
+        el.textContent = '220,479 113,000 9.6 months';
+        el.style.cssText =
+          `position:absolute;left:-9999px;top:0;white-space:nowrap;font-size:40px;font-weight:${weight};`;
+        document.body.appendChild(el);
+        await document.fonts.ready;
+        out.push(el.getBoundingClientRect().width);
+        el.remove();
+      }
+      return out;
+    });
+
+    expect(new Set(widths).size, `widths were ${widths.join(', ')}`).toBe(widths.length);
+    for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeGreaterThan(widths[i - 1]);
+  });
+
+  test('the loaded face is first in the stack, ahead of the fallback', async ({ page }) => {
+    /*
+     * `document.fonts.check` asks whether a *loaded* face can render that
+     * request — a different question from what the stylesheet declared, which
+     * is the distinction this whole block turns on.
+     *
+     * The family assertion is deliberately on the resolved stack rather than on
+     * a hashed class name: `next/font/local` names the family after the
+     * variable it was assigned, so the name is stable and readable, and pinning
+     * a hash would fail on every unrelated rebuild.
+     */
+    const { family, loaded } = await page.evaluate(() => {
+      const el = document.querySelector('.hero-num');
+      return {
+        family: el ? getComputedStyle(el).fontFamily : '',
+        // A non-standard weight on purpose — this is the request that a static
+        // face cannot satisfy.
+        loaded: document.fonts.check('550 15px interVariable'),
+      };
+    });
+
+    expect(family, 'the self-hosted face must come before the fallback').toMatch(
+      /^interVariable/,
+    );
+    expect(family, 'the metric-adjusted fallback should still be present').toContain('Fallback');
+    expect(loaded, 'a face capable of weight 550 must actually be loaded').toBe(true);
+  });
+
+  test('the font is self-hosted — no third-party request', async ({ page }) => {
+    /*
+     * `font-src 'self'` says this must hold, but the CSP is Report-Only so it
+     * would not block a violation. This is the check that does. A CDN font on a
+     * financial app is a second origin watching page loads.
+     */
+    const origins: string[] = [];
+    page.on('request', (r) => {
+      if (r.resourceType() === 'font') origins.push(new URL(r.url()).origin);
+    });
+
+    await page.goto(url('/'));
+    await page.evaluate(() => document.fonts.ready);
+
+    const own = new URL(page.url()).origin;
+    expect(origins.length, 'a font file should actually be fetched').toBeGreaterThan(0);
+    for (const origin of origins) expect(origin, 'font must be same-origin').toBe(own);
+  });
+});
+
 test.describe('installable app (US-47)', () => {
   test('the manifest is served, and says what installing gets you', async ({ request }) => {
     /*
