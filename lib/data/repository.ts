@@ -185,6 +185,7 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       name: r.name,
       amount: num(r.amount),
       frequency: r.frequency,
+      startDate: r.start_date ?? undefined,
       endDate: r.end_date ?? undefined,
       active: r.active,
     })),

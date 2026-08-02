@@ -228,6 +228,26 @@ test.describe('calendar', () => {
   });
 });
 
+test.describe('profile — income streams', () => {
+  test('US-27 — signed out, income streams are read-only and say why', async ({ page }) => {
+    await page.goto(url('/profile/'));
+    const card = page.locator('section.card', { hasText: 'Income streams' });
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add an income stream' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+  });
+
+  test('US-27 — the salary carries the last working day as its end date', async ({ page }) => {
+    await page.goto(url('/profile/'));
+    const card = page.locator('section.card', { hasText: 'Income streams' });
+    // The seed's salary ends 30 Sep 2026, the same date as expectedLastDay.
+    // That agreement used to be a coincidence nothing checked; the engine now
+    // derives "salary stops when the job does" from this date, so it is worth
+    // pinning that the date is actually here.
+    await expect(card).toContainText('30 Sep 2026');
+  });
+});
+
 test.describe('loans', () => {
   test('US-19 — signed out, the debts table is read-only and says why', async ({ page }) => {
     await page.goto(url('/loans/'));

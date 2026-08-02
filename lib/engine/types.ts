@@ -117,7 +117,9 @@ export interface IncomeStream {
   name: string;
   amount: number;
   frequency: 'monthly' | 'oneOff';
+  /** First day the stream pays. Undefined means "already running". */
   startDate?: IsoDate;
+  /** Last day the stream pays — not the first day it does not. */
   endDate?: IsoDate;
   active: boolean;
 }
