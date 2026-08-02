@@ -114,6 +114,20 @@ export interface ScheduledPayment {
    * payment would appear twice.
    */
   detachedDate?: IsoDate;
+  /**
+   * Set when this row is *derived* from another record rather than stored —
+   * currently only a school-fee term (HAD-81). Names the screen that owns the
+   * underlying data.
+   *
+   * The same shape as `autoSource` on `BudgetCategory`, and for the same
+   * reason. A derived row carries a sentinel id (`fee:<uuid>`) that is not a
+   * uuid, so any write against it is refused by Postgres with
+   * `22P02 invalid input syntax for type uuid` — the loud failure is deliberate.
+   * But a screen that *offers* Edit and Delete on such a row turns that guard
+   * into a raw database error shown to the user. This flag is what lets the
+   * editor decline the invitation instead.
+   */
+  derivedFrom?: 'schoolFees';
   status: PaymentStatus;
 }
 

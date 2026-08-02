@@ -8,6 +8,12 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts'],
+    /*
+     * `app/` is included for server actions whose *guards* run before any
+     * Supabase client is constructed — the derived-row write refusal in
+     * `app/schedule/actions.ts` (HAD-81) is the first of them. Anything past
+     * that boundary needs a session and belongs to the manual pass (HAD-68).
+     */
+    include: ['lib/**/*.test.ts', 'app/**/*.test.ts'],
   },
 });

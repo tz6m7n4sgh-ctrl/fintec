@@ -33,7 +33,7 @@ import {
   survivalSpend,
 } from './uae';
 import type { BudgetCategory, Debt, Profile, ScheduledPayment, SchoolFee } from './types';
-import { SEED_BUDGET, SEED_PROFILE } from '@/lib/data/seed';
+import { SEED_BUDGET, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
 
 /** The §11 reference profile. */
 const REF: Profile = {
@@ -604,5 +604,24 @@ describe('schoolFeeObligations', () => {
 
   it('carries a non-uuid id so nothing can write one by mistake', () => {
     expect(schoolFeeObligations(fees)[0].id).toBe('fee:f2');
+  });
+
+  it('is marked derived, so the editor knows not to offer to change it', () => {
+    /*
+     * The id guard is real but it is a *database* guard: `scheduled_payments.id`
+     * is a uuid, so `.eq('id', 'fee:f2')` fails with 22P02, verified against the
+     * live project rather than assumed.
+     *
+     * Failing loudly is right. Failing loudly *at the user*, on a row whose Edit
+     * button the app itself rendered, is not — and that is what the schedule
+     * editor did the moment these rows joined `m.payments`. This flag is what
+     * the editor reads to show "computed — edit on Loans & fees" instead.
+     */
+    expect(schoolFeeObligations(fees).every((o) => o.derivedFrom === 'schoolFees')).toBe(true);
+  });
+
+  it('a stored payment is never marked derived', () => {
+    // The flag has to distinguish, or the editor would refuse to edit anything.
+    expect(SEED_PAYMENTS.every((p) => p.derivedFrom === undefined)).toBe(true);
   });
 });

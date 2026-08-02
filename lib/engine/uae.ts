@@ -413,6 +413,9 @@ export function schoolFeeObligations(fees: SchoolFee[]): ScheduledPayment[] {
       type: f.paidByCheque ? ('cheque' as const) : ('transfer' as const),
       recurrence: 'none' as const,
       includedInBudget: true,
+      // So the schedule editor can show this row without offering to edit a
+      // record that does not exist. The term is owned by the Loans screen.
+      derivedFrom: 'schoolFees' as const,
       status: 'upcoming' as const,
     }));
 }

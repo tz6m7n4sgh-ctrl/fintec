@@ -82,6 +82,22 @@ const NOT_CONFIGURED = 'Supabase is not configured for this deployment.';
 const SIGNED_OUT = 'You are signed out. Sign in again to save.';
 
 /**
+ * Derived rows carry a sentinel id — `fee:<uuid>` for a school-fee term
+ * (HAD-81), `auto:*` for a computed budget line — precisely so that a write
+ * against one cannot silently succeed. Postgres already refuses them: the id
+ * column is a uuid and the comparison fails with `22P02`.
+ *
+ * This is the second line, not the first. The editor does not offer Edit or
+ * Delete on a derived row at all. But a stale page, a replayed form or a future
+ * screen that forgets could still get here, and `22P02 invalid input syntax for
+ * type uuid` is not a sentence to show anybody. The rule is the same either
+ * way: change the record that owns the number, not the row derived from it.
+ */
+const DERIVED_ID = /^(fee|auto):/;
+const DERIVED_MESSAGE =
+  'That row is computed from a school-fee term, not stored as a payment — change it on the Loans & fees screen and it will update here.';
+
+/**
  * Creates or updates one payment.
  *
  * `id` present means update, absent means insert — the form decides, not this
@@ -90,6 +106,8 @@ const SIGNED_OUT = 'You are signed out. Sign in again to save.';
 export async function savePayment(_prev: SaveResult, form: FormData): Promise<SaveResult> {
   const id = s(form, 'id') || undefined;
   const fail = (error: string): SaveResult => ({ ok: false, error, id });
+
+  if (id && DERIVED_ID.test(id)) return fail(DERIVED_MESSAGE);
 
   const supabase = await createClient();
   if (!supabase) return fail(NOT_CONFIGURED);
@@ -173,6 +191,7 @@ export async function deletePayment(_prev: SaveResult, form: FormData): Promise<
   const fail = (error: string): SaveResult => ({ ok: false, error, id });
 
   if (!id) return fail('Nothing to delete.');
+  if (DERIVED_ID.test(id)) return fail(DERIVED_MESSAGE);
 
   const supabase = await createClient();
   if (!supabase) return fail(NOT_CONFIGURED);
