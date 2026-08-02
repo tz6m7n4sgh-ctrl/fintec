@@ -88,6 +88,15 @@ export interface ScheduledPayment {
    * them against `netMonthlyBurn`. See G-1 in the requirements doc.
    */
   includedInBudget: boolean;
+  /**
+   * The budget line this payment belongs to, when `includedInBudget` is true.
+   *
+   * Carried on the read model only so the editor can round-trip it — nothing in
+   * the engine reads it. The 1:1 rule it encodes is enforced by
+   * `scheduled_in_budget_needs_category` in the database, which is where it
+   * belongs; this is the form's copy, not a second source of truth.
+   */
+  budgetCategoryId?: string;
   status: PaymentStatus;
 }
 
