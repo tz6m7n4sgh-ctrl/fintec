@@ -102,7 +102,20 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink-1);
-  font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /*
+   * HAD-65: a variable font, so the weights below mean what they say.
+   *
+   * The stack is 550/580/620/640/650 throughout, and those only resolve as
+   * written on a variable face. `system-ui` is variable on Apple platforms and
+   * not on Windows or Android, where 550 and 620 both snapped to 600 and 640
+   * and 650 both snapped to 700 — flattening the distinction between a figure
+   * and its caption on the machines most people use.
+   *
+   * `--font-ui` is set by `next/font/local` in app/layout.tsx, which also
+   * supplies a metric-adjusted fallback. The stack after it is what renders in
+   * the moment before the file arrives.
+   */
+  font: 15px/1.5 var(--font-ui), system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
