@@ -64,6 +64,32 @@ export async function saveProfile(_prev: SaveResult, form: FormData): Promise<Sa
   const user = auth?.user;
   if (!user) return { ok: false, error: 'You are signed out. Sign in again to save.' };
 
+  /*
+   * The one validation that does not belong to the database.
+   *
+   * Both date columns are nullable, and there is a reason to leave them that
+   * way — a half-filled draft is a legitimate row. But the engine counts every
+   * deadline, the service period and the entire gratuity from these two dates,
+   * and `parseIso` throws on null. That throw happens inside `getReadModel`,
+   * which every screen calls, so saving a profile with a blank date would
+   * return an error on all ten screens — including this one, the only place the
+   * date could be corrected. The app would be unrecoverable through its own UI.
+   *
+   * A NOT NULL constraint would be the tidier home for this, but it would also
+   * forbid the draft row the schema deliberately allows. So the rule lives at
+   * the point where the two dates stop being optional: the moment something
+   * tries to compute from them.
+   */
+  const employmentStart = d(form, 'employmentStart');
+  const expectedLastDay = d(form, 'expectedLastDay');
+  if (!employmentStart || !expectedLastDay) {
+    return {
+      ok: false,
+      error:
+        'Employment start and expected last day are both required — every deadline, your service period and your gratuity are counted from them.',
+    };
+  }
+
   // user_id is set explicitly because it is the conflict target for the
   // upsert. RLS still enforces that it matches auth.uid() — a forged value
   // would be rejected by the policy, not merely by this line.
@@ -71,8 +97,8 @@ export async function saveProfile(_prev: SaveResult, form: FormData): Promise<Sa
     user_id: user.id,
     basic_salary: n(form, 'basicSalary'),
     gross_salary: n(form, 'grossSalary'),
-    employment_start: d(form, 'employmentStart'),
-    expected_last_day: d(form, 'expectedLastDay'),
+    employment_start: employmentStart,
+    expected_last_day: expectedLastDay,
     unpaid_leave_days: n(form, 'unpaidLeaveDays'),
     unused_leave_days: n(form, 'unusedLeaveDays'),
     notice_period_days: n(form, 'noticePeriodDays'),

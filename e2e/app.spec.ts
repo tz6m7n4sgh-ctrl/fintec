@@ -473,6 +473,71 @@ test.describe('sign-in', () => {
     }
   });
 
+  test('the code box accepts a pasted link, and says so', async ({ page }) => {
+    /*
+     * Supabase's stock email template sends a magic link, not a code. A form
+     * that only accepts a code is then a dead end no user can debug, so the
+     * box takes either — and has to say it takes either, because nobody pastes
+     * a URL into a field labelled "six-digit code".
+     */
+    await page.goto(url('/sign-in/'));
+    const email = page.getByLabel('Email address');
+    if ((await email.count()) === 0) {
+      expect(await page.locator('body').innerText()).toContain('Sign-in is not configured');
+      return;
+    }
+
+    await expect(page.locator('body')).toContainText('or a sign-in link');
+
+    // The field must not be numeric-only, or a link cannot be entered on a
+    // phone at all — the exact device this is most likely to happen on.
+    await email.fill('someone@example.com');
+    const codeField = page.locator('#code');
+    if ((await codeField.count()) > 0) {
+      await expect(codeField).not.toHaveAttribute('inputmode', 'numeric');
+    }
+  });
+
+  test('a failed link click explains itself on the sign-in screen', async ({ page }) => {
+    // /auth/confirm redirects here with the reason rather than rendering a dead
+    // end, because "Token has expired" and "invalid link" need different acts.
+    await page.goto(url('/sign-in/?error=Token+has+expired'));
+    const body = await page.locator('body').innerText();
+    if (body.includes('Email address')) {
+      expect(body).toContain('Token has expired');
+    } else {
+      expect(body).toContain('Sign-in is not configured');
+    }
+  });
+
+  test('a confirm link with no token does not dead-end', async ({ page }) => {
+    const response = await page.goto(url('/auth/confirm/'));
+    // Whatever happens, it must not be a 404 or a 500 — it redirects to
+    // sign-in carrying the reason.
+    expect(response?.status()).toBeLessThan(400);
+    await expect(page).toHaveURL(/sign-in/);
+  });
+
+  test('the two dates the engine cannot run without are marked required', async ({ page }) => {
+    /*
+     * Both date columns are nullable, and parseIso throws on null from inside
+     * getReadModel — which every screen calls. A profile saved with a blank
+     * date would 500 all ten screens including this one, leaving no way to
+     * correct it through the UI. The server action refuses that save; this
+     * asserts the browser refuses it first.
+     *
+     * Signed out there is no form, so this only runs where one is rendered.
+     */
+    await page.goto(url('/profile/'));
+    const start = page.locator('#f-employmentStart');
+    if ((await start.count()) === 0) {
+      await expect(page.locator('body')).toContainText('Reference profile, not yours');
+      return;
+    }
+    await expect(start).toHaveAttribute('required', '');
+    await expect(page.locator('#f-expectedLastDay')).toHaveAttribute('required', '');
+  });
+
   test('the profile screen sends a signed-out visitor to sign in', async ({ page }) => {
     await page.goto(url('/profile/'));
     // Signed out, the figures shown are the reference profile, and the screen
