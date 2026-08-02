@@ -279,6 +279,30 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('settings — password', () => {
+  const card = (page: Page) =>
+    page.locator('section.card').filter({ has: page.locator('.card-title', { hasText: /^Passwords$/ }) });
+
+  test('HAD-74 — signed out, there is no password here to change', async ({ page }) => {
+    await page.goto(url('/settings/'));
+    await expect(card(page)).toContainText('Sign in to change your password');
+    await expect(card(page).getByRole('button', { name: /Change password/ })).toHaveCount(0);
+  });
+
+  test('HAD-74 — the card separates changing from forgetting', async ({ page }) => {
+    /*
+     * The distinction is the whole honesty of this screen. Changing a password
+     * requires knowing it; recovering a forgotten one needs a reset email or a
+     * second factor, and this app has neither by design. A card that offered
+     * "change password" without saying so would read as though the forgotten
+     * case were covered.
+     */
+    await page.goto(url('/settings/'));
+    await expect(card(page)).toContainText('forgotten');
+    await expect(card(page)).toContainText('no reset link');
+  });
+});
+
 test.describe('installable app (US-47)', () => {
   test('the manifest is served, and says what installing gets you', async ({ request }) => {
     /*

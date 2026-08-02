@@ -5,6 +5,7 @@ import {
   normaliseEmail,
   validateEmail,
   validatePassword,
+  validatePasswordChange,
   validateSignIn,
   validateSignUp,
 } from './credentials';
@@ -106,5 +107,59 @@ describe('validateSignIn', () => {
 
   it('still requires a password to be typed', () => {
     expect(validateSignIn('danial@example.com', '')).toBe('Enter your password.');
+  });
+});
+
+// ===========================================================================
+// HAD-74 — changing a password from inside the app
+// ===========================================================================
+
+describe('validatePasswordChange', () => {
+  it('accepts a well-formed change', () => {
+    expect(validatePasswordChange('old-password', 'new-password', 'new-password')).toBeNull();
+  });
+
+  it('requires the current password', () => {
+    // Not cosmetic: `updateUser` does not ask for it, so a form that skipped
+    // this would let an unattended open session be used to lock its owner out.
+    expect(validatePasswordChange('', 'new-password', 'new-password')).toContain(
+      'current password',
+    );
+  });
+
+  it('does not apply the length rules to the current password', () => {
+    /*
+     * An account created before the 8-character minimum must still be able to
+     * sign in and fix it. Refusing the old password for being too short would
+     * lock out exactly the people who most need to change theirs.
+     */
+    expect(validatePasswordChange('short', 'new-password', 'new-password')).toBeNull();
+  });
+
+  it('applies them to the new one', () => {
+    expect(validatePasswordChange('old-password', 'short', 'short')).toContain('at least 8');
+  });
+
+  it('refuses a new password identical to the old one', () => {
+    /*
+     * Supabase accepts this silently. A "password changed" confirmation for a
+     * password that did not change is the worst outcome here — somebody changes
+     * it because a laptop was borrowed and walks away believing the borrower is
+     * locked out.
+     */
+    const r = validatePasswordChange('same-password', 'same-password', 'same-password');
+    expect(r).toContain('same as the current one');
+    expect(r).toContain('Nothing has been changed');
+  });
+
+  it('reports a length problem before a mismatch', () => {
+    // One round trip per mistake, same ordering as validateSignUp.
+    expect(validatePasswordChange('old-password', 'short', 'different')).toContain('at least 8');
+  });
+
+  it('catches a mismatch once the password itself is fine', () => {
+    expect(validatePasswordChange('old-password', 'new-password', 'new-passwordd')).toContain(
+      'do not match',
+    );
   });
 });
