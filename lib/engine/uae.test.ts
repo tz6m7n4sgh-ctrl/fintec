@@ -32,8 +32,10 @@ import {
   servicePeriod,
   survivalSpend,
 } from './uae';
-import type { BudgetCategory, Debt, Profile, ScheduledPayment, SchoolFee } from './types';
-import { SEED_BUDGET, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
+import type {
+  BudgetCategory, Debt, IncomeStream, Profile, ScheduledPayment, SchoolFee,
+} from './types';
+import { SEED_BUDGET, SEED_INCOME, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
 
 /** The §11 reference profile. */
 const REF: Profile = {
@@ -52,7 +54,6 @@ const REF: Profile = {
   iloeAvgBasic6m: 15_000,
   cashSavings: 80_000,
   otherLiquidAssets: 20_000,
-  monthlySideIncome: 0,
   dependents: 2,
   visaGraceDays: 90,
   healthCoverMonthsAfterEnd: 0,
@@ -141,21 +142,21 @@ describe('§11 acceptance table', () => {
   });
 
   it('totalResources = AED 220,479', () => {
-    expect(Math.round(runway(REF, refBudget()).totalResources)).toBe(220_479);
+    expect(Math.round(runway(REF, refBudget(), []).totalResources)).toBe(220_479);
   });
 
   it('netMonthlyBurn = AED 23,000', () => {
-    const r = runway(REF, refBudget());
+    const r = runway(REF, refBudget(), []);
     expect(r.survivalSpend).toBe(23_000);
     expect(r.netMonthlyBurn).toBe(23_000);
   });
 
   it('runwayMonths ≈ 9.6', () => {
-    expect(runway(REF, refBudget()).runwayMonths).toBeCloseTo(9.586, 3);
+    expect(runway(REF, refBudget(), []).runwayMonths).toBeCloseTo(9.586, 3);
   });
 
   it('scenario(12) ≈ −AED 55,521 → SHORTFALL', () => {
-    const s = scenarios(runway(REF, refBudget()));
+    const s = scenarios(runway(REF, refBudget(), []));
     const twelve = s.find((x) => x.months === 12)!;
     expect(Math.round(twelve.remaining)).toBe(-55_521);
     expect(twelve.shortfall).toBe(true);
@@ -209,8 +210,24 @@ describe('§11 edge cases', () => {
     expect(g.gratuity).toBe(240_000);
   });
 
+  /**
+   * A monthly stream with no end date — income the user expects to keep
+   * arriving through the job search. No `endDate` is the load-bearing part:
+   * `incomeAfterLastDay` asks what still pays on the day *after* the last
+   * working day, so a stream that ends with the job contributes nothing, which
+   * is exactly how the salary stream drops out.
+   */
+  const sideStream = (amount: number): IncomeStream => ({
+    id: 'inc-side-test',
+    name: 'Freelance',
+    amount,
+    frequency: 'monthly',
+    active: true,
+  });
+
   it('sideIncome ≥ survival spend → runway = ∞ (UI shows "Unlimited")', () => {
-    const r = runway({ ...REF, monthlySideIncome: 23_000 }, refBudget());
+    const r = runway(REF, refBudget(), [sideStream(23_000)]);
+    expect(r.monthlySideIncome).toBe(23_000);
     expect(r.netMonthlyBurn).toBe(0);
     expect(r.runwayMonths).toBe(Infinity);
     expect(Number.isFinite(r.runwayMonths)).toBe(false);
@@ -224,9 +241,54 @@ describe('§11 edge cases', () => {
   });
 
   it('sideIncome exceeding survival spend still floors burn at zero', () => {
-    const r = runway({ ...REF, monthlySideIncome: 40_000 }, refBudget());
+    const r = runway(REF, refBudget(), [sideStream(40_000)]);
     expect(r.netMonthlyBurn).toBe(0);
     expect(r.runwayMonths).toBe(Infinity);
+  });
+
+  /*
+   * HAD-80. The assertion the issue asked for by name: "one assertion that
+   * adding a side-income stream moves netMonthlyBurn, so the two can never
+   * silently diverge again."
+   *
+   * Before this, `runway()` read `profile.monthlySideIncome` and nothing read
+   * `income_streams`. Both were zero in the §11 seed, so every figure agreed
+   * and no test could tell. Once US-27 made streams editable, a user could add
+   * a 5,000 freelance stream, watch it appear in the table, and see runway sit
+   * exactly where it was.
+   */
+  it('adding a side-income stream moves netMonthlyBurn — HAD-80', () => {
+    const without = runway(REF, refBudget(), []);
+    const with5k = runway(REF, refBudget(), [sideStream(5_000)]);
+
+    expect(without.netMonthlyBurn).toBe(23_000);
+    expect(with5k.netMonthlyBurn).toBe(18_000);
+    expect(with5k.runwayMonths).toBeGreaterThan(without.runwayMonths);
+  });
+
+  it('a stream that ends with the job does not extend runway', () => {
+    // The salary itself is such a stream. If this failed, the first month of
+    // unemployment would look funded by the job that just ended.
+    const salary: IncomeStream = {
+      id: 'inc-salary', name: 'Salary', amount: 25_000, frequency: 'monthly',
+      endDate: REF.expectedLastDay, active: true,
+    };
+    expect(runway(REF, refBudget(), [salary]).netMonthlyBurn).toBe(23_000);
+  });
+
+  it('a one-off is not monthly income', () => {
+    // A single payment on a date is not a per-month figure. Counting it would
+    // overstate every month after the one it lands in.
+    const bonus: IncomeStream = {
+      id: 'inc-bonus', name: 'Bonus', amount: 50_000, frequency: 'oneOff', active: true,
+    };
+    expect(runway(REF, refBudget(), [bonus]).netMonthlyBurn).toBe(23_000);
+  });
+
+  it('an inactive stream contributes nothing', () => {
+    expect(
+      runway(REF, refBudget(), [{ ...sideStream(9_000), active: false }]).netMonthlyBurn,
+    ).toBe(23_000);
   });
 });
 
@@ -376,7 +438,7 @@ describe('cheque exposure', () => {
 
 describe('computeReadiness', () => {
   it('produces every §11 headline figure in one pass', () => {
-    const r = computeReadiness(REF, refBudget(), REF_CHEQUES);
+    const r = computeReadiness(REF, refBudget(), REF_CHEQUES, []);
     expect(Math.round(r.gratuity.gratuity)).toBe(87_479);
     expect(Math.round(r.settlement.finalSettlement)).toBe(93_479);
     expect(r.iloe.iloeTotal).toBe(27_000);
@@ -449,8 +511,8 @@ describe('date helpers', () => {
  */
 describe('runwayFrom', () => {
   it('matches runway() for the reference profile', () => {
-    const full = runway(SEED_PROFILE, SEED_BUDGET);
-    const direct = runwayFrom(full.totalResources, full.survivalSpend, SEED_PROFILE.monthlySideIncome);
+    const full = runway(SEED_PROFILE, SEED_BUDGET, SEED_INCOME);
+    const direct = runwayFrom(full.totalResources, full.survivalSpend, full.monthlySideIncome);
     expect(direct).toEqual(full);
   });
 

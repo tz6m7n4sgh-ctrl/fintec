@@ -229,17 +229,48 @@ test.describe('calendar', () => {
 });
 
 test.describe('profile — income streams', () => {
+  /*
+   * Matched on the card's own title rather than `hasText`. HAD-80 gave the
+   * Money card help text reading "Derived from the income streams below", and a
+   * substring selector promptly matched two cards and failed on strict mode.
+   * The title is what identifies a card; its prose is not.
+   */
+  const streamsCard = (page: import('@playwright/test').Page) =>
+    page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Income streams$/ }),
+    });
+
   test('US-27 — signed out, income streams are read-only and say why', async ({ page }) => {
     await page.goto(url('/profile/'));
-    const card = page.locator('section.card', { hasText: 'Income streams' });
+    const card = streamsCard(page);
     await expect(card).toContainText('Sign in to record your own');
     await expect(card.getByRole('button', { name: 'Add an income stream' })).toHaveCount(0);
     await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
   });
 
+  test('HAD-80 — the profile shows side income as derived, not as an input', async ({ page }) => {
+    /*
+     * The profile used to carry its own `monthlySideIncome` field, which was
+     * what `runway()` read, while the streams list beside it fed nothing. A
+     * user could add a stream, see it in the table, and watch runway not move.
+     *
+     * The number on this screen now comes from `runway.monthlySideIncome`, so
+     * there is no longer an input here to disagree with the list. Asserting the
+     * help text is the cheapest way to catch someone reinstating the field.
+     */
+    await page.goto(url('/profile/'));
+    const money = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: /^Money$/ }),
+    });
+    await expect(money).toContainText('Monthly side income');
+    await expect(money).toContainText('Derived from the income streams below');
+    // An input would mean it is still a second source.
+    await expect(money.locator('input[name="monthlySideIncome"]')).toHaveCount(0);
+  });
+
   test('US-27 — the salary carries the last working day as its end date', async ({ page }) => {
     await page.goto(url('/profile/'));
-    const card = page.locator('section.card', { hasText: 'Income streams' });
+    const card = streamsCard(page);
     // The seed's salary ends 30 Sep 2026, the same date as expectedLastDay.
     // That agreement used to be a coincidence nothing checked; the engine now
     // derives "salary stops when the job does" from this date, so it is worth

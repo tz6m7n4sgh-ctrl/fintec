@@ -37,8 +37,16 @@ export interface Profile {
   iloeAvgBasic6m: number;
   cashSavings: number;
   otherLiquidAssets: number;
-  /** Expected income during the job search. */
-  monthlySideIncome: number;
+  /*
+   * `monthlySideIncome` was here. It is gone (HAD-80).
+   *
+   * Income during the job search is derived from `income_streams` via
+   * `incomeAfterLastDay()`. Two places holding the same fact meant a user could
+   * add a freelance stream, see it listed, and watch runway not move — the
+   * profile number was what `runway()` actually read, and nothing kept them in
+   * step. Leaving the field in place as a fallback would still be two sources,
+   * with an invisible precedence rule between them.
+   */
   dependents: number;
   /** 30–90 standard; 180 for Golden/Green/skill-level-1-2 visas. */
   visaGraceDays: number;
@@ -204,6 +212,16 @@ export type RunwayStatus = 'good' | 'warning' | 'critical';
 export interface Runway {
   totalResources: number;
   survivalSpend: number;
+  /**
+   * Income still arriving after the last working day, derived from the income
+   * streams (HAD-80).
+   *
+   * Returned rather than left implicit inside `netMonthlyBurn` because three
+   * screens show it — the profile summary, the budget explainer and the report
+   * — and each of them reading it off the same computed runway is what stops a
+   * fourth source appearing.
+   */
+  monthlySideIncome: number;
   netMonthlyBurn: number;
   /** `Infinity` when net burn is zero — the UI must render "Unlimited". */
   runwayMonths: number;

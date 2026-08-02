@@ -144,7 +144,7 @@ export async function getReadModel(): Promise<ReadModel> {
    */
   const payments = [...data.payments, ...schoolFeeObligations(schoolFees)];
 
-  const readiness = computeReadiness(profile, budget, payments);
+  const readiness = computeReadiness(profile, budget, payments, data.income);
   const projection = projectCash(readiness.runway, payments, profile.expectedLastDay);
   const actuals = monthlyActuals(data.transactions);
   const score = scoreReadiness(readiness, data.debts, budget);

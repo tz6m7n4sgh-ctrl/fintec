@@ -132,7 +132,6 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
     iloeAvgBasic6m: num(profileRow.iloe_avg_basic_6m),
     cashSavings: num(profileRow.cash_savings),
     otherLiquidAssets: num(profileRow.other_liquid_assets),
-    monthlySideIncome: num(profileRow.monthly_side_income),
     dependents: profileRow.dependents,
     visaGraceDays: profileRow.visa_grace_days,
     healthCoverMonthsAfterEnd: profileRow.health_cover_months_after_end,

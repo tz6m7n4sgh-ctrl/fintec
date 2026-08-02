@@ -110,7 +110,6 @@ export async function saveProfile(_prev: SaveResult, form: FormData): Promise<Sa
     iloe_avg_basic_6m: n(form, 'iloeAvgBasic6m'),
     cash_savings: n(form, 'cashSavings'),
     other_liquid_assets: n(form, 'otherLiquidAssets'),
-    monthly_side_income: n(form, 'monthlySideIncome'),
     dependents: n(form, 'dependents'),
     visa_grace_days: n(form, 'visaGraceDays'),
     health_cover_months_after_end: n(form, 'healthCoverMonthsAfterEnd'),

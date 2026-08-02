@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { BAND_THRESHOLDS, READINESS_MAX, readinessBand, scoreReadiness } from './readiness';
-import { SEED_BUDGET, SEED_DEBTS, SEED_PAYMENTS, SEED_PROFILE } from '../data/seed';
+import { SEED_BUDGET, SEED_DEBTS, SEED_INCOME, SEED_PAYMENTS, SEED_PROFILE } from '../data/seed';
 import { computeReadiness } from './uae';
-import type { Debt, Profile } from './types';
+import type { Debt, IncomeStream, Profile } from './types';
 
-const readiness = (p: Profile = SEED_PROFILE) =>
-  computeReadiness(p, SEED_BUDGET, SEED_PAYMENTS);
+// Streams are a second axis now that side income is derived from them (HAD-80),
+// so cases that vary income vary the streams rather than a profile field.
+const readiness = (p: Profile = SEED_PROFILE, streams: IncomeStream[] = SEED_INCOME) =>
+  computeReadiness(p, SEED_BUDGET, SEED_PAYMENTS, streams);
 
 describe('readiness bands', () => {
   it.each([
@@ -54,7 +56,9 @@ describe('scoreReadiness', () => {
 
   it('awards full runway marks for unlimited runway', () => {
     const s = scoreReadiness(
-      readiness({ ...SEED_PROFILE, monthlySideIncome: 30_000 }),
+      readiness(SEED_PROFILE, [
+        { id: 'inc-side', name: 'Freelance', amount: 30_000, frequency: 'monthly', active: true },
+      ]),
       SEED_DEBTS,
       SEED_BUDGET,
     );
