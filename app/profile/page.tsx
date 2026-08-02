@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
 import { ProfileForm } from './ProfileForm';
 import { IncomeEditor } from './IncomeEditor';
+import { AccountsEditor } from './AccountsEditor';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { RULES } from '@/lib/engine/uae';
@@ -157,6 +158,49 @@ export default async function ProfilePage() {
           </>
         ) : (
           <IncomeEditor income={m.income} expectedLastDay={p.expectedLastDay} />
+        )}
+      </Card>
+
+      <Card
+        title="Bank accounts"
+        sub="Where statements come from — a parsed transaction is attributed to one of these"
+      >
+        {m.isSeedData ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+              These are the §11 reference accounts. <b>Sign in to record your own</b> — editing is
+              disabled here because there is no account to save them against.
+            </p>
+            <div className="tbl-wrap" tabIndex={0}>
+              <table className="wide">
+                <thead>
+                  <tr>
+                    <th>Bank</th><th>Label</th><th>Last 4</th>
+                    <th className="r">Balance</th><th>Cheques</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {m.accounts.map((a) => (
+                    <tr key={a.id}>
+                      <td className="payee">{a.bankName}</td>
+                      <td>{a.accountLabel || '—'}</td>
+                      <td className="tnum">{a.last4 ? `··${a.last4}` : '—'}</td>
+                      <td className="r amt tnum">
+                        {a.currentBalance === undefined ? '—' : money(a.currentBalance)}
+                      </td>
+                      <td>
+                        {a.isChequeAccount
+                          ? <span className="pill cheque"><span aria-hidden>◆</span> Yes</span>
+                          : <span className="pill">No</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <AccountsEditor accounts={m.accounts} />
         )}
       </Card>
     </>

@@ -150,9 +150,9 @@ export function UploadsEditor({
   if (accounts.length === 0) {
     return (
       <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-        Add a bank account on your profile first. A statement is matched to transactions
-        per account, so uploading one without an account to attach it to would leave the
-        rows nowhere to land.
+        <a href="/profile/">Add a bank account</a> before uploading. A statement is matched
+        to transactions per account, so uploading one without an account to attach it to
+        would leave the rows nowhere to land.
       </p>
     );
   }
