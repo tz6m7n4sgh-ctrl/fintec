@@ -41,6 +41,10 @@ export interface ReviewRow {
   categoryId?: string;
   matchedScheduledPaymentId?: string;
   matchLabel?: string;
+  /** Why the match was proposed — shown so the user can evaluate it. */
+  matchReason?: string;
+  /** True when this came from the matcher rather than being stored. */
+  isProposed?: boolean;
 }
 
 function RowControls({
@@ -156,7 +160,20 @@ export function ReviewInbox({
                 </td>
                 <td>
                   {row.matchLabel ? (
-                    <span className="pill ok"><span aria-hidden>✓</span> {row.matchLabel}</span>
+                    <>
+                      <span className={row.isProposed ? 'pill' : 'pill ok'}>
+                        <span aria-hidden>{row.isProposed ? '?' : '✓'}</span> {row.matchLabel}
+                      </span>
+                      {/*
+                        A proposal is labelled as one, and carries why. A
+                        suggestion the user cannot evaluate is a suggestion they
+                        will rubber-stamp — and a confirmed wrong match marks an
+                        outstanding cheque paid.
+                      */}
+                      {row.isProposed ? (
+                        <span className="sub">Suggested — {row.matchReason}</span>
+                      ) : null}
+                    </>
                   ) : (
                     <span className="pill">No match</span>
                   )}

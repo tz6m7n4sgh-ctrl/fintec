@@ -2,6 +2,7 @@ import { Card, Empty, PageHead } from '@/components/ui';
 import { TransactionsLedger } from './TransactionsLedger';
 import { UploadsEditor } from './UploadsEditor';
 import { ReviewInbox } from './ReviewInbox';
+import { propose } from '@/lib/engine/match';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { money } from '@/lib/format/money';
@@ -126,8 +127,19 @@ export default async function StatementsPage() {
                 </thead>
                 <tbody>
                   {pending.map((t) => {
-                    const match = t.matchedScheduledPaymentId
-                      ? m.payments.find((p) => p.id === t.matchedScheduledPaymentId)
+                    /*
+                     * The same proposal the signed-in inbox shows. It is a
+                     * derived read with no write behind it, so rendering it on
+                     * the read-only reference view is safe — and it is the only
+                     * place the e2e suite, which runs signed out, can see the
+                     * matcher working end to end.
+                     */
+                    const proposed = t.matchedScheduledPaymentId
+                      ? undefined
+                      : propose(t, m.payments, m.income).paymentId;
+                    const matchId = t.matchedScheduledPaymentId ?? proposed;
+                    const match = matchId
+                      ? m.payments.find((p) => p.id === matchId)
                       : undefined;
                     return (
                       <tr key={t.id}>
@@ -138,9 +150,14 @@ export default async function StatementsPage() {
                           {t.direction === 'debit' ? '−' : '+'}{money(t.amount)}
                         </td>
                         <td>
-                          {match
-                            ? <span className="pill ok"><span aria-hidden>✓</span> {match.payee}</span>
-                            : <span className="pill">Uncategorised</span>}
+                          {match ? (
+                            <span className={proposed ? 'pill' : 'pill ok'}>
+                              <span aria-hidden>{proposed ? '?' : '✓'}</span> {match.payee}
+                              {proposed ? ' (suggested)' : ''}
+                            </span>
+                          ) : (
+                            <span className="pill">No match</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -159,10 +176,35 @@ export default async function StatementsPage() {
               amount: t.amount,
               direction: t.direction,
               categoryId: t.categoryId,
-              matchedScheduledPaymentId: t.matchedScheduledPaymentId,
-              matchLabel: t.matchedScheduledPaymentId
-                ? m.payments.find((p) => p.id === t.matchedScheduledPaymentId)?.payee
-                : undefined,
+              /*
+               * A stored match wins; otherwise the matcher proposes one
+               * (US-33). Stored first because it is either something the
+               * parser recorded or something the user chose, and a fresh
+               * proposal must not quietly replace either.
+               *
+               * The proposal is *not* written to the database. It is a
+               * suggestion rendered on a pending row, and it becomes a stored
+               * match only when the user confirms — which is what makes
+               * "proposes rather than acting silently" structural rather than
+               * a promise.
+               */
+              ...(() => {
+                if (t.matchedScheduledPaymentId) {
+                  return {
+                    matchedScheduledPaymentId: t.matchedScheduledPaymentId,
+                    matchLabel: m.payments.find((p) => p.id === t.matchedScheduledPaymentId)?.payee,
+                  };
+                }
+                const p = propose(t, m.payments, m.income);
+                return p.paymentId
+                  ? {
+                      matchedScheduledPaymentId: p.paymentId,
+                      matchLabel: m.payments.find((x) => x.id === p.paymentId)?.payee,
+                      matchReason: p.reason,
+                      isProposed: true,
+                    }
+                  : {};
+              })(),
             }))}
             categories={m.budget.map((c) => ({ id: c.id, label: c.name }))}
           />
