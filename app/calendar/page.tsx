@@ -43,6 +43,13 @@ export default async function CalendarPage() {
   }
   while (cells.length % 7 !== 0) cells.push({ iso: null, dayNum: 0, outside: true });
 
+  /*
+   * The last reminder before a cheque lands, which is what "Fund by" means.
+   * Hardcoded as 2 until now, so a user whose shortest lead time was 1 or 3 saw
+   * a date no reminder of theirs would ever arrive on.
+   */
+  const lastCall = Math.min(...m.notificationPrefs.leadDays);
+
   // Index events by date.
   const events = new Map<string, DayEvent[]>();
   const push = (iso: string, e: DayEvent) => {
@@ -55,13 +62,24 @@ export default async function CalendarPage() {
       title: p.type === 'cheque' ? `◆ ${p.payee.split('—')[0].trim()}` : p.payee,
       detail: money(p.amount),
     });
-    // Funding reminders at 7 and 2 days before each cheque and school fee.
-    if (p.type === 'cheque') {
-      for (const lead of [7, 2]) {
-        const remind = addDays(p.dueDate, -lead);
-        push(remind, { cls: 'cheque', title: `Fund account`, detail: `${lead} days` });
-      }
-    }
+  }
+
+  /*
+   * Funding reminders, from the engine rather than rebuilt here (US-16).
+   *
+   * This loop used to hardcode `[7, 2]` and read `p.dueDate` directly, which
+   * was wrong twice. It ignored the user's own lead times, so someone who chose
+   * 14 days saw markers on 7 and 2. And it drew off the series' *first* due
+   * date, so a quarterly rent cheque got funding markers in September and never
+   * again — for the largest cheque most people write, on the screen that exists
+   * to make sure it is not missed.
+   */
+  for (const r of m.reminders) {
+    push(r.sendOn, {
+      cls: 'cheque',
+      title: 'Fund account',
+      detail: `${r.leadDays} days · ${money(r.amount)}`,
+    });
   }
 
   push(m.profile.expectedLastDay, { cls: 'legal', title: 'Last working day' });
@@ -204,7 +222,10 @@ export default async function CalendarPage() {
                   <td className="r amt tnum">{money(p.amount)}</td>
                   <td>
                     {p.status === 'atRisk' ? (
-                      <span className="pill risk"><span aria-hidden>▲</span> Fund by {formatDate(addDays(p.dueDate, -2)).slice(0, 6)}</span>
+                      <span className="pill risk">
+                        <span aria-hidden>▲</span>{' '}
+                        Fund by {formatDate(addDays(p.dueDate, -lastCall)).slice(0, 6)}
+                      </span>
                     ) : p.status === 'paid' ? (
                       <span className="pill ok"><span aria-hidden>✓</span> Paid</span>
                     ) : (

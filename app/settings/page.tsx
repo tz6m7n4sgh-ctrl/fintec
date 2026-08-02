@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
 import { EraseData } from './EraseData';
 import { ImportBackup } from './ImportBackup';
+import { NotificationPrefsEditor } from './NotificationPrefs';
+import { RemindersPreview } from './RemindersPreview';
+import { todayInDubai } from '@/lib/engine/dates';
 import { signOut } from '@/app/auth/actions';
 import { getReadModel, isSupabaseConfigured } from '@/lib/data/store';
 
@@ -127,29 +130,114 @@ export default async function SettingsPage() {
         <button className="btn" disabled>Register this device</button>
       </Card>
 
-      <Card title="Notifications" sub="Reminders 7 and 2 days before each cheque and school fee">
+      <Card
+        title="Notifications"
+        sub={`Reminders ${m.notificationPrefs.leadDays.join(' and ')} days before each cheque and school fee`}
+      >
+        {m.isSeedData ? (
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+            <b>Sign in to set your reminders.</b> These are stored per account, and there is no
+            account here to store them against.
+          </p>
+        ) : (
+          <NotificationPrefsEditor prefs={m.notificationPrefs} />
+        )}
+
+        {/*
+          Outside the editor deliberately. This is a property of the app, not of
+          a session — somebody deciding whether to sign up is exactly who should
+          be able to read it, and it was invisible to them while it lived inside
+          the signed-in form.
+        */}
+        <div className="legend">
+          <span className="key">
+            <b>Email cannot be turned off.</b> Push depends on a browser permission, a live
+            subscription and — on iOS — the app being installed, so it is best-effort by
+            construction. If email could be switched off too, this app would be able to reach a
+            state where a cheque falls due and nothing is obliged to tell you.
+          </span>
+        </div>
+
+        <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '16px 0' }} />
+
+        {/*
+          Said plainly, in the same place the settings are, rather than left for
+          someone to discover by not receiving a reminder.
+
+          The schedule below is real and computed; what does not exist is a
+          sender. That distinction matters enough to draw: this app has twice
+          shipped a control that looked live and did nothing, and a
+          notifications panel is the worst possible place for a third.
+        */}
+        <h3 style={{ fontSize: 13.5, margin: '0 0 6px' }}>Nothing is sent yet</h3>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+          The reminder schedule below is real — it is computed from your cheques and school fees
+          and it is what would go out. <b>No email or push is delivered</b>, because sending needs
+          an email provider and web-push keys this deployment does not have (HAD-13). Until it
+          does, this screen and the payment calendar are the channel, and they are the honest
+          ones: they cannot claim to have told you something they did not.
+        </p>
+      </Card>
+
+      <RemindersPreview reminders={m.reminders} today={todayInDubai()} />
+
+      <Card title="Reminder delivery" sub="What is missing before anything can be sent">
         <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
               <tr>
-                <th scope="row" className="rowhead">Email</th>
-                <td className="r"><input type="checkbox" defaultChecked disabled aria-label="Email reminders" /></td>
+                <th scope="row" className="rowhead">
+                  Reminder schedule
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Which reminders, on which day, in Asia/Dubai
+                  </span>
+                </th>
+                <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Built</span></td>
               </tr>
               <tr>
                 <th scope="row" className="rowhead">
-                  Web push
-                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)' }}>
-                    Requires installing the app on iOS
+                  Send-once guarantee
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Per occurrence, per channel, per lead time — migration 0011
                   </span>
                 </th>
-                <td className="r"><input type="checkbox" disabled aria-label="Web push reminders" /></td>
+                <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Built</span></td>
+              </tr>
+              <tr>
+                <th scope="row" className="rowhead">
+                  Email provider
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Needs an API key this project deliberately does not hold
+                  </span>
+                </th>
+                <td className="r"><span className="pill cheque"><span aria-hidden>✕</span> Not configured</span></td>
+              </tr>
+              <tr>
+                <th scope="row" className="rowhead">
+                  Web-push keys
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    VAPID pair, plus a service worker (HAD-30)
+                  </span>
+                </th>
+                <td className="r"><span className="pill cheque"><span aria-hidden>✕</span> Not configured</span></td>
+              </tr>
+              <tr>
+                <th scope="row" className="rowhead">
+                  Scheduled job
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Something that runs once a day at Dubai midnight
+                  </span>
+                </th>
+                <td className="r"><span className="pill cheque"><span aria-hidden>✕</span> Not configured</span></td>
               </tr>
             </tbody>
           </table>
         </div>
         <div className="legend">
           <span className="key">
-            Email is the guaranteed channel; push is best-effort and depends on browser permission.
+            Listed rather than summarised as &ldquo;coming soon&rdquo;, because the three missing
+            rows are decisions rather than work — each one adds a secret or a third party to an
+            app that currently has neither.
           </span>
         </div>
       </Card>

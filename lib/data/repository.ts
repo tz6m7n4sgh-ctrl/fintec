@@ -18,6 +18,7 @@
  */
 
 import type { CategoryRule } from '@/lib/engine/categorise';
+import { prefsFromRow, type NotificationPrefs } from '@/lib/settings/notifications';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   BudgetCategory,
@@ -54,6 +55,13 @@ export interface LiveData {
    * session, after dedupe_hash, matched_scheduled_payment_id and atRisk.
    */
   categoryRules: CategoryRule[];
+  /**
+   * Notification preferences (US-44). The table has existed since 0001 and
+   * nothing loaded it until now — the last of its kind, after dedupe_hash,
+   * matched_scheduled_payment_id, atRisk, category_rules, bank_accounts and
+   * checklist_items.
+   */
+  notificationPrefs: NotificationPrefs;
 }
 
 /**
@@ -96,7 +104,7 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
   if (!profileRow) return null;
   if (!isComputableProfile(profileRow)) return null;
 
-  const [budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist, categoryRules] =
+  const [budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist, categoryRules, prefs] =
     await Promise.all([
       supabase.from('budget_categories').select('*').order('sort_order'),
       supabase.from('debts').select('*').order('created_at'),
@@ -109,6 +117,8 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       supabase.from('checklist_items').select('*').order('sort_order'),
       // Ordered so the engine's tie-breaks are reached with a stable input.
       supabase.from('category_rules').select('*').order('priority'),
+      // One row per user, enforced by notification_prefs_one_per_user.
+      supabase.from('notification_prefs').select('*').maybeSingle(),
     ]);
 
   /*
@@ -120,7 +130,7 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
    * confident and become wrong, which is this project's most expensive failure
    * mode and the one worth failing loudly on.
    */
-  const results = { budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist, categoryRules };
+  const results = { budget, debts, schoolFees, payments, income, accounts, transactions, uploads, checklist, categoryRules, prefs };
   for (const [name, result] of Object.entries(results)) {
     if (result.error) throw new Error(`Failed to read ${name}: ${result.error.message}`);
   }
@@ -259,5 +269,11 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       categoryId: r.category_id,
       priority: r.priority,
     })),
+    /*
+     * No row is the normal state — the defaults are the same ones the column
+     * defaults would have produced, so a user who never opens Settings gets
+     * email reminders at 7 and 2 days without a row existing to say so.
+     */
+    notificationPrefs: prefsFromRow(prefs.data),
   };
 }

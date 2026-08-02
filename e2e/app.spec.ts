@@ -279,6 +279,67 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('settings — reminders', () => {
+  const card = (page: Page, title: RegExp) =>
+    page.locator('section.card').filter({ has: page.locator('.card-title', { hasText: title }) });
+
+  test('US-44 — signed out, the toggles are absent rather than fake', async ({ page }) => {
+    /*
+     * Preferences are per account. Rendering live-looking switches against the
+     * §11 seed would invite someone to set a reminder that has nowhere to be
+     * stored — the same defect as the "Delete all data" button that did
+     * nothing, on the screen where it would cost the most.
+     */
+    await page.goto(url('/settings/'));
+    const notifications = card(page, /^Notifications$/);
+    await expect(notifications).toContainText('Sign in to set your reminders');
+    await expect(notifications.getByRole('button', { name: /Save reminder/ })).toHaveCount(0);
+  });
+
+  test('US-44 — email is stated as mandatory, not shown as a dead switch', async ({ page }) => {
+    // A greyed-out control invites "why can't I?". The sentence answers it, and
+    // the reason is real: push is best-effort, so email is the only floor.
+    await page.goto(url('/settings/'));
+    await expect(card(page, /^Notifications$/)).toContainText('Email cannot be turned off');
+  });
+
+  test('HAD-13 — the card says nothing is sent, and names what is missing', async ({ page }) => {
+    /*
+     * The schedule is built; the sender is not. A notifications panel that
+     * implies delivery it cannot perform is the worst possible version of the
+     * "looks live, does nothing" defect this project keeps catching.
+     */
+    await page.goto(url('/settings/'));
+    await expect(card(page, /^Notifications$/)).toContainText('No email or push is delivered');
+
+    const delivery = card(page, /^Reminder delivery$/);
+    await expect(delivery).toContainText('Email provider');
+    await expect(delivery).toContainText('Web-push keys');
+    await expect(delivery).toContainText('Scheduled job');
+  });
+
+  test('US-16 — the schedule is real and carries the copy US-16 specifies', async ({ page }) => {
+    await page.goto(url('/settings/'));
+    const schedule = card(page, /^Your reminder schedule$/);
+    // "Fund [account] with AED X before [date]" — the acceptance criterion,
+    // asserted against the §11 cheques rather than a fixture.
+    await expect(schedule).toContainText(/Fund .* with AED [\d,]+ before /);
+    await expect(schedule.locator('tbody tr').first()).toBeVisible();
+  });
+
+  test('US-16 — a recurring cheque appears more than once in the schedule', async ({ page }) => {
+    /*
+     * The defect the reminder engine exists to avoid. Reminding off the payment
+     * row rather than its occurrences fires once for the quarterly rent cheque
+     * and never again — for the largest cheque in the reference profile.
+     */
+    await page.goto(url('/settings/'));
+    const rows = card(page, /^Your reminder schedule$/).locator('tbody tr');
+    const landlord = await rows.filter({ hasText: 'Landlord' }).count();
+    expect(landlord).toBeGreaterThan(1);
+  });
+});
+
 test.describe('settings — erase all data', () => {
   const dataCard = (page: import('@playwright/test').Page) =>
     page.locator('section.card').filter({
