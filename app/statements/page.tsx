@@ -221,6 +221,14 @@ export default async function StatementsPage() {
               })(),
             }))}
             categories={m.budget.map((c) => ({ id: c.id, label: c.name }))}
+            /*
+             * Derived rows are excluded: a `fee:<uuid>` id has no
+             * scheduled_payments row, so selecting one would produce a match
+             * the database refuses to store (HAD-81, HAD-76).
+             */
+            payments={m.payments
+              .filter((p) => !p.derivedFrom)
+              .map((p) => ({ id: p.id, label: `${p.payee} — ${money(p.amount)}` }))}
           />
         )}
       </Card>
