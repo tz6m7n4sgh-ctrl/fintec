@@ -142,7 +142,7 @@ export default async function ReportPage() {
               <tr><th scope="row" className="rowhead">ILOE total</th><td className="r mono">{money(r.iloe.iloeTotal)}</td></tr>
               <tr className="tot-row"><th scope="row" className="rowhead">Total resources</th><td className="r mono">{money(r.runway.totalResources)}</td></tr>
               <tr><th scope="row" className="rowhead">Survival spending per month</th><td className="r mono">{money(r.runway.survivalSpend)}</td></tr>
-              <tr><th scope="row" className="rowhead">Less side income</th><td className="r mono">{money(m.profile.monthlySideIncome)}</td></tr>
+              <tr><th scope="row" className="rowhead">Less side income</th><td className="r mono">{money(r.runway.monthlySideIncome)}</td></tr>
               <tr className="tot-row"><th scope="row" className="rowhead">Net monthly burn</th><td className="r mono">{money(r.runway.netMonthlyBurn)}</td></tr>
               <tr className="tot-row"><th scope="row" className="rowhead">Runway</th><td className="r mono">{months(r.runway.runwayMonths)} months</td></tr>
             </tbody>

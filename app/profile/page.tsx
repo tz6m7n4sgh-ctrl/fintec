@@ -109,8 +109,8 @@ export default async function ProfilePage() {
           <Field label="Cash savings" value={money(p.cashSavings)} />
           <Field label="Other liquid assets" value={money(p.otherLiquidAssets)}
             help="Only what you could actually access within days." />
-          <Field label="Monthly side income" value={money(p.monthlySideIncome)}
-            help="Reduces net burn. If it covers survival spending, runway is unlimited." />
+          <Field label="Monthly side income" value={money(r.runway.monthlySideIncome)}
+            help="Derived from the income streams below — whatever still arrives after your last working day. Reduces net burn; if it covers survival spending, runway is unlimited." />
           <Field label="Computed total resources" value={money(r.runway.totalResources)}
             help="Savings + liquid assets + final settlement + ILOE total." />
         </div>

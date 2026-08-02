@@ -9,11 +9,12 @@ import { monthlyActuals, projectCash } from './projection';
 import type { ActualTransaction } from './projection';
 import type { Runway, ScheduledPayment } from './types';
 import { computeReadiness } from './uae';
-import { SEED_BUDGET, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
+import { SEED_BUDGET, SEED_INCOME, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
 
 const RUNWAY: Runway = {
   totalResources: 220_479.47,
   survivalSpend: 23_000,
+  monthlySideIncome: 0,
   netMonthlyBurn: 23_000,
   runwayMonths: 220_479.47 / 23_000,
   status: 'good',
@@ -187,6 +188,7 @@ describe('lump sums at the window boundary', () => {
   const runway = {
     totalResources: 100_000,
     survivalSpend: 10_000,
+    monthlySideIncome: 0,
     netMonthlyBurn: 10_000,
     runwayMonths: 10,
     status: 'good' as const,
@@ -214,7 +216,7 @@ describe('lump sums at the window boundary', () => {
 
   it('leaves the reference profile unchanged', () => {
     // No §11 payment falls in the gap, so the acceptance figures must not move.
-    const r = computeReadiness(SEED_PROFILE, SEED_BUDGET, SEED_PAYMENTS);
+    const r = computeReadiness(SEED_PROFILE, SEED_BUDGET, SEED_PAYMENTS, SEED_INCOME);
     const p = projectCash(r.runway, SEED_PAYMENTS, SEED_PROFILE.expectedLastDay);
     expect(p.totalLumpSums).toBe(65_000);
     expect(p.zeroCrossingMonth).toBe(7);

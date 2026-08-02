@@ -153,8 +153,6 @@ export function ProfileForm({ profile, isSeedData }: { profile: Profile; isSeedD
         <Field name="cashSavings" label="Cash savings" defaultValue={v(profile.cashSavings, '')} />
         <Field name="otherLiquidAssets" label="Other liquid assets" defaultValue={v(profile.otherLiquidAssets, 0)}
           help="Only what you could actually reach within a month." />
-        <Field name="monthlySideIncome" label="Monthly side income" defaultValue={v(profile.monthlySideIncome, 0)}
-          help="Reduces your net monthly burn, so it extends runway directly." />
       </div>
 
       <h2 style={{ fontSize: 14.5, marginTop: 18 }}>Situation</h2>

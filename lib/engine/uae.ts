@@ -11,6 +11,7 @@
  */
 
 import { addDays, daysBetween, isWithin } from './dates';
+import { incomeAfterLastDay } from './income';
 import type {
   BudgetCategory,
   Deadlines,
@@ -18,6 +19,7 @@ import type {
   FinalSettlement,
   GratuityBreakdown,
   IloeBenefit,
+  IncomeStream,
   IsoDate,
   Profile,
   Readiness,
@@ -287,15 +289,36 @@ export function runwayFrom(
   return {
     totalResources,
     survivalSpend: spend,
+    monthlySideIncome,
     netMonthlyBurn,
     runwayMonths,
     status: runwayStatus(runwayMonths),
   };
 }
 
+/**
+ * Runway, with side income **derived from the income streams** (HAD-80).
+ *
+ * `streams` is required and third rather than appended as an optional, so the
+ * compiler names every caller instead of silently handing one a zero. The
+ * omission would be conservative — no side income understates runway — but a
+ * figure that is quietly pessimistic is still a figure nobody can trust.
+ *
+ * This used to read `profile.monthlySideIncome`, a single number on the profile
+ * form, while `income_streams` sat beside it feeding nothing. The two agreed
+ * only because both were zero in the §11 seed. Once US-27 made streams
+ * editable, a user could add a 5,000 freelance stream, see it in the table, and
+ * watch their runway not move — the project's signature defect, a real figure
+ * and a derived number silently disagreeing.
+ *
+ * `incomeAfterLastDay` is the right derivation rather than a plain sum: it asks
+ * what still arrives the day *after* employment ends, so salary drops out on
+ * its end date and a stream starting mid-scenario is counted only once it does.
+ */
 export function runway(
   profile: Profile,
   categories: BudgetCategory[],
+  streams: IncomeStream[],
   settlement?: FinalSettlement,
   iloe?: IloeBenefit,
 ): Runway {
@@ -305,7 +328,11 @@ export function runway(
   const totalResources =
     profile.cashSavings + profile.otherLiquidAssets + s.finalSettlement + i.iloeTotal;
 
-  return runwayFrom(totalResources, survivalSpend(categories), profile.monthlySideIncome);
+  return runwayFrom(
+    totalResources,
+    survivalSpend(categories),
+    incomeAfterLastDay(streams, profile.expectedLastDay),
+  );
 }
 
 export const SCENARIO_MONTHS = [3, 6, 9, 12] as const;
@@ -351,13 +378,14 @@ export function deadlines(profile: Profile, payments: ScheduledPayment[] = []): 
 export function computeReadiness(
   profile: Profile,
   categories: BudgetCategory[],
-  payments: ScheduledPayment[] = [],
+  payments: ScheduledPayment[],
+  streams: IncomeStream[],
 ): Readiness {
   const service = servicePeriod(profile);
   const g = gratuity(profile, service);
   const settlement = finalSettlement(profile);
   const iloe = iloeBenefit(profile);
-  const r = runway(profile, categories, settlement, iloe);
+  const r = runway(profile, categories, streams, settlement, iloe);
   return {
     service,
     gratuity: g,

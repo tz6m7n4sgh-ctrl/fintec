@@ -81,7 +81,6 @@ export const SEED_PROFILE: Profile = {
   iloeAvgBasic6m: 15_000,
   cashSavings: 80_000,
   otherLiquidAssets: 20_000,
-  monthlySideIncome: 0,
   dependents: 2,
   visaGraceDays: 90,
   healthCoverMonthsAfterEnd: 1,
