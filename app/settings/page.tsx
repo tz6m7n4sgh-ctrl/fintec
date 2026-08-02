@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
+import { ChangePassword } from './ChangePassword';
 import { EraseData } from './EraseData';
 import { ImportBackup } from './ImportBackup';
 import { NotificationPrefsEditor } from './NotificationPrefs';
@@ -118,11 +119,19 @@ export default async function SettingsPage() {
         </p>
         <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           That is the trade for a flow that never depends on a mailbox, an SMTP provider or a
-          redirect allow-list. It also means a forgotten password can only be cleared from the
-          Supabase dashboard, under Authentication → Users. Changing your password from inside the
-          app is not built yet.
+          redirect allow-list. You can change your password here, but a <b>forgotten</b> one is a
+          different problem: recovering from it needs either a reset email or a second factor such
+          as a passkey, and neither exists yet. Until one does, a forgotten password can only be
+          cleared from the Supabase dashboard, under Authentication → Users.
         </p>
-        <button className="btn" disabled>Change password</button>
+
+        {m.isSeedData ? (
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginBottom: 0 }}>
+            <b>Sign in to change your password.</b> There is no account here to change one for.
+          </p>
+        ) : (
+          <ChangePassword />
+        )}
       </Card>
 
       <Card title="Passkeys — biometric sign-in" sub="Fingerprint or Face ID via WebAuthn">

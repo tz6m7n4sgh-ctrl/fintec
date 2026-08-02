@@ -97,3 +97,33 @@ export function validateSignUp(
 export function validateSignIn(email: string, password: string): string | null {
   return validateEmail(email) ?? (password ? null : 'Enter your password.');
 }
+
+/**
+ * The change-password form (HAD-74 / FR-K1).
+ *
+ * `current` is checked only for presence, not against the password rules. An
+ * account created before the 8-character minimum existed must still be able to
+ * sign in and fix that — refusing the *old* password for being too short would
+ * lock out precisely the people who most need to change it.
+ *
+ * The new password is refused when it equals the old one. Supabase accepts that
+ * silently, and a "password changed" confirmation for a password that did not
+ * change is the worst possible outcome here: someone changes it because they
+ * think a laptop was borrowed, and walks away believing the borrower is locked
+ * out.
+ */
+export function validatePasswordChange(
+  current: string,
+  next: string,
+  confirm: string,
+): string | null {
+  if (!current) return 'Enter your current password.';
+  const bad = validatePassword(next);
+  if (bad) return bad;
+  if (next === current) {
+    return 'The new password is the same as the current one. Nothing has been changed.';
+  }
+  // Last, for the same reason as validateSignUp: one round trip per mistake.
+  if (next !== confirm) return 'The two new passwords do not match.';
+  return null;
+}
