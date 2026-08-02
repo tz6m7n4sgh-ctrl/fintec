@@ -107,8 +107,12 @@ export function SignInForm() {
       return;
     }
 
-    // A code is tied to the address that requested it; a token hash stands on
-    // its own, and passing an email alongside it would be rejected.
+    /*
+     * Three shapes, three calls. A code is tied to the address that requested
+     * it; a token hash stands on its own and passing an email alongside it
+     * would be rejected; a `?code=` is an already-verified PKCE grant that only
+     * needs exchanging.
+     */
     const { error } =
       parsed.kind === 'code'
         ? await supabase!.auth.verifyOtp({
@@ -116,14 +120,29 @@ export function SignInForm() {
             token: parsed.token,
             type: 'email',
           })
-        : await supabase!.auth.verifyOtp({
-            token_hash: parsed.tokenHash,
-            type: parsed.type,
-          });
+        : parsed.kind === 'hash'
+          ? await supabase!.auth.verifyOtp({
+              token_hash: parsed.tokenHash,
+              type: parsed.type,
+            })
+          : await supabase!.auth.exchangeCodeForSession(parsed.code);
 
     setBusy(false);
     if (error) {
-      setError(error.message);
+      /*
+       * The one failure worth rewriting. An exchange fails when this browser
+       * does not hold the verifier it stored when the email was requested —
+       * i.e. the link was opened somewhere else. Supabase says
+       * "code verifier should be non-empty", which tells the user nothing about
+       * what to do next.
+       */
+      const missingVerifier =
+        parsed.kind === 'exchange' && /verifier/i.test(error.message);
+      setError(
+        missingVerifier
+          ? 'That link was opened in a different browser to the one that requested it, so this browser cannot complete it. Request a new code here and paste the link without clicking it.'
+          : error.message,
+      );
       return;
     }
 
@@ -195,7 +214,8 @@ export function SignInForm() {
               Sent to {email.trim()}. Enter the six-digit code if the email has one. If it has a
               button or link instead, <b>copy the link and paste it here rather than clicking it</b>
               {' '}— clicking spends the token on a redirect that may go nowhere, and it only works
-              once. Check spam if nothing has arrived.
+              once. Already clicked and landed on a page that would not load? Paste{' '}
+              <b>that</b> address here instead — it still works. Check spam if nothing has arrived.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

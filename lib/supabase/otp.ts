@@ -21,7 +21,8 @@ import type { EmailOtpType } from '@supabase/supabase-js';
 
 export type ParsedOtp =
   | { kind: 'code'; token: string }
-  | { kind: 'hash'; tokenHash: string; type: EmailOtpType };
+  | { kind: 'hash'; tokenHash: string; type: EmailOtpType }
+  | { kind: 'exchange'; code: string };
 
 /** The types Supabase will put in a `type=` query parameter for email links. */
 const EMAIL_OTP_TYPES: readonly string[] = [
@@ -78,11 +79,23 @@ export function parseOtpInput(input: string): ParsedOtp | null {
   }
 
   /*
-   * A PKCE `?code=` link is deliberately NOT handled here. Exchanging it needs
-   * the code verifier that the browser stored when the email was requested, so
-   * it only works in that same browser — pasting it into another one fails in a
-   * way the user cannot act on. /auth/confirm handles that case on the click
-   * path, where the browser is the right one by construction.
+   * A PKCE `?code=` URL — what the user is holding *after* they clicked.
+   *
+   * Clicking sends the token hash through Supabase's /verify, which consumes it
+   * and redirects to `redirect_to`. That value comes from Site URL, which
+   * defaults to http://localhost:3000, so on a fresh project a click lands on a
+   * dead address carrying a perfectly good auth code the user cannot spend.
+   *
+   * This was originally rejected here, on the grounds that exchanging a code
+   * needs the verifier the *requesting* browser stored, so pasting it into a
+   * different browser cannot work. That reasoning was right and the conclusion
+   * was wrong: the overwhelmingly common case is the same browser, where it
+   * works fine, and the cross-browser case fails with a specific message the
+   * caller can explain. Refusing outright turned a recoverable situation into a
+   * dead end and made every misdirected click cost a fresh email.
    */
+  const code = params.get('code');
+  if (code) return { kind: 'exchange', code };
+
   return null;
 }
