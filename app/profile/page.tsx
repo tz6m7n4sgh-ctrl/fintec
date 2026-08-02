@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
+import { ProfileForm } from './ProfileForm';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { RULES } from '@/lib/engine/uae';
@@ -36,12 +38,32 @@ export default async function ProfilePage() {
         sub="The inputs every termination figure is computed from"
       />
 
-      <div className="card" style={{ marginBottom: 14, background: 'color-mix(in oklab, var(--warning) 10%, var(--surface-1))', borderColor: 'color-mix(in oklab, var(--warning) 40%, transparent)' }}>
-        <div style={{ fontSize: 13, lineHeight: 1.55 }}>
-          <b>▲ Read-only for now.</b> These fields are displayed from the seeded reference profile.
-          Editing writes to the database, which needs sign-in — the next build step.
+      {m.user ? (
+        <Card
+          title={m.isSeedData ? 'Set up your profile' : 'Your profile'}
+          sub={
+            m.isSeedData
+              ? 'The figures below are a worked example until you save your own'
+              : 'Every termination figure in the app is computed from these'
+          }
+        >
+          {m.isSeedData && (
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+              The form starts blank on purpose. Prefilling it with the reference figures would
+              invite you to save a stranger&rsquo;s salary as your own.
+            </p>
+          )}
+          <ProfileForm profile={p} isSeedData={m.isSeedData} />
+        </Card>
+      ) : (
+        <div className="card" style={{ marginBottom: 14, background: 'color-mix(in oklab, var(--warning) 10%, var(--surface-1))', borderColor: 'color-mix(in oklab, var(--warning) 40%, transparent)' }}>
+          <div style={{ fontSize: 13, lineHeight: 1.55 }}>
+            <b>▲ Reference profile, not yours.</b> These are the §11 example figures.{' '}
+            <Link href="/sign-in" prefetch={false} className="banner-link">Sign in</Link> to enter your own — a new
+            email address creates an account, there is no separate sign-up.
+          </div>
         </div>
-      </div>
+      )}
 
       <Card title="Employment" sub="Drives service period, gratuity and notice pay">
         <div className="form-grid">
@@ -104,7 +126,7 @@ export default async function ProfilePage() {
       </Card>
 
       <Card title="Income streams">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <thead>
               <tr><th>Name</th><th>Frequency</th><th className="r">Amount</th><th>Ends</th><th>Active</th></tr>

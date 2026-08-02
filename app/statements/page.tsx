@@ -1,4 +1,5 @@
 import { Card, Empty, PageHead } from '@/components/ui';
+import { TransactionsLedger } from './TransactionsLedger';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { money } from '@/lib/format/money';
@@ -32,15 +33,15 @@ export default async function StatementsPage() {
       <Card title="How ingestion works" sub="Scheduled parsing job">
         <ul className="insights">
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>1</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>1</span>
             <span>You upload a PDF, CSV or XLSX. It goes straight to a <b>private storage bucket</b> namespaced to your user id — never a public URL.</span>
           </li>
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>2</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>2</span>
             <span>A <b>scheduled Claude Cowork session</b> picks up queued files, extracts the transactions, dedupes them and proposes categories and payment matches.</span>
           </li>
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>3</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>3</span>
             <span>Everything lands in the <b>review inbox</b> as pending. Nothing moves a dashboard figure until you confirm it.</span>
           </li>
           <li>
@@ -56,7 +57,7 @@ export default async function StatementsPage() {
       </Card>
 
       <Card title="Uploads" sub={`${m.uploads.length} files · re-uploading the same file creates zero duplicate transactions`}>
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>
@@ -71,7 +72,7 @@ export default async function StatementsPage() {
                   <tr key={u.id}>
                     <td className="payee">
                       {u.fileName}
-                      {u.errorMessage ? <span className="sub" style={{ color: 'var(--critical)' }}>{u.errorMessage}</span> : null}
+                      {u.errorMessage ? <span className="sub" style={{ color: 'var(--critical-ink)' }}>{u.errorMessage}</span> : null}
                     </td>
                     <td>{accountName(u.bankAccountId)}</td>
                     <td className="mono">
@@ -97,7 +98,7 @@ export default async function StatementsPage() {
         {pending.length === 0 ? (
           <Empty>Nothing to review. New parsed transactions will appear here.</Empty>
         ) : (
-          <div className="tbl-wrap">
+          <div className="tbl-wrap" tabIndex={0}>
             <table className="wide">
               <thead>
                 <tr>
@@ -137,40 +138,25 @@ export default async function StatementsPage() {
       </Card>
 
       <Card title="Transactions ledger" sub={`${confirmed.length} confirmed transactions`}>
-        <div className="filters">
-          <select disabled defaultValue="" aria-label="Filter by account"><option value="">All accounts</option></select>
-          <select disabled defaultValue="" aria-label="Filter by category"><option value="">All categories</option></select>
-          <select disabled defaultValue="" aria-label="Filter by direction"><option value="">All directions</option></select>
-          <input disabled placeholder="Search description" aria-label="Search transaction descriptions" />
-        </div>
-        <div className="tbl-wrap">
-          <table className="wide">
-            <thead>
-              <tr>
-                <th>Date</th><th>Description</th><th>Account</th>
-                <th className="r">Amount</th><th>Direction</th><th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...confirmed]
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .map((t) => (
-                  <tr key={t.id}>
-                    <td className="mono">{formatDate(t.date)}</td>
-                    <td className="payee">{t.description}</td>
-                    <td>{accountName(t.bankAccountId)}</td>
-                    <td className="r amt mono">{money(t.amount)}</td>
-                    <td>
-                      {t.direction === 'credit'
-                        ? <span className="pill ok">Credit</span>
-                        : <span className="pill">Debit</span>}
-                    </td>
-                    <td><span className="pill">{t.source === 'statement' ? 'Statement' : 'Manual'}</span></td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <TransactionsLedger
+          rows={confirmed.map((t) => ({
+            id: t.id,
+            date: t.date,
+            description: t.description,
+            accountId: t.bankAccountId,
+            accountLabel: accountName(t.bankAccountId),
+            amount: t.amount,
+            direction: t.direction,
+            source: t.source,
+            categoryId: t.categoryId,
+          }))}
+          accounts={m.accounts.map((a) => ({ id: a.id, label: `${a.bankName} ··${a.last4}` }))}
+          // Only categories that actually appear in the ledger — a filter that
+          // can only ever return nothing is worse than no filter.
+          categories={m.budget
+            .filter((c) => confirmed.some((t) => t.categoryId === c.id))
+            .map((c) => ({ id: c.id, label: c.name }))}
+        />
       </Card>
     </>
   );

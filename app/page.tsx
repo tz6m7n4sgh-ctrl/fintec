@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ActualSpendChart, BudgetBars, ProjectionChart } from '@/components/charts';
 import { Card, Money, PageHead, RunwayStatusBadge, ScenarioBadge, StatTile } from '@/components/ui';
 import { addDays, formatDate, formatMonthShort } from '@/lib/engine/dates';
@@ -55,10 +56,26 @@ export default async function DashboardPage() {
             borderColor: 'color-mix(in oklab, var(--warning) 40%, transparent)',
           }}
         >
+          {/* Two different reasons produce the same banner state, and they need
+              different next actions. Saying "seeded data" to someone who has
+              signed in and is waiting to see their own figures would be true
+              but useless. */}
           <div style={{ fontSize: 13, lineHeight: 1.55 }}>
-            <b>▲ Seeded data.</b> The database schema and row-level security are live, but no
-            rows have been written yet, so these figures come from the §11 reference dataset.
-            Sign-in and persistence are the next build step.
+            {m.user ? (
+              <>
+                <b>▲ Reference figures, not yours.</b> You are signed in as{' '}
+                {m.user.email ?? 'your account'}, but no profile has been saved yet, so every
+                number below comes from the §11 reference dataset. Add your salary and
+                employment dates on <Link href="/profile" prefetch={false} className="banner-link">Income &amp; profile</Link>{' '}
+                and these become your own.
+              </>
+            ) : (
+              <>
+                <b>▲ Reference figures, not yours.</b> These numbers are the §11 reference
+                dataset — real in shape, but not about you.{' '}
+                <Link href="/sign-in" prefetch={false} className="banner-link">Sign in</Link> to see your own.
+              </>
+            )}
           </div>
         </div>
       )}
@@ -156,7 +173,7 @@ export default async function DashboardPage() {
               </li>
               {lumpMonths.length > 0 && (
                 <li>
-                  <span className="ic" style={{ color: 'var(--critical)' }} aria-hidden>▲</span>
+                  <span className="ic" style={{ color: 'var(--critical-ink)' }} aria-hidden>▲</span>
                   <span>
                     <b>{aed(projection.totalLumpSums)}</b> of cheque lump sums fall due in{' '}
                     {lumpMonths.map((p) => p.label).join(' and ')} —{' '}
@@ -207,7 +224,7 @@ export default async function DashboardPage() {
       </Card>
 
       <Card title="Largest upcoming obligations" sub={`Next payments after ${formatMonthShort(m.profile.expectedLastDay)}`}>
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <thead>
               <tr>

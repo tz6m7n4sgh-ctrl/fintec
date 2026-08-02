@@ -19,8 +19,9 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 | Cash projection with lump-sum cheques | **Done** — reports the real zero-crossing, not just flat-burn runway |
 | Readiness scoring (/18) | **Done** — explicit rubric, per-criterion explanations |
 | All ten screens | **Done** — server-rendered, light/dark, desktop/mobile |
-| Automated tests | **Done** — 82 unit + 96 end-to-end, run in CI against the deployed artefact |
-| Deployment | **Done** — static export to GitHub Pages (needs Pages enabled once, see below) |
+| Automated tests | **Done** — 82 unit + 164 end-to-end (incl. 40 axe accessibility), run in CI against a production server |
+| Accessibility & performance gates | **Done** — axe-core sweeps every screen in both themes; Lighthouse CI scores the built artefact |
+| Deployment | **Server build** — needs a Node host provisioned (no deploy job in CI) |
 | Database schema + RLS | **Done and applied** — 13 tables, RLS enabled *and* forced, 0 security advisories |
 | Private statements bucket | **Done** — namespaced per user id |
 | Authentication (email/OTP + passkeys) | **Not built** — next step |
@@ -195,47 +196,84 @@ uploads from the same bank parse without re-inference:
 
 ## Deployment
 
-### GitHub Pages (configured)
+### A Node host — required
 
-The app builds to a **fully static export**, so GitHub Pages can host it. Every route is
-prerendered at build time — there is no server at runtime.
+The app is a **server build**. It was a static export on GitHub Pages, and that was fine while it
+only ever rendered the §11 reference data. It stopped being fine as soon as real salary, savings and
+debt figures were on the table: **a static site has no server boundary**, so row-level security
+becomes the only thing between that data and the internet.
 
-`.github/workflows/deploy-pages.yml` runs on every push to `main`: tests, typecheck and build must
-all pass before anything publishes, so a red suite cannot reach the live page. Pull requests run the
-same verification but **never deploy**.
-
-**One-time setup** (repository admin, cannot be done from code):
-
-> **Settings → Pages → Build and deployment → Source: GitHub Actions**
-
-Without that, the deploy job fails — the workflow cannot enable Pages for you. Once set, the site
-appears at `https://<user>.github.io/<repo>/` and the run summary links to it.
-
-Notes specific to Pages:
-
-- `basePath` is derived from the repository name, because a project site is served from a sub-path.
-  Local development is unaffected and still runs at `/`.
-- `trailingSlash: true` emits `route/index.html` instead of `route.html`; Pages does no extension
-  rewriting, so without it every route but the home page would 404.
-- `public/.nojekyll` stops Jekyll from stripping Next's `_next/` asset directory.
-- **Pages cannot set response headers**, so the security headers this app previously declared are
-  gone rather than silently ineffective. See the comment in `next.config.mjs`.
-- `NEXT_PUBLIC_SUPABASE_*` are read from repository **variables** and are optional: with them unset
-  the site renders the seeded dataset, which is all it shows today anyway.
-
-> **A public repository means a public site.** That is harmless while the app displays only the §11
-> reference data. Before real financial data is wired up, decide deliberately whether a public
-> static host is right — a static site has no server boundary, so row-level security becomes the
-> only thing protecting your data.
-
-### Any Node host
-
-Vercel or a plain Node server also work, and can set real security headers. Remove
-`output: 'export'` from `next.config.mjs` to get a server build back, then:
+The migration restored one, and is what lets sign-in, the ingestion job and the reminder senders
+exist at all. Pages can no longer host this — there is no deploy job in CI, because a deploy job
+that cannot run would be worse than none.
 
 ```bash
-npm run build && npm start
+npm run build && npm start        # production server on :3000
 ```
+
+### Picking a host
+
+Free tiers are all ample here — this is one user — so the things that actually differ are cold
+starts and how much configuration the Next server needs.
+
+| Host | Free tier | Fit |
+|---|---|---|
+| **Vercel Hobby** | 100 GB/mo, no sleep | **Recommended.** Built by the Next team: zero config, middleware and server actions work as-is |
+| Netlify Free | 100 GB, 300 build-min | Works via their Next adapter; more moving parts |
+| Cloudflare Workers | Generous | Needs `@opennextjs/cloudflare`; Node-API gaps can catch middleware |
+| Render Free | 750 hrs | **Avoid.** Spins down after 15 min idle — roughly a 50 s cold start |
+| Fly / Railway | Trial credits | No longer durably free |
+
+Render's cold start is the one that matters. This is an app someone opens to check whether an ILOE
+deadline is 3 days away or 30. Waiting 50 seconds for that answer is a worse failure than it sounds.
+
+Vercel's Hobby licence is non-commercial, which fits a personal tool.
+
+### Deploying to Vercel
+
+Connect the repository, then set two environment variables:
+
+```
+NEXT_PUBLIC_SUPABASE_URL             = https://<project>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = sb_publishable_...
+```
+
+**Leave `NEXT_PUBLIC_BASE_PATH` unset.** It exists only to mount the app under a sub-path, which is
+what GitHub Pages needed. Setting it on a root domain breaks every asset path — that is the one real
+trap left over from the migration.
+
+No `vercel.json` is needed; a Next server build is detected automatically.
+
+### After the first deploy
+
+Two steps, neither obvious, both of which cause confusing failures if skipped:
+
+1. **Add the deployment URL to Supabase Auth** → Authentication → URL Configuration → *Site URL* and
+   *Redirect URLs*. Without it the one-time-code flow fails on the redirect, and the error does not
+   say why.
+2. **Create your user in the Supabase dashboard.** Sign-in uses `shouldCreateUser: false` on purpose
+   — this is a single-user app, and silently provisioning an account for a typo is not wanted. Until
+   a user exists, no address can sign in.
+
+A stable HTTPS origin is also what passkeys (US-40) and PWA install (US-47) need, so this unblocks
+both.
+
+**What the move bought, immediately:**
+
+- **Real security headers.** `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and
+  `Permissions-Policy` are set in `next.config.mjs` and verifiable with `curl -D-`. Pages could not
+  set them at all, so they had been deliberately removed rather than left misleadingly present.
+- **A place for auth to keep a session**, rather than pushing everything into the browser.
+- **Somewhere to run the ingestion job and the reminder senders**, which a static host simply
+  cannot do.
+
+**Content-Security-Policy is still absent, deliberately.** Next's App Router emits inline scripts, so
+a useful CSP needs per-request nonces; a CSP with `unsafe-inline` on scripts implies protection it
+does not give. Same principle as before — absent beats misleadingly present.
+
+`trailingSlash: true` is kept from the export config. A server resolves `/calendar` and `/calendar/`
+alike, but every existing URL and test uses the trailing form and changing it would turn passing
+assertions into redirects for nothing.
 
 Environment variables (see `.env.example`):
 
@@ -261,9 +299,11 @@ broken number (§11 edge case).
 ## Testing
 
 ```bash
-npm test          # 82 unit tests
-npm run build     # required before e2e — the suite tests the real export
-npm run test:e2e  # 96 end-to-end tests (desktop + mobile)
+npm test                 # 82 unit tests
+npm run build            # required before e2e — the suite tests the real export
+npm run test:e2e         # 164 end-to-end tests (desktop + mobile)
+npm run test:a11y        # just the 40 axe accessibility tests
+npm run test:lighthouse  # Lighthouse CI against the built export
 ```
 
 ### Unit tests
@@ -293,6 +333,56 @@ Several assertions pin specific defects found by looking at rendered pages: a st
 caption counted a different set of cheques than its figure summed, the same scenario reading "OK" on
 one screen and "Tight" on another, a zero deduction rendering as `-0.00`, and a `<title>` hydration
 failure introduced while adding the chart hover layer.
+
+### Accessibility sweep
+
+`e2e/a11y.spec.ts` runs **axe-core** over all ten screens in both viewports **and both themes** —
+40 tests. The hand-written checks above stay where they are; axe is the general sweep that catches
+what an assertion cannot enumerate ahead of time.
+
+It was added after a token audit found `--ink-3` failing the 4.5:1 normal-text contrast ratio on
+every light-mode surface (3.21–3.50:1) while the whole suite stayed green. The status palette had
+the same problem: `--critical` and `--s1` were tuned as **fills**, where 1.4.11's 3:1 applies, then
+reused as **text**, where 4.5:1 does. Hence the `*-ink` tokens — `--good-ink` had already set the
+precedent, it just was not applied across the palette. Use `*-ink` for glyphs and copy, the vivid
+token for anything graphical.
+
+Axe also caught that the scrollable `.tbl-wrap` containers were not keyboard-reachable (WCAG 2.1.1);
+they now carry `tabIndex={0}` and a visible focus ring.
+
+### Performance
+
+`lighthouserc.js` runs **Lighthouse CI** against the built export in CI. This finally puts a number
+on NFR-9, and the first number was wrong in an instructive way.
+
+The initial measurement said TTI ~3.4 s against a 2 s target — NFR-9 badly missed. The cause was not
+the app. The hand-written static server the tests ran against sent no compression while a real host
+compresses text, so Lighthouse was measuring the **test rig**, not the site. That server has since
+been deleted outright: the suite now runs against `next start`, which is what actually serves
+production. TTI went from ~3.4 s to ~1.84 s with no application code changed at all.
+
+Current median, 3 runs, default mobile profile (Slow 4G, 4× CPU):
+
+| Metric | Dashboard | Report |
+|---|---|---|
+| First Contentful Paint | 0.77 s | 0.77 s |
+| Largest Contentful Paint | 1.84 s | 1.83 s |
+| **Time to Interactive** | **1.84 s** | **1.84 s** |
+| Total Blocking Time | 73 ms | 71 ms |
+| Cumulative Layout Shift | 0 | 0 |
+| Performance score | 0.99 | 1.00 |
+
+**NFR-9 is met** — but by about 1%, which is not comfortable. The assertions are ratchets with
+headroom for runner variance (TTI 2500 ms) rather than pinned to the target, because asserting
+2000 ms against a 1981 ms median would flake. Tighten them as real margin appears.
+
+Two things still worth attention: TBT rose from 50 to 147 ms once compression let the JavaScript
+arrive sooner — faster delivery concentrated the main-thread work rather than removing it — and the
+stylesheet is still render-blocking.
+
+The lesson generalises: **an unrepresentative test rig produces plausible numbers, and plausible
+wrong numbers are worse than obviously wrong ones.** The same mistake, in the same file, also
+produced a phantom accessibility failure (see the base-path note in `lighthouserc.js`).
 
 Reference figures asserted: service 7.332 years · gratuity **87,479** · leave 6,000 ·
 settlement **93,479** · ILOE 9,000/**27,000** · resources **220,479** · burn 23,000 ·

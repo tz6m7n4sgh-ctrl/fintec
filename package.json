@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "serve:out": "node scripts/serve-out.mjs"
+    "test:a11y": "playwright test e2e/a11y.spec.ts",
+    "test:lighthouse": "lhci autorun"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -21,6 +22,8 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.62.0",
     "@types/node": "^22.13.0",
     "@types/react": "^19.1.0",

@@ -95,7 +95,7 @@ export default async function SchedulePage() {
         title="Scheduled payments"
         sub='"In budget" means the amount is already inside a monthly budget line, so the projection must not subtract it twice'
       >
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>
@@ -151,7 +151,7 @@ export default async function SchedulePage() {
       <Card title="Why some cheques sit outside the budget">
         <ul className="insights">
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>◆</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>◆</span>
             <span>
               {outOfBudget.map((p) => `${p.payee} (${money(p.amount)})`).join(' and ')}{' '}
               {outOfBudget.length === 1 ? 'is' : 'are'} marked <b>not in budget</b> — no monthly

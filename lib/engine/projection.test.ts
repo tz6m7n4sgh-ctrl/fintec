@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { monthlyActuals, projectCash } from './projection';
 import type { ActualTransaction } from './projection';
 import type { Runway, ScheduledPayment } from './types';
+import { computeReadiness } from './uae';
+import { SEED_BUDGET, SEED_PAYMENTS, SEED_PROFILE } from '@/lib/data/seed';
 
 const RUNWAY: Runway = {
   totalResources: 220_479.47,
@@ -151,5 +153,70 @@ describe('monthly actuals', () => {
 
   it('returns an empty series when nothing is confirmed', () => {
     expect(monthlyActuals([{ date: '2026-01-01', amount: 5, direction: 'debit', reviewStatus: 'pending', isDuplicate: false }])).toEqual([]);
+  });
+});
+
+describe('lump sums at the window boundary', () => {
+  /**
+   * The first projected month is startDate + 1 month, so a payment due between
+   * startDate and the end of startDate's own month used to land on a key the
+   * loop never looked up — and vanish.
+   *
+   * chequeExposure() counts from the last working day INCLUSIVE, so such a
+   * cheque appeared in the dashboard's exposure tile while the projection never
+   * deducted it. The two figures disagreed, and the projection was the
+   * optimistic one.
+   */
+  const startDate = '2026-09-30';
+
+  function cheque(dueDate: string, amount: number): ScheduledPayment {
+    return {
+      id: `c-${dueDate}`,
+      payee: `Cheque ${dueDate}`,
+      type: 'cheque',
+      amount,
+      dueDate,
+      recurrence: 'none',
+      includedInBudget: false,
+      purpose: 'Rent',
+      account: 'ENBD',
+      status: 'upcoming',
+    };
+  }
+
+  const runway = {
+    totalResources: 100_000,
+    survivalSpend: 10_000,
+    netMonthlyBurn: 10_000,
+    runwayMonths: 10,
+    status: 'good' as const,
+  };
+
+  it('deducts a cheque due exactly on the start date', () => {
+    const p = projectCash(runway, [cheque(startDate, 30_000)], startDate);
+    expect(p.totalLumpSums).toBe(30_000);
+    // Folded into month 1 rather than lost.
+    expect(p.points[0].lumpSum).toBe(30_000);
+  });
+
+  it('deducts a cheque falling between the start date and the first projected month', () => {
+    // startDate is 30 Sep; the first projected point is 30 Oct. A cheque on
+    // 5 Oct sits inside that gap.
+    const p = projectCash(runway, [cheque('2026-10-05', 15_000)], startDate);
+    expect(p.totalLumpSums).toBe(15_000);
+    expect(p.points[0].lumpSum).toBe(15_000);
+  });
+
+  it('ignores a payment that is already in the past', () => {
+    const p = projectCash(runway, [cheque('2026-08-01', 99_000)], startDate);
+    expect(p.totalLumpSums).toBe(0);
+  });
+
+  it('leaves the reference profile unchanged', () => {
+    // No §11 payment falls in the gap, so the acceptance figures must not move.
+    const r = computeReadiness(SEED_PROFILE, SEED_BUDGET, SEED_PAYMENTS);
+    const p = projectCash(r.runway, SEED_PAYMENTS, SEED_PROFILE.expectedLastDay);
+    expect(p.totalLumpSums).toBe(65_000);
+    expect(p.zeroCrossingMonth).toBe(7);
   });
 });

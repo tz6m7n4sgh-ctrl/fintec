@@ -43,7 +43,7 @@ export default async function LoansPage() {
       </div>
 
       <Card title="Debts" sub="Monthly payments total into the read-only budget row">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>
@@ -74,7 +74,7 @@ export default async function LoansPage() {
       </Card>
 
       <Card title="School fees" sub={`${unpaidFees.length} of ${m.schoolFees.length} terms still to pay`}>
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>
@@ -108,7 +108,7 @@ export default async function LoansPage() {
         title="Post-dated cheques"
         sub="A bounced cheque in the UAE carries civil and potential criminal consequences — these cannot be missed"
       >
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>

@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { Card, PageHead } from '@/components/ui';
+import { signOut } from '@/app/auth/actions';
 import { getReadModel, isSupabaseConfigured } from '@/lib/data/store';
 
 export default async function SettingsPage() {
@@ -9,8 +11,44 @@ export default async function SettingsPage() {
     <>
       <PageHead title="Settings" sub="Sign-in devices, alerts and your data" />
 
+      <Card title="Account" sub="Who this session belongs to">
+        {m.user ? (
+          <>
+            <div className="tbl-wrap" tabIndex={0}>
+              <table>
+                <tbody>
+                  <tr>
+                    <th scope="row" className="rowhead">Signed in as</th>
+                    <td className="r mono">{m.user.email ?? m.user.id}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <form action={signOut} style={{ marginTop: 12 }}>
+              <button className="btn" type="submit">Sign out everywhere</button>
+            </form>
+            <div className="legend">
+              <span className="key">
+                Signs out of every device, not just this one — it revokes the refresh tokens
+                rather than only clearing this browser&rsquo;s cookie.
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+              Not signed in, so these screens show the reference dataset rather than your own
+              figures.
+            </p>
+            <Link className="btn primary" href="/sign-in" prefetch={false} style={{ display: 'inline-block', textDecoration: 'none' }}>
+              Sign in
+            </Link>
+          </>
+        )}
+      </Card>
+
       <Card title="Backend" sub="Where your data lives">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
               <tr>
@@ -22,12 +60,22 @@ export default async function SettingsPage() {
                 </td>
               </tr>
               <tr>
-                <th scope="row" className="rowhead">Database schema &amp; row-level security</th>
-                <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Applied</span></td>
+                <th scope="row" className="rowhead">
+                  Database schema &amp; row-level security
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Defined in three migrations under <code>supabase/migrations</code>
+                  </span>
+                </th>
+                <td className="r"><span className="pill"><span aria-hidden>○</span> Not checked from here</span></td>
               </tr>
               <tr>
-                <th scope="row" className="rowhead">Private statements bucket</th>
-                <td className="r"><span className="pill ok"><span aria-hidden>✓</span> Created</span></td>
+                <th scope="row" className="rowhead">
+                  Private statements bucket
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    Defined in migration 0002
+                  </span>
+                </th>
+                <td className="r"><span className="pill"><span aria-hidden>○</span> Not checked from here</span></td>
               </tr>
               <tr>
                 <th scope="row" className="rowhead">Reading live data</th>
@@ -40,19 +88,26 @@ export default async function SettingsPage() {
             </tbody>
           </table>
         </div>
+        <div className="legend">
+          <span className="key">
+            Nothing here queries your database to confirm the migrations ran — that would be a
+            round trip on every render to answer a question that changes about once a year. Rather
+            than show a tick it has not earned, these two rows say what they are and where they are
+            defined. To check them yourself, run the RLS query in the README against your project.
+          </span>
+        </div>
       </Card>
 
       <Card title="Passkeys — biometric sign-in" sub="Fingerprint or Face ID via WebAuthn">
         <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-          No passkeys registered yet. Sign-in is the next build step; email or one-time-code
-          sign-in always remains available as a recovery path, so a passkey is never the only
-          way in.
+          No passkeys registered yet. Email one-time-code sign-in is live and always remains
+          available as a recovery path, so a passkey is never the only way in (R-4).
         </p>
         <button className="btn" disabled>Register this device</button>
       </Card>
 
       <Card title="Notifications" sub="Reminders 7 and 2 days before each cheque and school fee">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
               <tr>
@@ -82,7 +137,7 @@ export default async function SettingsPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
           <button className="btn" disabled>Export all data (JSON)</button>
           <button className="btn" disabled>Import from JSON</button>
-          <button className="btn" disabled style={{ borderColor: 'color-mix(in oklab, var(--critical) 45%, transparent)', color: 'var(--critical)' }}>
+          <button className="btn" disabled style={{ borderColor: 'color-mix(in oklab, var(--critical) 45%, transparent)', color: 'var(--critical-ink)' }}>
             Delete all data
           </button>
         </div>

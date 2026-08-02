@@ -39,14 +39,14 @@ export default async function ReportPage() {
       <Card title="The short answer">
         <ul className="insights">
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>▸</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>▸</span>
             <span>
               You are owed <b>{aed(r.settlement.finalSettlement)}</b>, payable within{' '}
               {RULES.SETTLEMENT_DUE_DAYS} days — by <b>{formatDate(r.deadlines.settlementDue)}</b>.
             </span>
           </li>
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>▸</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>▸</span>
             <span>
               {r.iloe.eligible ? (
                 <>
@@ -60,7 +60,7 @@ export default async function ReportPage() {
             </span>
           </li>
           <li>
-            <span className="ic" style={{ color: 'var(--s1)' }} aria-hidden>▸</span>
+            <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>▸</span>
             <span>
               Your money lasts <b>{months(r.runway.runwayMonths)} months</b> at the survival
               budget
@@ -70,7 +70,7 @@ export default async function ReportPage() {
             </span>
           </li>
           <li>
-            <span className="ic" style={{ color: 'var(--critical)' }} aria-hidden>▸</span>
+            <span className="ic" style={{ color: 'var(--critical-ink)' }} aria-hidden>▸</span>
             <span>
               You must fund <b>{aed(r.deadlines.cheques6m)}</b> of cheques in the six months
               after your last day. These cannot bounce.
@@ -80,7 +80,7 @@ export default async function ReportPage() {
       </Card>
 
       <Card title="Itemised final settlement" sub="Compare this against what your employer actually pays">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <thead><tr><th>Item</th><th>Basis</th><th className="r">Amount (AED)</th></tr></thead>
             <tbody>
@@ -133,7 +133,7 @@ export default async function ReportPage() {
       </Card>
 
       <Card title="Runway and scenarios">
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
               <tr><th scope="row" className="rowhead">Cash savings</th><td className="r mono">{money(m.profile.cashSavings)}</td></tr>
@@ -152,7 +152,7 @@ export default async function ReportPage() {
           {r.scenarios.map((sc) => (
             <div className="card" key={sc.months}>
               <div style={{ fontSize: 12, color: 'var(--ink-2)', fontWeight: 550 }}>After {sc.months} months</div>
-              <div className="mono" style={{ fontSize: 19, fontWeight: 620, margin: '7px 0 8px', color: sc.shortfall ? 'var(--critical)' : undefined }}>
+              <div className="mono" style={{ fontSize: 19, fontWeight: 620, margin: '7px 0 8px', color: sc.shortfall ? 'var(--critical-ink)' : undefined }}>
                 {sc.remaining < 0 ? `−${money(Math.abs(sc.remaining))}` : money(sc.remaining)}
               </div>
               <ScenarioBadge remaining={sc.remaining} netMonthlyBurn={r.runway.netMonthlyBurn} />
@@ -162,7 +162,7 @@ export default async function ReportPage() {
       </Card>
 
       <Card title="Readiness" sub={`${s.total} of ${s.max} — ${s.band}`}>
-        <div className="tbl-wrap">
+        <div className="tbl-wrap" tabIndex={0}>
           <table>
             <tbody>
               {s.criteria.map((c) => (

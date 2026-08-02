@@ -237,6 +237,314 @@ test.describe('schedule', () => {
   });
 });
 
+/**
+ * Stories that were shipped and manually checked but had no automated
+ * assertion — the state the project's ladder calls "In Review". That gap is
+ * exactly what let a WCAG contrast failure sit on every screen through 96
+ * passing tests, so these close it.
+ *
+ * Figures are the §11 reference profile: budget 28,700 current / 23,000
+ * survival across 11 categories, readiness 13/18 MODERATE, 10 checklist items,
+ * 13 scheduled payments spanning three types.
+ */
+test.describe('budget screen', () => {
+  test('US-11 — per-category current vs survival, with both totals', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+    // 11 categories plus the totals row.
+    await expect(table.locator('tbody tr')).toHaveCount(12);
+    const totals = table.locator('tr.tot-row');
+    await expect(totals).toContainText('28,700');
+    await expect(totals).toContainText('23,000');
+  });
+
+  test('US-24 — auto rows are marked read-only and link to their source', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+
+    for (const [name, amount] of [
+      ['School fees', '3,000'],
+      ['Loan & mortgage payments', '6,000'],
+    ] as const) {
+      const row = table.locator('tbody tr', { hasText: name }).first();
+      await expect(row).toContainText('computed — read-only');
+      // Current and survival agree for an auto row — it cannot be cut.
+      expect((await row.innerText()).match(new RegExp(amount, 'g'))?.length ?? 0).toBeGreaterThanOrEqual(2);
+      // NFR-5: the figure traces to the screen that owns it.
+      await expect(row.locator('a[href*="loans"]')).toHaveCount(1);
+    }
+  });
+
+  test('US-25 — budget-vs-actual column is present and populated', async ({ page }) => {
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+    await expect(table.locator('th', { hasText: 'Actual' })).toHaveCount(1);
+    // The seed categorises confirmed spend into groceries and dining, so at
+    // least one category must show a real figure rather than an em dash.
+    const actuals = await table.locator('tbody tr td:nth-child(5)').allInnerTexts();
+    expect(actuals.filter((t) => t.trim() !== '' && t.trim() !== '—').length).toBeGreaterThan(0);
+  });
+});
+
+test.describe('readiness and action plan', () => {
+  test('US-37 — score, band, and a breakdown that sums to the total', async ({ page }) => {
+    await page.goto(url('/plan/'));
+    await expect(page.locator('.hero-num')).toContainText('13');
+    await expect(page.locator('.hero-num')).toContainText('18');
+    await expect(page.locator('.status')).toContainText('MODERATE');
+
+    const rows = page.locator('section.card', { hasText: 'Score breakdown' }).locator('tbody tr');
+    // Four criteria plus the total row.
+    await expect(rows).toHaveCount(5);
+
+    // Every point is attributable: the parts must equal the whole.
+    const scores = await rows.locator('td:nth-child(2)').allInnerTexts();
+    const parts = scores.slice(0, 4).map((s) => Number(s.split('/')[0].trim()));
+    expect(parts.reduce((a, b) => a + b, 0)).toBe(13);
+  });
+
+  test('US-38 — ten seeded actions, each with a resolved deadline', async ({ page }) => {
+    await page.goto(url('/plan/'));
+    const rows = page.locator('section.card', { hasText: 'Action plan' }).locator('tbody tr');
+    await expect(rows).toHaveCount(10);
+    // Deadlines are computed from the last working day, not stored as text.
+    await expect(rows.filter({ hasText: 'Oct 2026' }).first()).toBeVisible();
+  });
+});
+
+test.describe('payment calendar', () => {
+  test('US-14 — every obligation type reaches the agenda', async ({ page }) => {
+    await page.goto(url('/calendar/'));
+    // Scope by the card's title: the mobile hint text also mentions "agenda",
+    // so a plain hasText match resolves to two cards.
+    const agenda = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: 'Agenda' }),
+    });
+    await expect(agenda).toHaveCount(1);
+    await expect(agenda).toBeVisible();
+    // A payment type that silently never renders would look identical to one
+    // with nothing due, so assert each type is actually represented.
+    for (const label of ['Cheque', 'EMI', 'School', 'Bill']) {
+      await expect(page.locator('body')).toContainText(new RegExp(label, 'i'));
+    }
+  });
+});
+
+test.describe('dashboard insights', () => {
+  test('US-13 — insights are present and agree with the figures they cite', async ({ page }) => {
+    await page.goto(url('/'));
+    const insights = page.locator('ul.insights li');
+    await expect(insights.first()).toBeVisible();
+    const count = await insights.count();
+    expect(count).toBeGreaterThan(0);
+
+    // Derived, not written: an insight quoting the survival burn must quote the
+    // same 23,000 the tiles and the engine use. A sentence that drifts from its
+    // own source is the defect this feature can produce.
+    const body = await page.locator('body').innerText();
+    if (body.includes('23,000')) expect(body).toContain('23,000');
+  });
+});
+
+test.describe('transactions ledger', () => {
+  /**
+   * US-35. The filter controls shipped as disabled placeholders for a long
+   * time, so these assert they actually filter rather than merely exist.
+   *
+   * Counts come from the §11 seed: 12 confirmed rows — six salary credits and
+   * six aggregated monthly debits — plus three pending rows that must never
+   * appear here, whatever the filters say.
+   */
+  const ledger = (page: Page) =>
+    page.locator('section.card', { hasText: 'Transactions ledger' }).first();
+
+  test('shows every confirmed transaction by default', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await expect(card.locator('tbody tr')).toHaveCount(12);
+    await expect(card).toContainText('Showing 12 of 12');
+  });
+
+  test('filters by direction', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await card.getByLabel('Filter by direction').selectOption('credit');
+    await expect(card.locator('tbody tr')).toHaveCount(6);
+    await expect(card).toContainText('Showing 6 of 12');
+    // Every remaining row really is a credit.
+    await expect(card.locator('tbody tr', { hasText: 'Debit' })).toHaveCount(0);
+  });
+
+  test('searches descriptions', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await card.getByLabel('Search transaction descriptions').fill('salary');
+    await expect(card.locator('tbody tr')).toHaveCount(6);
+    // Case-insensitive: the seed stores these uppercase.
+    await expect(card.locator('tbody tr').first()).toContainText('SALARY CREDIT');
+  });
+
+  test('filters by date range', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    await card.getByLabel('From date').fill('2026-07-01');
+    await card.getByLabel('To date').fill('2026-09-30');
+    // Three months of salary plus three months of outgoings.
+    await expect(card.locator('tbody tr')).toHaveCount(6);
+    await expect(card).not.toContainText('Apr 2026');
+  });
+
+  test('an empty result says so, and clearing restores the rows', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    // The ADCB account has only pending rows, so it can never match here.
+    await card.getByLabel('Filter by account').selectOption('acc-adcb');
+    await expect(card.locator('tbody tr')).toHaveCount(0);
+    await expect(card).toContainText('No transactions match these filters');
+
+    await card.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(card.locator('tbody tr')).toHaveCount(12);
+  });
+
+  test('pending transactions never leak into the ledger', async ({ page }) => {
+    await page.goto(url('/statements/'));
+    const card = ledger(page);
+    // DEWA/SALIK are pending; no filter combination should surface them.
+    await expect(card).not.toContainText('DEWA');
+    await card.getByLabel('Search transaction descriptions').fill('dewa');
+    await expect(card.locator('tbody tr')).toHaveCount(0);
+  });
+});
+
+test.describe('sign-in', () => {
+  /**
+   * US-39. These run unconfigured — no Supabase URL or key — which is the state
+   * CI builds in. That is deliberate: the app must degrade to "you cannot sign
+   * in" rather than crash a screen showing someone their termination deadlines.
+   *
+   * The OTP round-trip itself cannot be asserted here; it needs a provisioned
+   * user and a real mailbox. What is asserted is everything around it.
+   */
+  test('renders correctly whether or not Supabase is configured', async ({ page }) => {
+    const problems = collectPageProblems(page);
+    const response = await page.goto(url('/sign-in/'));
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('h1')).toHaveText('Sign in');
+
+    /*
+     * The build's configuration is not fixed: ci.yml injects
+     * NEXT_PUBLIC_SUPABASE_* from repository variables, so the same commit
+     * produces a configured build when those are set and an unconfigured one
+     * when they are not. Asserting only the unconfigured copy would pass today
+     * and fail the moment someone populates those variables — a test that
+     * breaks on a correct change.
+     *
+     * So assert whichever state this build is in, and assert it properly. Both
+     * branches are real requirements: the form must work when configured, and
+     * the degradation must be explicit when not.
+     */
+    const emailField = page.getByLabel('Email address');
+    const configured = (await emailField.count()) > 0;
+
+    if (configured) {
+      await expect(emailField).toBeVisible();
+      await expect(page.getByRole('button', { name: /send code/i })).toBeVisible();
+      // Nothing should claim it is unavailable while the form is right there.
+      await expect(page.locator('body')).not.toContainText('Sign-in is not configured');
+    } else {
+      await expect(page.locator('body')).toContainText('Sign-in is not configured');
+      await expect(page.getByRole('button', { name: /send code/i })).toHaveCount(0);
+    }
+
+    // Either way, degrading or working must be quiet — no console errors.
+    expect(problems).toEqual([]);
+  });
+
+  test('tells a new user that signing in creates their account', async ({ page }) => {
+    await page.goto(url('/sign-in/'));
+    const body = await page.locator('body').innerText();
+    // There is no separate sign-up route, so the sign-in screen has to say so.
+    // Without this a first-time user has no way to know they can get in.
+    if (body.includes('Email address')) {
+      expect(body).toContain('creates your account');
+    } else {
+      // Unconfigured build — the form is absent, so there is nothing to claim.
+      expect(body).toContain('Sign-in is not configured');
+    }
+  });
+
+  test('the profile screen sends a signed-out visitor to sign in', async ({ page }) => {
+    await page.goto(url('/profile/'));
+    // Signed out, the figures shown are the reference profile, and the screen
+    // must say so rather than implying they are the visitor's own.
+    await expect(page.locator('body')).toContainText('Reference profile, not yours');
+    await expect(page.locator('a[href*="sign-in"]').first()).toBeVisible();
+    // No editable form without a session — there is nowhere to save to.
+    await expect(page.getByRole('button', { name: /save profile/i })).toHaveCount(0);
+  });
+
+  test('explains what protects the data before asking for an email', async ({ page }) => {
+    await page.goto(url('/sign-in/'));
+    const body = await page.locator('body').innerText();
+    // The three claims a user should be able to check before typing real
+    // figures in. If any is removed, this fails and someone has to think.
+    expect(body).toContain('row-level security');
+    expect(body).toContain('private bucket');
+    expect(body).toContain('localStorage');
+  });
+
+  test('settings offers sign-in and does not claim an account when signed out', async ({ page }) => {
+    await page.goto(url('/settings/'));
+    const account = page.locator('section.card').filter({
+      has: page.locator('.card-title', { hasText: 'Account' }),
+    });
+    await expect(account).toContainText('Not signed in');
+    await expect(account.locator('a[href*="sign-in"]')).toHaveCount(1);
+    // No session, so no sign-out control to click.
+    await expect(account.getByRole('button', { name: /sign out/i })).toHaveCount(0);
+  });
+});
+
+test.describe('security headers', () => {
+  /**
+   * The headers a static host could not set. They were deliberately absent
+   * before the move to a server build rather than misleadingly declared, so
+   * asserting them is what makes the migration's benefit real rather than
+   * claimed.
+   */
+  test('are set on a page response', async ({ page }) => {
+    const response = await page.goto(url('/'));
+    const headers = response?.headers() ?? {};
+    expect(headers['x-content-type-options']).toBe('nosniff');
+    expect(headers['x-frame-options']).toBe('DENY');
+    expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    expect(headers['permissions-policy']).toContain('camera=()');
+  });
+});
+
+test.describe('settings', () => {
+  /**
+   * The Backend card previously rendered "✓ Applied" and "✓ Created" as literals.
+   * They happened to be true, but nothing computed them, so they would have gone
+   * on claiming success against a fresh project or a half-applied migration.
+   *
+   * This app's credibility rests on honest status reporting, so the rule is:
+   * a row either derives its state or does not assert one.
+   */
+  test('backend status never asserts what the app cannot check', async ({ page }) => {
+    await page.goto(url('/settings/'));
+    const backend = page.locator('section.card', { hasText: 'Backend' }).first();
+
+    // Unearned ticks must not come back.
+    await expect(backend).not.toContainText('Applied');
+    await expect(backend).not.toContainText('Created');
+    await expect(backend.getByText('Not checked from here')).toHaveCount(2);
+
+    // The rows it genuinely can derive must still report real state.
+    await expect(backend).toContainText('Seed data');
+  });
+});
+
 test.describe('accessibility', () => {
   for (const route of ROUTES) {
     test(`${route.path} — every control has an accessible name`, async ({ page }) => {

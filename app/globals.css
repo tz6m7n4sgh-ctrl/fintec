@@ -17,7 +17,9 @@
   --page: #f9f9f7;
   --ink-1: #0b0b0b;
   --ink-2: #52514e;
-  --ink-3: #898781;
+  /* 4.55:1 on the darkest surface. --ink-3 styles 10–12.5px captions, so it
+     needs the 4.5:1 normal-text ratio, not the 3:1 large-text one. */
+  --ink-3: #706e68;
   --grid: #e1e0d9;
   --axis: #c3c2b7;
   --ring: rgba(11, 11, 11, 0.1);
@@ -30,7 +32,19 @@
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
+
+  /* Text-safe variants of the status/accent hues.
+     The vivid values above are tuned for CVD separation as fills, strokes and
+     swatches, where 1.4.11's 3:1 applies. As TEXT they need 4.5:1 and do not
+     reach it — `--critical` measured 4.01:1 on its own tinted chip and 3.62:1
+     on the dark surface. These *-ink variants carry the same hue at a
+     text-legal lightness; `--good-ink` already followed this pattern.
+     Use *-ink for glyphs and copy, the vivid token for everything graphical. */
   --good-ink: #006300;
+  --critical-ink: #bb3535;
+  --s1-ink: #276ec5;
+  /* Filled surface bearing white text — needs to be dark enough for #fff. */
+  --s1-fill: #2976d2;
 
   --raise: 0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 1px rgba(11, 11, 11, 0.04);
   --radius: 14px;
@@ -44,7 +58,7 @@
     --page: #0d0d0d;
     --ink-1: #ffffff;
     --ink-2: #c3c2b7;
-    --ink-3: #898781;
+    --ink-3: #8c8a84;
     --grid: #2c2c2a;
     --axis: #383835;
     --ring: rgba(255, 255, 255, 0.1);
@@ -52,6 +66,9 @@
     --s2: #d95926;
     --s3: #199e70;
     --good-ink: #0ca30c;
+    --critical-ink: #db6868;
+    --s1-ink: #3f8be6;
+    --s1-fill: #3277ca;
     --raise: none;
   }
 }
@@ -63,7 +80,7 @@
   --page: #0d0d0d;
   --ink-1: #ffffff;
   --ink-2: #c3c2b7;
-  --ink-3: #898781;
+  --ink-3: #8c8a84;
   --grid: #2c2c2a;
   --axis: #383835;
   --ring: rgba(255, 255, 255, 0.1);
@@ -71,6 +88,9 @@
   --s2: #d95926;
   --s3: #199e70;
   --good-ink: #0ca30c;
+  --critical-ink: #db6868;
+  --s1-ink: #3f8be6;
+  --s1-fill: #3277ca;
   --raise: none;
 }
 
@@ -87,7 +107,18 @@ body {
 }
 
 h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
-a { color: var(--s1); }
+a { color: var(--s1-ink); }
+
+/**
+ * Links inside a status-tinted banner.
+ *
+ * `--s1-ink` is tuned against the plain surfaces and fails 4.5:1 on the
+ * warning-tinted banner in dark mode — the axe sweep caught it the moment the
+ * first such link was added. Rather than tune a fourth blue for one background,
+ * these inherit the banner's own ink (15:1 or better on any surface) and carry
+ * an underline so they still read as links without relying on colour.
+ */
+.banner-link { color: var(--ink-1); text-decoration: underline; text-underline-offset: 2px; }
 
 .mono { font-variant-numeric: tabular-nums; }
 
@@ -173,14 +204,14 @@ main { min-width: 0; }
 .st-good { color: var(--good-ink); border-color: color-mix(in oklab, var(--good) 45%, transparent); background: color-mix(in oklab, var(--good) 11%, transparent); }
 .st-warning { color: var(--ink-1); border-color: color-mix(in oklab, var(--warning) 60%, transparent); background: color-mix(in oklab, var(--warning) 18%, transparent); }
 .st-serious { color: var(--ink-1); border-color: color-mix(in oklab, var(--serious) 55%, transparent); background: color-mix(in oklab, var(--serious) 15%, transparent); }
-.st-critical { color: var(--critical); border-color: color-mix(in oklab, var(--critical) 45%, transparent); background: color-mix(in oklab, var(--critical) 11%, transparent); }
+.st-critical { color: var(--critical-ink); border-color: color-mix(in oklab, var(--critical) 45%, transparent); background: color-mix(in oklab, var(--critical) 11%, transparent); }
 
 .tile { display: block; text-align: left; color: inherit; text-decoration: none; }
 .tile:hover { border-color: color-mix(in oklab, var(--s1) 45%, var(--ring)); }
 .tile .lbl { font-size: 12px; color: var(--ink-2); font-weight: 550; }
 .tile .val { font-size: 23px; font-weight: 620; letter-spacing: -0.02em; margin-top: 7px; }
 .tile .foot { font-size: 11.5px; color: var(--ink-3); margin-top: 5px; }
-.tile .foot .arrow { color: var(--s1); font-weight: 600; }
+.tile .foot .arrow { color: var(--s1-ink); font-weight: 600; }
 
 /* --- charts -------------------------------------------------------------- */
 
@@ -209,7 +240,10 @@ main { min-width: 0; }
 
 /* --- tables -------------------------------------------------------------- */
 
+/* Horizontally scrollable, so it carries tabIndex={0} to be reachable by
+   keyboard (WCAG 2.1.1) — which means it also needs a visible focus ring. */
 .tbl-wrap { overflow-x: auto; margin-top: 6px; }
+.tbl-wrap:focus-visible { outline: 2px solid var(--s1-ink); outline-offset: 2px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.wide { min-width: 760px; }
 th {
@@ -241,7 +275,7 @@ th.rowhead {
   padding: 3px 8px; border-radius: 999px; border: 1px solid var(--ring);
   color: var(--ink-2); white-space: nowrap;
 }
-.pill.cheque { border-color: color-mix(in oklab, var(--critical) 40%, transparent); color: var(--critical); }
+.pill.cheque { border-color: color-mix(in oklab, var(--critical) 40%, transparent); color: var(--critical-ink); }
 .pill.ok { border-color: color-mix(in oklab, var(--good) 40%, transparent); color: var(--good-ink); }
 .pill.risk { border-color: color-mix(in oklab, var(--warning) 60%, transparent); color: var(--ink-1); background: color-mix(in oklab, var(--warning) 16%, transparent); }
 
@@ -265,7 +299,7 @@ button.btn {
   border-radius: 9px; border: 1px solid var(--ring); background: var(--surface-1);
   color: var(--ink-1); cursor: pointer;
 }
-button.btn.primary { background: var(--s1); border-color: var(--s1); color: #fff; }
+button.btn.primary { background: var(--s1-fill); border-color: var(--s1-fill); color: #fff; }
 button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* --- deadlines & lists --------------------------------------------------- */
@@ -295,7 +329,7 @@ button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .day.out { opacity: 0.4; }
 .day.today { border-color: var(--s1); box-shadow: inset 0 0 0 1px var(--s1); }
 .dnum { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
-.day.today .dnum { color: var(--s1); }
+.day.today .dnum { color: var(--s1-ink); }
 .ev {
   font-size: 10.5px; line-height: 1.3; padding: 3px 5px; border-radius: 5px;
   border-left: 3px solid var(--c, var(--ink-3));
@@ -350,7 +384,7 @@ button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
     display: flex; flex-direction: column; align-items: center; gap: 3px;
     padding: 6px 2px; font-size: 10.5px; color: var(--ink-3); text-decoration: none;
   }
-  .bottom-tabs a[aria-current='page'] { color: var(--s1); font-weight: 650; }
+  .bottom-tabs a[aria-current='page'] { color: var(--s1-ink); font-weight: 650; }
   .bottom-tabs .ico { font-size: 17px; }
 
   /* Month grid degrades to a dot view; the agenda carries the detail. */

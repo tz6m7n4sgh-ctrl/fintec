@@ -109,7 +109,7 @@ export function Money({ value, signed = false }: { value: number; signed?: boole
   const negative = value < 0;
   const text = signed && negative ? `−${money(Math.abs(value))}` : money(value);
   return (
-    <span className="mono" style={negative ? { color: 'var(--critical)' } : undefined}>
+    <span className="mono" style={negative ? { color: 'var(--critical-ink)' } : undefined}>
       {text}
     </span>
   );
