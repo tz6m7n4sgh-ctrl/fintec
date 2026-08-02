@@ -34,6 +34,7 @@ const ROUTES = [
   '/plan/',
   '/settings/',
   '/sign-in/',
+  '/sign-up/',
 ] as const;
 
 const THEMES = [

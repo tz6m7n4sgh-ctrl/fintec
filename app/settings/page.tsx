@@ -100,8 +100,8 @@ export default async function SettingsPage() {
 
       <Card title="Passkeys — biometric sign-in" sub="Fingerprint or Face ID via WebAuthn">
         <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-          No passkeys registered yet. Email one-time-code sign-in is live and always remains
-          available as a recovery path, so a passkey is never the only way in (R-4).
+          No passkeys registered yet. Email and password sign-in is live. Password reset is not:
+          an administrator must clear a forgotten password in Supabase.
         </p>
         <button className="btn" disabled>Register this device</button>
       </Card>

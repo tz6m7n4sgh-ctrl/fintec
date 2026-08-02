@@ -416,106 +416,44 @@ test.describe('transactions ledger', () => {
   });
 });
 
-test.describe('sign-in', () => {
-  /**
-   * US-39. These run unconfigured — no Supabase URL or key — which is the state
-   * CI builds in. That is deliberate: the app must degrade to "you cannot sign
-   * in" rather than crash a screen showing someone their termination deadlines.
-   *
-   * The OTP round-trip itself cannot be asserted here; it needs a provisioned
-   * user and a real mailbox. What is asserted is everything around it.
-   */
-  test('renders correctly whether or not Supabase is configured', async ({ page }) => {
+test.describe('email and password authentication', () => {
+  test('sign-in renders email and password without mailbox controls', async ({ page }) => {
     const problems = collectPageProblems(page);
     const response = await page.goto(url('/sign-in/'));
     expect(response?.status()).toBe(200);
     await expect(page.locator('h1')).toHaveText('Sign in');
-
-    /*
-     * The build's configuration is not fixed: ci.yml injects
-     * NEXT_PUBLIC_SUPABASE_* from repository variables, so the same commit
-     * produces a configured build when those are set and an unconfigured one
-     * when they are not. Asserting only the unconfigured copy would pass today
-     * and fail the moment someone populates those variables — a test that
-     * breaks on a correct change.
-     *
-     * So assert whichever state this build is in, and assert it properly. Both
-     * branches are real requirements: the form must work when configured, and
-     * the degradation must be explicit when not.
-     */
-    const emailField = page.getByLabel('Email address');
-    const configured = (await emailField.count()) > 0;
-
-    if (configured) {
-      await expect(emailField).toBeVisible();
-      await expect(page.getByRole('button', { name: /send code/i })).toBeVisible();
-      // Nothing should claim it is unavailable while the form is right there.
-      await expect(page.locator('body')).not.toContainText('Sign-in is not configured');
+    const email = page.getByLabel('Email address');
+    if (await email.count()) {
+      await expect(email).toBeVisible();
+      await expect(page.getByLabel('Password')).toHaveAttribute('autocomplete', 'current-password');
+      await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
     } else {
-      await expect(page.locator('body')).toContainText('Sign-in is not configured');
-      await expect(page.getByRole('button', { name: /send code/i })).toHaveCount(0);
+      await expect(page.locator('body')).toContainText('Sign-in is unavailable');
+      await expect(page.locator('body')).toContainText('reference dataset');
     }
-
-    // Either way, degrading or working must be quiet — no console errors.
+    await expect(page.locator('body')).not.toContainText('one-time code');
     expect(problems).toEqual([]);
   });
 
-  test('tells a new user that signing in creates their account', async ({ page }) => {
-    await page.goto(url('/sign-in/'));
-    const body = await page.locator('body').innerText();
-    // There is no separate sign-up route, so the sign-in screen has to say so.
-    // Without this a first-time user has no way to know they can get in.
-    if (body.includes('Email address')) {
-      expect(body).toContain('creates your account');
+  test('sign-up states password rules and requires confirmation', async ({ page }) => {
+    await page.goto(url('/sign-up/'));
+    await expect(page.locator('h1')).toHaveText('Sign up');
+    await expect(page.locator('body')).toContainText('No code or link will be sent');
+    if (await page.locator('#password').count()) {
+      await expect(page.locator('#password-rules')).toContainText('at least 8 characters');
+      await expect(page.getByLabel('Confirm password')).toBeVisible();
+      await expect(page.locator('#password')).toHaveAttribute('minlength', '8');
     } else {
-      // Unconfigured build — the form is absent, so there is nothing to claim.
-      expect(body).toContain('Sign-in is not configured');
+      await expect(page.locator('body')).toContainText('Sign-up is unavailable');
     }
   });
 
-  test('the code box accepts a pasted link, and says so', async ({ page }) => {
-    /*
-     * Supabase's stock email template sends a magic link, not a code. A form
-     * that only accepts a code is then a dead end no user can debug, so the
-     * box takes either — and has to say it takes either, because nobody pastes
-     * a URL into a field labelled "six-digit code".
-     */
-    await page.goto(url('/sign-in/'));
-    const email = page.getByLabel('Email address');
-    if ((await email.count()) === 0) {
-      expect(await page.locator('body').innerText()).toContain('Sign-in is not configured');
-      return;
-    }
-
-    await expect(page.locator('body')).toContainText('or a sign-in link');
-
-    // The field must not be numeric-only, or a link cannot be entered on a
-    // phone at all — the exact device this is most likely to happen on.
-    await email.fill('someone@example.com');
-    const codeField = page.locator('#code');
-    if ((await codeField.count()) > 0) {
-      await expect(codeField).not.toHaveAttribute('inputmode', 'numeric');
-    }
-  });
-
-  test('a failed link click explains itself on the sign-in screen', async ({ page }) => {
-    // /auth/confirm redirects here with the reason rather than rendering a dead
-    // end, because "Token has expired" and "invalid link" need different acts.
-    await page.goto(url('/sign-in/?error=Token+has+expired'));
-    const body = await page.locator('body').innerText();
-    if (body.includes('Email address')) {
-      expect(body).toContain('Token has expired');
-    } else {
-      expect(body).toContain('Sign-in is not configured');
-    }
-  });
-
-  test('a confirm link with no token does not dead-end', async ({ page }) => {
-    const response = await page.goto(url('/auth/confirm/'));
-    // Whatever happens, it must not be a 404 or a 500 — it redirects to
-    // sign-in carrying the reason.
-    expect(response?.status()).toBeLessThan(400);
-    await expect(page).toHaveURL(/sign-in/);
+  test('auth failures remain generic and existing accounts point to sign in', async ({ page }) => {
+    await page.goto(url('/sign-in/?error=invalid'));
+    await expect(page.getByRole('alert')).toContainText('Email or password is incorrect');
+    await page.goto(url('/sign-up/?error=exists'));
+    await expect(page.getByRole('alert')).toContainText('account already exists');
+    await expect(page.getByRole('alert').getByRole('link', { name: /sign in/i })).toBeVisible();
   });
 
   test('the two dates the engine cannot run without are marked required', async ({ page }) => {
@@ -546,16 +484,6 @@ test.describe('sign-in', () => {
     await expect(page.locator('a[href*="sign-in"]').first()).toBeVisible();
     // No editable form without a session — there is nowhere to save to.
     await expect(page.getByRole('button', { name: /save profile/i })).toHaveCount(0);
-  });
-
-  test('explains what protects the data before asking for an email', async ({ page }) => {
-    await page.goto(url('/sign-in/'));
-    const body = await page.locator('body').innerText();
-    // The three claims a user should be able to check before typing real
-    // figures in. If any is removed, this fails and someone has to think.
-    expect(body).toContain('row-level security');
-    expect(body).toContain('private bucket');
-    expect(body).toContain('localStorage');
   });
 
   test('settings offers sign-in and does not claim an account when signed out', async ({ page }) => {

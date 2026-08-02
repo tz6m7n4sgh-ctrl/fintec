@@ -24,7 +24,7 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 | Deployment | **Server build** — needs a Node host provisioned (no deploy job in CI) |
 | Database schema + RLS | **Done and applied** — 13 tables, RLS enabled *and* forced, 0 security advisories |
 | Private statements bucket | **Done** — namespaced per user id |
-| Authentication (email/OTP + passkeys) | **Not built** — next step |
+| Authentication (email + password) | **Live** — server actions; no browser Supabase client |
 | Writing/reading live data | **Not built** — screens read the §11 seed dataset |
 | Statement ingestion job | **Not built** — pipeline designed; OQ-1 decided (Claude Cowork parses every statement) |
 | Email / web-push reminders | **Not built** — schema and preferences table exist |
@@ -253,39 +253,16 @@ trap left over from the migration.
 
 No `vercel.json` is needed; a Next server build is detected automatically.
 
-### Signing in, and the email-template trap
+### Signing in and signing up
 
-There is no separate sign-up. Entering an address that has never been seen creates the account, and
-the emailed credential proves the address is real — so a separate sign-up step would add nothing.
+Authentication is ordinary email and password and stays entirely inside the app. `/sign-in` accepts
+existing accounts; `/sign-up` asks for the password twice, creates the account, and establishes the
+session immediately. No email template, SMTP provider, magic-link redirect or mailbox is involved.
 
-The trap is that **Supabase decides between a code and a link by reading the email template**, not by
-which API you call. `{{ .Token }}` sends a six-digit code; `{{ .ConfirmationURL }}` sends a magic
-link; the stock template is the latter. So a project nobody has customised emails a link to a form
-asking for a code — a dead end the user cannot diagnose.
-
-The app handles this rather than requiring a dashboard change. The code box accepts **either a
-six-digit code or the sign-in link pasted in whole**; `lib/supabase/otp.ts` pulls the token hash out
-of both URL shapes Supabase's own docs use (`?token=` and `?token_hash=`) and verifies it directly.
-Pasting never redirects, so it does not depend on Site URL or the allowed-redirect list — which is
-what makes sign-in work against a project whose URL configuration has never been touched.
-
-Two optional dashboard changes make it nicer, neither required:
-
-1. **Authentication → Email Templates**: replace the body with
-   `<p>Your sign-in code: {{ .Token }}</p>` to send codes instead of links. This is **two**
-   templates, not one — `signInWithOtp` sends **Confirm signup** to an address it has never seen and
-   **Magic Link** to a returning one. Editing only Magic Link leaves every first-time user still
-   receiving a link, which is the case that matters most.
-2. **Authentication → URL Configuration**: set *Site URL* to the deployment origin and add it to
-   *Redirect URLs*, so a **clicked** link lands on `/auth/confirm` and signs the user straight in.
-   Site URL defaults to `http://localhost:3000`, and that default is exactly what `redirect_to` in
-   the emailed link points at — so until it is changed, clicking the link on any other device goes
-   nowhere.
-
-**Copy the link, do not click it.** Clicking sends the token through Supabase's `/verify` endpoint,
-which consumes it — so a click that lands on `localhost` has also spent the credential, and pasting
-that same link afterwards fails as already used. Right-click or long-press the button, copy the link
-address, and paste that into the code box.
+The Supabase project must have **Authentication → Providers → Email → Confirm email** turned off.
+When confirmation is on, Supabase sends an email and returns no session; the app detects that state
+and names the setting instead of pretending sign-up succeeded. There is deliberately no password
+reset email. A forgotten password must currently be cleared by an administrator in Supabase.
 
 A stable HTTPS origin is also what passkeys (US-40) and PWA install (US-47) need, so this unblocks
 both.
