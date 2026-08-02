@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applySettlement, effectiveStatus, settledPaymentIds } from './settle';
+import { applySettlement, effectiveStatus, isOutstanding, settledPaymentIds } from './settle';
 import type { ScheduledPayment } from './types';
 import type { Transaction } from '@/lib/data/seed';
 
@@ -138,5 +138,41 @@ describe('applySettlement', () => {
       [txn({ matchedScheduledPaymentId: 'b' })],
     );
     expect(out.map((p) => p.status)).toEqual(['upcoming', 'paid']);
+  });
+});
+
+// ===========================================================================
+// HAD-82 — the shared "still to fund" rule
+// ===========================================================================
+
+describe('isOutstanding', () => {
+  it('excludes a cleared payment', () => {
+    expect(isOutstanding(payment({ status: 'paid' }))).toBe(false);
+  });
+
+  it('counts an upcoming payment', () => {
+    expect(isOutstanding(payment({ status: 'upcoming' }))).toBe(true);
+  });
+
+  it('counts an atRisk payment — it is more owed, not less', () => {
+    /*
+     * The whole reason this is a predicate rather than an inline
+     * `=== 'upcoming'`. `atRisk` is the flag standing between the user and a
+     * bounced cheque (R-5); dropping it from exposure would remove the warning
+     * at precisely the moment it earns its place.
+     */
+    expect(isOutstanding(payment({ status: 'atRisk' }))).toBe(true);
+  });
+
+  it('agrees with the derived status, not only the stored one', () => {
+    // A payment settled by a confirmed transaction is paid without anything
+    // having written to it, so the predicate has to be applied downstream of
+    // applySettlement — which is where store.ts calls it.
+    const [settled] = applySettlement(
+      [payment({ id: 'pay-rent-q4', status: 'atRisk' })],
+      [txn({ matchedScheduledPaymentId: 'pay-rent-q4', reviewStatus: 'confirmed' })],
+    );
+    expect(settled.status).toBe('paid');
+    expect(isOutstanding(settled)).toBe(false);
   });
 });

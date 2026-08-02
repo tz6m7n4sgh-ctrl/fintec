@@ -12,6 +12,7 @@
 
 import { addDays, daysBetween, isWithin } from './dates';
 import { incomeAfterLastDay } from './income';
+import { isOutstanding } from './settle';
 import type {
   BudgetCategory,
   Deadlines,
@@ -349,16 +350,42 @@ export function scenarios(
 
 // --- §5.6 Key deadline dates ----------------------------------------------
 
-/** Cheques falling in [lastDay, lastDay + windowDays]. */
+/**
+ * The cheques still to fund in [lastDay, lastDay + windowDays].
+ *
+ * Exported as the **list**, not only the total, because three screens print a
+ * count or a table beside the total and every one of them had rebuilt this
+ * filter by hand. `app/page.tsx` even carried a comment saying the caption
+ * "must count the SAME cheques the 113,000 figure sums… or the tile's caption
+ * contradicts its own number" — and hand-copying was the only thing holding
+ * that together.
+ *
+ * Adding the status rule (HAD-82) to the total alone would have broken all
+ * three at once: the figure dropping a cleared cheque while the count beside it
+ * kept counting one. So the filter moved here and the total is derived from it,
+ * which is the same "one source per fact" rule as the budget's auto rows.
+ *
+ * "Still to fund" is `isOutstanding()`, shared with the projection so the tile
+ * and the forward balance cannot disagree either.
+ */
+export function chequesInWindow(
+  payments: ScheduledPayment[],
+  lastDay: IsoDate,
+  windowDays: number,
+): ScheduledPayment[] {
+  const end = addDays(lastDay, windowDays);
+  return payments.filter(
+    (p) => p.type === 'cheque' && isOutstanding(p) && isWithin(p.dueDate, lastDay, end),
+  );
+}
+
+/** What those cheques come to. */
 export function chequeExposure(
   payments: ScheduledPayment[],
   lastDay: IsoDate,
   windowDays: number,
 ): number {
-  const end = addDays(lastDay, windowDays);
-  return payments
-    .filter((p) => p.type === 'cheque' && isWithin(p.dueDate, lastDay, end))
-    .reduce((sum, p) => sum + p.amount, 0);
+  return chequesInWindow(payments, lastDay, windowDays).reduce((sum, p) => sum + p.amount, 0);
 }
 
 export function deadlines(profile: Profile, payments: ScheduledPayment[] = []): Deadlines {

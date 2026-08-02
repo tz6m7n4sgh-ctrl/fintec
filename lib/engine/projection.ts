@@ -14,6 +14,7 @@
  */
 
 import { addMonths, formatMonthShort, parseIso } from './dates';
+import { isOutstanding } from './settle';
 import type { IsoDate, Runway, ScheduledPayment } from './types';
 
 export interface ProjectionPoint {
@@ -79,6 +80,17 @@ export function projectCash(
   const lumps = new Map<string, { total: number; payees: string[] }>();
   for (const p of payments) {
     if (p.includedInBudget) continue;
+    /*
+     * A cleared payment is not a future outflow (HAD-82). It had to be said
+     * here as well as in `chequeExposure()` — the same assumption lived in
+     * both, and fixing only the exposure tile would have traded one silent
+     * disagreement for another: the headline dropping while the projected
+     * balance kept deducting money that had already left.
+     *
+     * `isOutstanding` is the shared rule, so there is one thing to change if
+     * "still owed" ever means something else.
+     */
+    if (!isOutstanding(p)) continue;
     if (p.dueDate < startDate) continue; // already past
     const key = monthKey(p.dueDate) < firstKey ? firstKey : monthKey(p.dueDate);
     const entry = lumps.get(key) ?? { total: 0, payees: [] };
