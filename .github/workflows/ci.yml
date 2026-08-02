@@ -59,13 +59,23 @@ jobs:
 
       - name: Dependency audit — production tree
         # Blocking at `critical` only, and only over dependencies that actually
-        # ship. Three `high` advisories currently sit inside Next's own tree
-        # (postcss sourceMappingURL, sharp/libvips) with no patched 15.x release
-        # to move to, and neither is reachable here: the app uses no next/image,
-        # so sharp is never invoked, and all CSS is repo-authored. Gating at
-        # `high` today would mean a permanently red build, which teaches people
-        # to ignore the one check that should never be ignored.
-        run: npm audit --omit=dev --audit-level=critical
+        # ship.
+        #
+        # Gated at `high`, not `critical`. It sat at `critical` because three
+        # high advisories lived inside Next's own tree with no patched 15.x to
+        # move to, so gating at `high` would have meant a permanently red build
+        # — and a check that is always red is one people learn to ignore.
+        #
+        # That is no longer true. `overrides` in package.json pin patched
+        # postcss and sharp into Next's tree, and `npm audit --omit=dev` now
+        # reports **0 vulnerabilities**. See HAD-78: the upgrade path the issue
+        # proposed does not work — next@16.2.12 pins the same postcss 8.4.31 as
+        # 15.5.22 and sharp ^0.34.5, both still inside the advisory ranges — so
+        # overriding is what actually closes them.
+        #
+        # If this goes red, a new advisory has landed in a production
+        # dependency. That is the signal it exists for. Do not lower it back.
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Dependency audit — full report
         # Informational. Runs even when something above failed, because a build
