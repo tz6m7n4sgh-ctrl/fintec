@@ -65,9 +65,24 @@ module.exports = {
         interactive: ['error', { maxNumericValue: 2500, aggregationMethod: 'median' }],
         'largest-contentful-paint': ['error', { maxNumericValue: 2500, aggregationMethod: 'median' }],
         'first-contentful-paint': ['error', { maxNumericValue: 1500, aggregationMethod: 'median' }],
-        'categories:accessibility': ['error', { minScore: 1 }],
-        'categories:best-practices': ['error', { minScore: 1 }],
-        'categories:performance': ['error', { minScore: 0.9 }],
+        /*
+         * `aggregationMethod: 'median'` on these three is load-bearing, not
+         * decoration.
+         *
+         * lhci defaults a `minScore` assertion to **optimistic** — the best of
+         * the three runs wins. Every numeric assertion above already said
+         * `median` explicitly; these did not, and so they were graded on their
+         * best run. A green CI build printed `performance: 0.75` on `/` while
+         * this line said `minScore: 0.9`, and nothing failed.
+         *
+         * A ratchet that takes the best of three is not a ratchet. It is the
+         * defect this project keeps finding — a check that reports green while
+         * the thing it checks is failing — living in the file whose own header
+         * says "never loosen them".
+         */
+        'categories:accessibility': ['error', { minScore: 1, aggregationMethod: 'median' }],
+        'categories:best-practices': ['error', { minScore: 1, aggregationMethod: 'median' }],
+        'categories:performance': ['error', { minScore: 0.9, aggregationMethod: 'median' }],
         'cumulative-layout-shift': ['error', { maxNumericValue: 0.1, aggregationMethod: 'median' }],
         'total-blocking-time': ['error', { maxNumericValue: 300, aggregationMethod: 'median' }],
         // The local static server sets no cache headers and no CSP; GitHub Pages
