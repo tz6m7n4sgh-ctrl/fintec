@@ -158,17 +158,17 @@ export function BudgetEditor({
       <div className="grid g3" style={{ marginBottom: 14 }}>
         <div className="card tile">
           <div className="lbl">Current monthly spend</div>
-          <div className="val mono">{money(currentTotal)}</div>
+          <div className="val tnum">{money(currentTotal)}</div>
           <div className="foot">{dirty ? 'Unsaved' : 'Sum of all categories'}</div>
         </div>
         <div className="card tile">
           <div className="lbl">Survival monthly spend</div>
-          <div className="val mono">{money(survivalTotal)}</div>
+          <div className="val tnum">{money(survivalTotal)}</div>
           <div className="foot">Drives runway and scenarios</div>
         </div>
         <div className="card tile">
           <div className="lbl">Runway at this budget</div>
-          <div className="val mono" style={{ color: STATUS_INK[live.status] }}>
+          <div className="val tnum" style={{ color: STATUS_INK[live.status] }}>
             <span aria-hidden>{STATUS_ICON[live.status]}</span> {runwayLabel(live.runwayMonths)}
           </div>
           {/* Status is never carried by colour alone — icon plus text label. */}
@@ -243,7 +243,7 @@ export function BudgetEditor({
                     </td>
                     <td className="r">
                       {c.autoSource ? (
-                        <span className="mono">{money(cur)}</span>
+                        <span className="tnum">{money(cur)}</span>
                       ) : (
                         <input
                           name={`current-${c.id}`}
@@ -261,7 +261,7 @@ export function BudgetEditor({
                     </td>
                     <td className="r">
                       {c.autoSource ? (
-                        <span className="mono">{money(sur)}</span>
+                        <span className="tnum">{money(sur)}</span>
                       ) : (
                         <input
                           name={`survival-${c.id}`}
@@ -277,10 +277,10 @@ export function BudgetEditor({
                         />
                       )}
                     </td>
-                    <td className="r mono" style={diff > 0 ? { color: 'var(--good-ink)' } : undefined}>
+                    <td className="r tnum" style={diff > 0 ? { color: 'var(--good-ink)' } : undefined}>
                       {diff > 0 ? `−${money(diff)}` : '—'}
                     </td>
-                    <td className="r mono" style={{ color: 'var(--ink-2)' }}>
+                    <td className="r tnum" style={{ color: 'var(--ink-2)' }}>
                       {actualPerMonth[c.id] === undefined ? '—' : money(actualPerMonth[c.id])}
                     </td>
                     <td>
@@ -298,9 +298,9 @@ export function BudgetEditor({
               })}
               <tr className="tot-row">
                 <td>Total</td>
-                <td className="r mono">{money(currentTotal)}</td>
-                <td className="r mono">{money(survivalTotal)}</td>
-                <td className="r mono">{cut > 0 ? `−${money(cut)}` : '—'}</td>
+                <td className="r tnum">{money(currentTotal)}</td>
+                <td className="r tnum">{money(survivalTotal)}</td>
+                <td className="r tnum">{cut > 0 ? `−${money(cut)}` : '—'}</td>
                 <td colSpan={3} />
               </tr>
             </tbody>

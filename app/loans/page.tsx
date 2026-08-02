@@ -27,17 +27,17 @@ export default async function LoansPage() {
       <div className="grid g3">
         <div className="card tile">
           <div className="lbl">Monthly debt service</div>
-          <div className="val mono">{money(debtService)}</div>
+          <div className="val tnum">{money(debtService)}</div>
           <div className="foot">Feeds the budget auto row</div>
         </div>
         <div className="card tile">
           <div className="lbl">Total outstanding</div>
-          <div className="val mono">{money(outstanding)}</div>
+          <div className="val tnum">{money(outstanding)}</div>
           <div className="foot">{m.debts.length} facilities</div>
         </div>
         <div className="card tile">
           <div className="lbl">School fees / month</div>
-          <div className="val mono">{money(schoolMonthly)}</div>
+          <div className="val tnum">{money(schoolMonthly)}</div>
           <div className="foot">Annual {money(schoolMonthly * 12)} ÷ 12</div>
         </div>
       </div>
@@ -57,15 +57,15 @@ export default async function LoansPage() {
                   <td className="payee">{d.name}</td>
                   <td><span className="pill">{DEBT_LABEL[d.type]}</span></td>
                   <td>{d.lender}</td>
-                  <td className="r mono">{money(d.outstandingBalance)}</td>
-                  <td className="r amt mono">{money(d.monthlyPayment)}</td>
-                  <td className="r mono">{d.monthsRemaining}</td>
+                  <td className="r tnum">{money(d.outstandingBalance)}</td>
+                  <td className="r amt tnum">{money(d.monthlyPayment)}</td>
+                  <td className="r tnum">{d.monthsRemaining}</td>
                 </tr>
               ))}
               <tr className="tot-row">
                 <td colSpan={3}>Total</td>
-                <td className="r mono">{money(outstanding)}</td>
-                <td className="r mono">{money(debtService)}</td>
+                <td className="r tnum">{money(outstanding)}</td>
+                <td className="r tnum">{money(debtService)}</td>
                 <td />
               </tr>
             </tbody>
@@ -88,15 +88,15 @@ export default async function LoansPage() {
                   <td className="payee">{f.child}</td>
                   <td>{f.school}</td>
                   <td>{f.term}</td>
-                  <td className="mono">{formatDate(f.dueDate)}</td>
-                  <td className="r amt mono">{money(f.amount)}</td>
+                  <td className="tnum">{formatDate(f.dueDate)}</td>
+                  <td className="r amt tnum">{money(f.amount)}</td>
                   <td>{f.paidByCheque ? <span className="pill cheque"><span aria-hidden>◆</span> Yes</span> : <span className="pill">No</span>}</td>
                   <td>{f.paid ? <span className="pill ok"><span aria-hidden>✓</span> Paid</span> : <span className="pill">Due</span>}</td>
                 </tr>
               ))}
               <tr className="tot-row">
                 <td colSpan={4}>Annual total</td>
-                <td className="r mono">{money(m.schoolFees.reduce((s, f) => s + f.amount, 0))}</td>
+                <td className="r tnum">{money(m.schoolFees.reduce((s, f) => s + f.amount, 0))}</td>
                 <td colSpan={2} />
               </tr>
             </tbody>
@@ -119,11 +119,11 @@ export default async function LoansPage() {
             <tbody>
               {cheques.map((p) => (
                 <tr key={p.id}>
-                  <td className="mono">{formatDate(p.dueDate)}</td>
+                  <td className="tnum">{formatDate(p.dueDate)}</td>
                   <td className="payee">{p.payee}</td>
                   <td>{p.purpose}</td>
                   <td>{p.account}</td>
-                  <td className="r amt mono">{money(p.amount)}</td>
+                  <td className="r amt tnum">{money(p.amount)}</td>
                   <td>
                     {p.includedInBudget
                       ? <span className="pill ok"><span aria-hidden>✓</span> Yes</span>
@@ -133,7 +133,7 @@ export default async function LoansPage() {
               ))}
               <tr className="tot-row">
                 <td colSpan={4}>Total cheque exposure listed</td>
-                <td className="r mono">{money(cheques.reduce((s, p) => s + p.amount, 0))}</td>
+                <td className="r tnum">{money(cheques.reduce((s, p) => s + p.amount, 0))}</td>
                 <td />
               </tr>
             </tbody>

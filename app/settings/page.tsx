@@ -19,7 +19,7 @@ export default async function SettingsPage() {
                 <tbody>
                   <tr>
                     <th scope="row" className="rowhead">Signed in as</th>
-                    <td className="r mono">{m.user.email ?? m.user.id}</td>
+                    <td className="r tnum">{m.user.email ?? m.user.id}</td>
                   </tr>
                 </tbody>
               </table>

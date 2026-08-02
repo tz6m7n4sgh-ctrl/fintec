@@ -171,10 +171,10 @@ export function TransactionsLedger({
             <tbody>
               {filtered.map((t) => (
                 <tr key={t.id}>
-                  <td className="mono">{formatDate(t.date)}</td>
+                  <td className="tnum">{formatDate(t.date)}</td>
                   <td className="payee">{t.description}</td>
                   <td>{t.accountLabel}</td>
-                  <td className="r amt mono">{money(t.amount)}</td>
+                  <td className="r amt tnum">{money(t.amount)}</td>
                   <td>
                     {t.direction === 'credit' ? (
                       <span className="pill ok">Credit</span>

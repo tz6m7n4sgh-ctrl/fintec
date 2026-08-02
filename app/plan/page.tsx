@@ -20,7 +20,7 @@ export default async function PlanPage() {
         <div className="hero">
           <div>
             <div className="card-sub">Readiness score</div>
-            <div className="hero-num mono">
+            <div className="hero-num tnum">
               {s.total}<small> / {s.max}</small>
             </div>
             <div style={{ marginTop: 10 }}>
@@ -51,13 +51,13 @@ export default async function PlanPage() {
               {s.criteria.map((c) => (
                 <tr key={c.key}>
                   <td className="payee">{c.label}</td>
-                  <td className="r mono amt">{c.score} / {c.max}</td>
+                  <td className="r tnum amt">{c.score} / {c.max}</td>
                   <td style={{ color: 'var(--ink-2)' }}>{c.detail}</td>
                 </tr>
               ))}
               <tr className="tot-row">
                 <td>Total</td>
-                <td className="r mono">{s.total} / {s.max}</td>
+                <td className="r tnum">{s.total} / {s.max}</td>
                 <td>{s.band}</td>
               </tr>
             </tbody>
@@ -87,9 +87,9 @@ export default async function PlanPage() {
                       {hard
                         ? <span className="pill cheque"><span aria-hidden>✕</span> {dl.label}</span>
                         : <span className="pill">{dl.label}</span>}
-                      {dl.date ? <div className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 3 }}>{formatDate(dl.date)}</div> : null}
+                      {dl.date ? <div className="tnum" style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 3 }}>{formatDate(dl.date)}</div> : null}
                     </td>
-                    <td className="r mono">
+                    <td className="r tnum">
                       {days === null ? '—' : days >= 0 ? `${days} days` : `${Math.abs(days)} days ago`}
                     </td>
                   </tr>

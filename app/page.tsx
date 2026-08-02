@@ -85,7 +85,7 @@ export default async function DashboardPage() {
         <div className="hero">
           <div>
             <div className="card-sub">Runway — how long your money lasts</div>
-            <div className="hero-num mono">
+            <div className="hero-num tnum">
               {months(r.runway.runwayMonths)}{' '}
               {Number.isFinite(r.runway.runwayMonths) && <small>months</small>}
             </div>
@@ -238,7 +238,7 @@ export default async function DashboardPage() {
                 .slice(0, 5)
                 .map((p) => (
                   <tr key={p.id}>
-                    <td className="mono">{formatDate(p.dueDate)}</td>
+                    <td className="tnum">{formatDate(p.dueDate)}</td>
                     <td className="payee">{p.payee}</td>
                     <td>
                       {p.type === 'cheque' ? (
@@ -247,7 +247,7 @@ export default async function DashboardPage() {
                         <span className="pill">{p.type === 'autoDebit' ? 'Auto-debit' : 'Transfer'}</span>
                       )}
                     </td>
-                    <td className="r amt mono">{money(p.amount)}</td>
+                    <td className="r amt tnum">{money(p.amount)}</td>
                   </tr>
                 ))}
             </tbody>

@@ -75,13 +75,13 @@ export default async function StatementsPage() {
                       {u.errorMessage ? <span className="sub" style={{ color: 'var(--critical-ink)' }}>{u.errorMessage}</span> : null}
                     </td>
                     <td>{accountName(u.bankAccountId)}</td>
-                    <td className="mono">
+                    <td className="tnum">
                       {u.periodStart && u.periodEnd
                         ? `${formatDate(u.periodStart)} – ${formatDate(u.periodEnd)}`
                         : '—'}
                     </td>
                     <td><span className="pill">{u.fileType.toUpperCase()}</span></td>
-                    <td className="r mono">{u.transactionCount ?? '—'}</td>
+                    <td className="r tnum">{u.transactionCount ?? '—'}</td>
                     <td><span className={s.cls}><span aria-hidden>{s.icon}</span> {s.label}</span></td>
                   </tr>
                 );
@@ -113,10 +113,10 @@ export default async function StatementsPage() {
                     : undefined;
                   return (
                     <tr key={t.id}>
-                      <td className="mono">{formatDate(t.date)}</td>
+                      <td className="tnum">{formatDate(t.date)}</td>
                       <td className="payee">{t.description}</td>
                       <td>{accountName(t.bankAccountId)}</td>
-                      <td className="r amt mono">
+                      <td className="r amt tnum">
                         {t.direction === 'debit' ? '−' : '+'}{money(t.amount)}
                       </td>
                       <td>

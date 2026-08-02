@@ -37,17 +37,17 @@ export default async function BudgetPage() {
           <div className="grid g3">
             <div className="card tile">
               <div className="lbl">Current monthly spend</div>
-              <div className="val mono">{money(m.currentTotal)}</div>
+              <div className="val tnum">{money(m.currentTotal)}</div>
               <div className="foot">Sum of all categories</div>
             </div>
             <div className="card tile">
               <div className="lbl">Survival monthly spend</div>
-              <div className="val mono">{money(m.survivalTotal)}</div>
+              <div className="val tnum">{money(m.survivalTotal)}</div>
               <div className="foot">Drives runway and scenarios</div>
             </div>
             <div className="card tile">
               <div className="lbl">Monthly saving if you switch</div>
-              <div className="val mono">{money(cut)}</div>
+              <div className="val tnum">{money(cut)}</div>
               <div className="foot">
                 {percent(m.currentTotal ? cut / m.currentTotal : 0)} of current spend
               </div>
@@ -83,15 +83,15 @@ export default async function BudgetPage() {
                           {c.name}
                           {c.autoSource ? <span className="sub">computed — read-only</span> : null}
                         </td>
-                        <td className="r mono">{money(c.currentAmount)}</td>
-                        <td className="r mono">{money(c.survivalAmount)}</td>
+                        <td className="r tnum">{money(c.currentAmount)}</td>
+                        <td className="r tnum">{money(c.survivalAmount)}</td>
                         <td
-                          className="r mono"
+                          className="r tnum"
                           style={diff > 0 ? { color: 'var(--good-ink)' } : undefined}
                         >
                           {diff > 0 ? `−${money(diff)}` : '—'}
                         </td>
-                        <td className="r mono" style={{ color: 'var(--ink-2)' }}>
+                        <td className="r tnum" style={{ color: 'var(--ink-2)' }}>
                           {actualPerMonth[c.id] === undefined ? '—' : money(actualPerMonth[c.id])}
                         </td>
                         <td>
@@ -108,9 +108,9 @@ export default async function BudgetPage() {
                   })}
                   <tr className="tot-row">
                     <td>Total</td>
-                    <td className="r mono">{money(m.currentTotal)}</td>
-                    <td className="r mono">{money(m.survivalTotal)}</td>
-                    <td className="r mono">−{money(cut)}</td>
+                    <td className="r tnum">{money(m.currentTotal)}</td>
+                    <td className="r tnum">{money(m.survivalTotal)}</td>
+                    <td className="r tnum">−{money(cut)}</td>
                     <td colSpan={2} />
                   </tr>
                 </tbody>
