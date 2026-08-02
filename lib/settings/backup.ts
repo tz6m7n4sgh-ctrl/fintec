@@ -25,6 +25,11 @@ export const IMPORT_ORDER = [...ERASABLE_TABLES].reverse() as ErasableTable[];
  * because the import screen round-trips the file's text through a hidden field
  * so the confirm step is stateless. Without a cap, a 500 MB file chosen by
  * accident becomes a 500 MB form post.
+ *
+ * It must stay below `experimental.serverActions.bodySizeLimit` in
+ * `next.config.mjs` (12 MB), which is what actually stops the request. Raise
+ * this above that and the user gets Next's "Body exceeded" error instead of the
+ * sentence below telling them how big their file is.
  */
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 
