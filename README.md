@@ -338,11 +338,121 @@ broken number (§11 edge case).
 
 ```bash
 npm test                 # 112 unit tests
-npm run build            # required before e2e — the suite tests the real export
+npm run build            # required before e2e — the suite tests the real server build
 npm run test:e2e         # 198 end-to-end tests (desktop + mobile)
 npm run test:a11y        # just the 48 axe accessibility tests
-npm run test:lighthouse  # Lighthouse CI against the built export
+npm run test:lighthouse  # Lighthouse CI
+npm run test:rls         # SEC-1 — cross-tenant isolation, against a real database
 ```
+
+### SEC-1 — proving cross-tenant isolation
+
+`supabase/tests/rls-isolation.sql` is the answer to a question the rest of the
+suite cannot ask: **can one user read another user's financial data?**
+
+RLS was applied to all 13 tables and verified by reading the schema. That is not
+the same as proving it. `0001_init.sql` generates all 52 policies from a single
+loop, so one mistake in that loop is a mistake in every policy at once.
+
+The test creates two users, gives each a row in all 13 tables, and then, acting
+as user A over a real connection:
+
+| Phase | Asks |
+|---|---|
+| A | Are RLS, `force`, and all four policies actually present on every table? |
+| C | Can A **see** B's rows? |
+| D | Can A insert a row owned by B, donate its own row to B, update B's row, or delete it? |
+| E | Can the `anon` role read anything at all? |
+| F | Can A list, overwrite or write into B's private statement folder? |
+| G | **Negative controls** — with RLS deliberately switched off, does this file notice? |
+
+Phase G is the one that makes the rest mean anything. A green test that cannot
+go red proves nothing, so the file breaks isolation on purpose in two ways — RLS
+disabled, and a policy weakened to `using (true)` — and fails if it does *not*
+detect them. It then restores the schema and asserts the restore.
+
+Three properties worth knowing:
+
+- **It runs against the real project, not a copy.** Two earlier defects on this
+  repo came from measuring a stand-in instead of the real host, and both produced
+  plausible numbers that were believed. The policies only exist in one place.
+- **It is non-destructive.** Everything, including the deliberate breakage, is
+  inside one transaction that always rolls back.
+- **`INCONCLUSIVE` fails the run.** If a check was blocked by a unique index
+  rather than by RLS, that table has no evidence behind it, and no evidence is
+  not a pass.
+
+Point it at the database directly — the transaction pooler will not work,
+because the test relies on transaction-scoped `SET LOCAL`:
+
+```bash
+export SUPABASE_DB_URL="postgresql://postgres:...@db.<ref>.supabase.co:5432/postgres"
+npm run test:rls
+```
+
+Without `SUPABASE_DB_URL` it prints a loud skip and exits 0. Set `RLS_REQUIRED=1`
+to make a missing connection string a failure instead — CI should do this once
+the secret exists, because a security gate that silently never runs is
+indistinguishable from one that passes.
+
+### SEC-3 — secrets and dependencies
+
+```bash
+npm run build && npm run test:secrets
+```
+
+`scripts/secret-guard.mjs` covers the two gaps GitHub's own push protection
+leaves:
+
+- **A real value committed into `.env.example`.** That file is a template, so it
+  is *meant* to be committed — push protection sees a file that belongs there
+  holding a key shaped like the placeholder it replaced.
+- **A server-only secret inlined into the client bundle.** In Next.js the only
+  thing separating a server secret from a public one is the `NEXT_PUBLIC_`
+  prefix, and that boundary is one typo wide.
+
+It is not a generic entropy scanner. Those fire on hashes and minified code, and
+a check people learn to ignore is worse than no check. Like the isolation proof,
+it was verified able to go red: a planted service-role JWT trips it.
+
+Current state, verified against a production build:
+
+| Check | Result |
+|---|---|
+| Secret-shaped strings in `.next/static` | none |
+| Non-`NEXT_PUBLIC_` env vars referenced in app code | none — only the URL and publishable key |
+| Real credentials in git history | none; `.env.example` holds empty placeholders |
+| `.env` tracked by git | no, and `.gitignore` covers it |
+
+Worth noting: since the browser Supabase client was deleted, **even the
+publishable key no longer ships to the browser**. Nothing in `.next/static`
+talks to Supabase at all.
+
+#### Dependency audit
+
+CI blocks at `critical` over the production tree only. Three `high` advisories
+currently sit inside Next's own dependencies:
+
+| Advisory | Reachable here? |
+|---|---|
+| `postcss` — path traversal via `sourceMappingURL` | No. All CSS is repo-authored; none is attacker-supplied. |
+| `sharp`/libvips CVEs | No. The app uses no `next/image`, so sharp is never invoked. The only asset is `icon.svg`. |
+| `tmp`, `uuid` | Dev-only, via `@lhci/cli`. Never shipped. |
+
+There is no patched 15.x release to move to — 15.5.22 is current and 15.6 is
+canary. Gating at `high` today would mean a permanently red build, which teaches
+people to ignore the one check that should never be ignored. The upgrade path is
+tracked as its own issue instead.
+
+#### Content-Security-Policy
+
+Still deliberately absent, and the reasoning in `next.config.mjs` still holds:
+the App Router emits inline scripts, so a useful CSP needs per-request nonces,
+and one with `unsafe-inline` on scripts implies protection it does not give.
+
+That calculus changes when statement ingestion lands. Once an LLM is writing
+transaction descriptions into pages, a stored-XSS path through parsed statement
+text becomes a real shape rather than a theoretical one. Tracked separately.
 
 ### Unit tests
 

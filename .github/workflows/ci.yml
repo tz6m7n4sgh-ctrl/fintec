@@ -51,6 +51,28 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
+      - name: Secret guard
+        # Fails if a credential reached .env.example or the client bundle. Runs
+        # after Build because the bundle check needs .next/static to exist.
+        # Verified able to go red — a planted service-role JWT trips it.
+        run: node scripts/secret-guard.mjs
+
+      - name: Dependency audit — production tree
+        # Blocking at `critical` only, and only over dependencies that actually
+        # ship. Three `high` advisories currently sit inside Next's own tree
+        # (postcss sourceMappingURL, sharp/libvips) with no patched 15.x release
+        # to move to, and neither is reachable here: the app uses no next/image,
+        # so sharp is never invoked, and all CSS is repo-authored. Gating at
+        # `high` today would mean a permanently red build, which teaches people
+        # to ignore the one check that should never be ignored.
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Dependency audit — full report
+        # Informational. Runs even when something above failed, because a build
+        # that broke is exactly when you want to see what moved.
+        if: always()
+        run: npm audit --omit=dev || true
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
@@ -92,3 +114,37 @@ jobs:
           # hidden files by default — without this the upload silently finds
           # nothing, which is how the first failing run lost its reports.
           include-hidden-files: true
+
+  # ---------------------------------------------------------------------------
+  # SEC-1 — cross-tenant isolation.
+  #
+  # Separate job because it needs a database, while `verify` deliberately runs
+  # unconfigured. It is the only check here that can fail for a reason that is
+  # a data-exposure incident rather than a bug.
+  #
+  # The SQL runs inside a transaction that always rolls back, so pointing this
+  # at the live project is safe — and the live project is the only place the
+  # real policies exist. Testing a copy would repeat the mistake that produced
+  # two earlier defects on this repo.
+  # ---------------------------------------------------------------------------
+  isolation:
+    name: SEC-1 cross-tenant isolation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prove isolation holds
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # TODO: set this to '1' once SUPABASE_DB_URL is configured in repo
+          # secrets. Until then the job reports loudly and passes, because a
+          # gate that has never been given credentials would otherwise block
+          # every PR. Once it is set, a missing secret becomes a failure —
+          # which is the point: a security check that silently does not run is
+          # indistinguishable from one that passes.
+          RLS_REQUIRED: '0'
+        run: npm run test:rls
