@@ -303,6 +303,25 @@ test.describe('loans', () => {
     await expect(autoRow).toContainText('6,000');
     await expect(autoRow).toContainText('computed — read-only');
   });
+
+  test('US-20 — signed out, school fees are read-only and say why', async ({ page }) => {
+    await page.goto(url('/loans/'));
+    const card = page.locator('section.card', { hasText: 'School fees' }).first();
+    await expect(card).toContainText('Sign in to record your own');
+    await expect(card.getByRole('button', { name: 'Add a school fee' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Edit / })).toHaveCount(0);
+  });
+
+  test('US-20 — annual school fees are spread over twelve budget months', async ({ page }) => {
+    await page.goto(url('/loans/'));
+    const card = page.locator('section.card', { hasText: 'School fees' }).first();
+    await expect(card.locator('tr.tot-row')).toContainText('36,000');
+    await expect(page.locator('.tile', { hasText: 'School fees / month' })).toContainText('3,000');
+    await page.goto(url('/budget/'));
+    const row = page.locator('tbody tr', { hasText: 'School fees' }).first();
+    await expect(row).toContainText('3,000');
+    await expect(row).toContainText('computed — read-only');
+  });
 });
 
 test.describe('schedule', () => {

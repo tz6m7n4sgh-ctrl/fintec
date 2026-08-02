@@ -117,7 +117,8 @@ begin
     insert into public.income_streams (user_id, name) values (u, 'Probe salary');
     insert into public.notification_log (user_id, channel) values (u, 'email');
     insert into public.debts (user_id, type, name) values (u, 'mortgage', 'Probe mortgage');
-    insert into public.school_fees (user_id, due_date) values (u, date '2026-09-01');
+    insert into public.school_fees (user_id, child, school, term, due_date)
+      values (u, 'Probe child', 'Probe school', 'Probe term', date '2026-09-01');
     -- included_in_budget must be false here: the G-1 companion constraint
     -- requires an in-budget payment to name its budget line, and a seed that
     -- trips a check constraint would look like an RLS failure.
