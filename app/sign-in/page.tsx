@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { Card, PageHead } from '@/components/ui';
 import { getUser } from '@/lib/supabase/server';
@@ -19,7 +20,11 @@ export default async function SignInPage() {
           Signed out, this app shows the reference dataset — real numbers in shape, but not yours.
           Signing in is what lets it read and write your own.
         </p>
-        <SignInForm />
+        {/* useSearchParams reads the ?error= a failed link click redirects with,
+            and Next requires it to sit behind a Suspense boundary. */}
+        <Suspense fallback={null}>
+          <SignInForm />
+        </Suspense>
       </Card>
 
       <Card title="What protects your data" sub="Worth knowing before you put real figures in">

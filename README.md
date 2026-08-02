@@ -231,12 +231,21 @@ Vercel's Hobby licence is non-commercial, which fits a personal tool.
 
 ### Deploying to Vercel
 
-Connect the repository, then set two environment variables:
+Connect the repository. **Nothing else is required** — the Supabase project URL and publishable key
+are committed as defaults in `lib/supabase/config.ts`, so a fresh deploy can sign in immediately.
 
-```
-NEXT_PUBLIC_SUPABASE_URL             = https://<project>.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = sb_publishable_...
-```
+Setting `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` still overrides them,
+which is how a fork points at its own project without editing source.
+
+Committing those two values is deliberate, not laziness. Both are public by construction: the
+publishable key ships inside the JavaScript bundle to every visitor either way, and row-level
+security — enabled *and forced* on all thirteen tables, with all four policies on each keyed to
+`(select auth.uid()) = user_id` — is what actually protects the data. Querying the live project as
+the `anon` role returns zero rows from every table and cannot insert one. The key buys an attacker
+exactly what loading the page already would.
+
+`SUPABASE_SERVICE_ROLE_KEY` is the opposite case. It bypasses RLS entirely, it is not in this repo,
+and it must never be.
 
 **Leave `NEXT_PUBLIC_BASE_PATH` unset.** It exists only to mount the app under a sub-path, which is
 what GitHub Pages needed. Setting it on a root domain breaks every asset path — that is the one real
@@ -244,16 +253,29 @@ trap left over from the migration.
 
 No `vercel.json` is needed; a Next server build is detected automatically.
 
-### After the first deploy
+### Signing in, and the email-template trap
 
-Two steps, neither obvious, both of which cause confusing failures if skipped:
+There is no separate sign-up. Entering an address that has never been seen creates the account, and
+the emailed credential proves the address is real — so a separate sign-up step would add nothing.
 
-1. **Add the deployment URL to Supabase Auth** → Authentication → URL Configuration → *Site URL* and
-   *Redirect URLs*. Without it the one-time-code flow fails on the redirect, and the error does not
-   say why.
-2. **Create your user in the Supabase dashboard.** Sign-in uses `shouldCreateUser: false` on purpose
-   — this is a single-user app, and silently provisioning an account for a typo is not wanted. Until
-   a user exists, no address can sign in.
+The trap is that **Supabase decides between a code and a link by reading the email template**, not by
+which API you call. `{{ .Token }}` sends a six-digit code; `{{ .ConfirmationURL }}` sends a magic
+link; the stock template is the latter. So a project nobody has customised emails a link to a form
+asking for a code — a dead end the user cannot diagnose.
+
+The app handles this rather than requiring a dashboard change. The code box accepts **either a
+six-digit code or the sign-in link pasted in whole**; `lib/supabase/otp.ts` pulls the token hash out
+of both URL shapes Supabase's own docs use (`?token=` and `?token_hash=`) and verifies it directly.
+Pasting never redirects, so it does not depend on Site URL or the allowed-redirect list — which is
+what makes sign-in work against a project whose URL configuration has never been touched.
+
+Two optional dashboard changes make it nicer, neither required:
+
+1. **Authentication → Email Templates → Magic Link**: replace the body with
+   `<p>Your sign-in code: {{ .Token }}</p>` to send codes instead of links.
+2. **Authentication → URL Configuration**: add the deployment origin to *Site URL* and *Redirect
+   URLs*, so a **clicked** link lands on `/auth/confirm` and signs the user straight in. Without it
+   the link still works — it just has to be pasted rather than clicked.
 
 A stable HTTPS origin is also what passkeys (US-40) and PWA install (US-47) need, so this unblocks
 both.

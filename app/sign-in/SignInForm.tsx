@@ -1,17 +1,26 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { parseOtpInput } from '@/lib/supabase/otp';
 
 /**
- * Email + one-time-code sign-in (US-39 / FR-K1).
+ * Email sign-in (US-39 / FR-K1).
  *
- * A six-digit code rather than a magic link, for two reasons that matter here:
- * a link opens in whichever browser handles mail — often an in-app webview
- * where the session lands in the wrong place — and a code can be completed on
- * the device that started the flow. FR-K2 later adds passkeys on top; email
- * stays as the recovery path so a passkey is never the only way in (R-4).
+ * A six-digit code is preferred over a magic link, for two reasons that matter
+ * here: a link opens in whichever browser handles mail — often an in-app
+ * webview where the session lands in the wrong place — and a code can be
+ * completed on the device that started the flow. FR-K2 later adds passkeys on
+ * top; email stays as the recovery path so a passkey is never the only way in
+ * (R-4).
+ *
+ * Preferred, but not required. Which of the two Supabase sends is decided by
+ * the project's email template, not by this code: `{{ .Token }}` sends a code,
+ * `{{ .ConfirmationURL }}` sends a link, and the stock template is the latter.
+ * Asking for a code and being sent a link is a dead end no user can debug, so
+ * the box takes either — a pasted link carries the same grant, and verifying
+ * its token hash needs no redirect and no dashboard configuration.
  *
  * Errors are shown verbatim from Supabase rather than replaced with a generic
  * message. "Email logins are disabled" and "Token has expired" need different
@@ -23,12 +32,14 @@ type Stage = 'email' | 'code';
 export function SignInForm() {
   const router = useRouter();
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   const [stage, setStage] = useState<Stage>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // A failed click-through lands back here with the reason in the query string.
+  const [error, setError] = useState<string | null>(searchParams.get('error'));
   const [notice, setNotice] = useState<string | null>(null);
 
   if (!supabase) {
@@ -62,7 +73,17 @@ export function SignInForm() {
        * rather than a confusing rejection; that is the better failure, since
        * the code simply never arrives and nothing is lost.
        */
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        /*
+         * Where a clicked link should land. Supabase honours this only if the
+         * origin is in the project's allowed-redirect list; otherwise it falls
+         * back to Site URL. Sending it costs nothing and makes the click path
+         * work wherever the list has been set up — and where it has not, the
+         * paste path below does not depend on this at all.
+         */
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+      },
     });
 
     setBusy(false);
@@ -71,7 +92,7 @@ export function SignInForm() {
       return;
     }
     setStage('code');
-    setNotice(`Code sent to ${email.trim()}. It expires in about an hour. If this is your first time, signing in creates your account.`);
+    setNotice(`Sent to ${email.trim()}. It expires in about an hour. If this is your first time, signing in creates your account.`);
   }
 
   async function verifyCode(e: React.FormEvent) {
@@ -79,11 +100,26 @@ export function SignInForm() {
     setBusy(true);
     setError(null);
 
-    const { error } = await supabase!.auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: 'email',
-    });
+    const parsed = parseOtpInput(code);
+    if (!parsed) {
+      setBusy(false);
+      setError('That is neither a six-digit code nor a sign-in link. Paste either one exactly as it appears in the email.');
+      return;
+    }
+
+    // A code is tied to the address that requested it; a token hash stands on
+    // its own, and passing an email alongside it would be rejected.
+    const { error } =
+      parsed.kind === 'code'
+        ? await supabase!.auth.verifyOtp({
+            email: email.trim(),
+            token: parsed.token,
+            type: 'email',
+          })
+        : await supabase!.auth.verifyOtp({
+            token_hash: parsed.tokenHash,
+            type: parsed.type,
+          });
 
     setBusy(false);
     if (error) {
@@ -134,8 +170,9 @@ export function SignInForm() {
               aria-describedby="email-help"
             />
             <div className="help" id="email-help">
-              We send a six-digit code. No password to remember or lose. New here? Entering your
-              email creates your account — there is no separate sign-up.
+              We email you a six-digit code, or a sign-in link — either works. No password to
+              remember or lose. New here? Entering your email creates your account, there is no
+              separate sign-up.
             </div>
           </div>
           <button className="btn primary" type="submit" disabled={busy || !email.trim()}>
@@ -145,10 +182,9 @@ export function SignInForm() {
       ) : (
         <form onSubmit={verifyCode}>
           <div className="field">
-            <label htmlFor="code">Six-digit code</label>
+            <label htmlFor="code">Code or sign-in link</label>
             <input
               id="code"
-              inputMode="numeric"
               autoComplete="one-time-code"
               required
               value={code}
@@ -156,7 +192,9 @@ export function SignInForm() {
               aria-describedby="code-help"
             />
             <div className="help" id="code-help">
-              Sent to {email.trim()}. Check spam if it has not arrived.
+              Sent to {email.trim()}. Enter the six-digit code if the email has one. If it has a
+              button or link instead, copy that link and paste it here — that works too, and is
+              more reliable than clicking it. Check spam if nothing has arrived.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
