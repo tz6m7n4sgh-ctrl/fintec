@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   // Must count the SAME cheques the 113,000 figure sums — i.e. only those inside
   // the 6-month window — or the tile's caption contradicts its own number.
   const window6mEnd = addDays(m.profile.expectedLastDay, RULES.CHEQUE_WINDOW_6M);
-  const cheques6mCount = m.payments.filter(
+  const cheques6mCount = m.obligations.filter(
     (p) =>
       p.type === 'cheque' &&
       p.dueDate >= m.profile.expectedLastDay &&
@@ -232,7 +232,7 @@ export default async function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {[...m.payments]
+              {[...m.obligations]
                 .filter((p) => p.dueDate >= m.profile.expectedLastDay)
                 .sort((a, b) => b.amount - a.amount)
                 .slice(0, 5)

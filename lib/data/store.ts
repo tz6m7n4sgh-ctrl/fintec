@@ -14,6 +14,7 @@ import { loadLiveData } from './repository';
 import type { LiveData } from './repository';
 import { computeReadiness, currentSpend, survivalSpend } from '@/lib/engine/uae';
 import { monthlyActuals, projectCash } from '@/lib/engine/projection';
+import { withSchoolFeeObligations } from '@/lib/engine/school-fees';
 import { scoreReadiness } from '@/lib/engine/readiness';
 import type { MonthlyActual, Projection } from '@/lib/engine/projection';
 import type { ReadinessScore } from '@/lib/engine/readiness';
@@ -54,6 +55,8 @@ export interface ReadModel {
   debts: Debt[];
   schoolFees: SchoolFee[];
   payments: ScheduledPayment[];
+  /** Calendar/exposure view, including school fees linked as obligations. */
+  obligations: ScheduledPayment[];
   income: IncomeStream[];
   accounts: BankAccount[];
   transactions: Transaction[];
@@ -136,15 +139,17 @@ export async function getReadModel(): Promise<ReadModel> {
   }
 
   const { profile, budget, payments } = data;
+  const obligations = withSchoolFeeObligations(payments, data.schoolFees);
 
-  const readiness = computeReadiness(profile, budget, payments);
-  const projection = projectCash(readiness.runway, payments, profile.expectedLastDay);
+  const readiness = computeReadiness(profile, budget, obligations);
+  const projection = projectCash(readiness.runway, obligations, profile.expectedLastDay);
   const actuals = monthlyActuals(data.transactions);
   const score = scoreReadiness(readiness, data.debts, budget);
 
   return {
     user,
     ...data,
+    obligations,
 
     readiness,
     projection,

@@ -2,6 +2,7 @@ import { Card, PageHead } from '@/components/ui';
 import { formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { DebtsEditor } from './DebtsEditor';
+import { SchoolFeesEditor } from './SchoolFeesEditor';
 import { monthlyDebtService, monthlySchoolFees } from '@/lib/engine/uae';
 import { aed, money } from '@/lib/format/money';
 
@@ -15,7 +16,7 @@ export default async function LoansPage() {
   const debtService = monthlyDebtService(m.debts);
   const schoolMonthly = monthlySchoolFees(m.schoolFees);
   const outstanding = m.debts.reduce((s, d) => s + d.outstandingBalance, 0);
-  const cheques = m.payments.filter((p) => p.type === 'cheque');
+  const cheques = m.obligations.filter((p) => p.type === 'cheque');
   const unpaidFees = m.schoolFees.filter((f) => !f.paid);
 
   return (
@@ -85,7 +86,9 @@ export default async function LoansPage() {
       </Card>
 
       <Card title="School fees" sub={`${unpaidFees.length} of ${m.schoolFees.length} terms still to pay`}>
-        <div className="tbl-wrap" tabIndex={0}>
+        {m.isSeedData ? <><p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 0 }}>
+          These are the §11 reference figures. <b>Sign in to record your own</b> — editing is disabled here because there is no account to save them against.
+        </p><div className="tbl-wrap" tabIndex={0}>
           <table className="wide">
             <thead>
               <tr>
@@ -112,7 +115,7 @@ export default async function LoansPage() {
               </tr>
             </tbody>
           </table>
-        </div>
+        </div></> : <SchoolFeesEditor fees={m.schoolFees} />}
       </Card>
 
       <Card

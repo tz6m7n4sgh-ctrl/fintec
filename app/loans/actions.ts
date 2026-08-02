@@ -24,6 +24,12 @@ export interface DebtResult {
   id?: string;
 }
 
+export interface SchoolFeeResult {
+  ok: boolean;
+  error?: string;
+  id?: string;
+}
+
 const DEBT_TYPES = ['carLoan', 'mortgage', 'personalLoan', 'creditCard', 'other'] as const;
 type DebtType = (typeof DEBT_TYPES)[number];
 
@@ -54,6 +60,21 @@ function explain(message: string): string {
   if (message.includes('invalid input value for enum')) {
     return 'Pick one of the listed facility types.';
   }
+  return message;
+}
+
+function explainSchoolFee(message: string): string {
+  if (message.includes('school_fees_child_check') || message.includes('length(trim(child))')) {
+    return 'Give the child a name so you can recognise whose fee is due.';
+  }
+  if (message.includes('school_fees_school_check') || message.includes('length(trim(school))')) {
+    return 'Give the school a name so the calendar identifies the payee.';
+  }
+  if (message.includes('school_fees_term_check') || message.includes('length(trim(term))')) {
+    return 'Give the term a name so you can distinguish this instalment.';
+  }
+  if (message.includes('amount')) return 'The fee amount cannot be negative.';
+  if (message.includes('due_date')) return 'Enter a valid due date.';
   return message;
 }
 
@@ -125,6 +146,54 @@ export async function deleteDebt(_prev: DebtResult, form: FormData): Promise<Deb
   const { error } = await c.supabase.from('debts').delete().eq('id', id);
   if (error) return fail(explain(error.message));
 
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+/** Creates or updates a term. The budget row remains entirely derived. */
+export async function saveSchoolFee(
+  _prev: SchoolFeeResult,
+  form: FormData,
+): Promise<SchoolFeeResult> {
+  const id = s(form, 'id') || undefined;
+  const fail = (error: string): SchoolFeeResult => ({ ok: false, error, id });
+  const c = await client();
+  if (!c.ok) return fail(c.error);
+
+  const dueDate = s(form, 'dueDate');
+  if (!dueDate) return fail('A due date is required so this fee reaches the calendar.');
+
+  const row = {
+    user_id: c.user.id,
+    child: s(form, 'child'),
+    school: s(form, 'school'),
+    term: s(form, 'term'),
+    due_date: dueDate,
+    amount: n(form, 'amount'),
+    paid_by_cheque: form.get('paidByCheque') === 'on',
+    paid: form.get('paid') === 'on',
+  };
+  const { error } = id
+    ? await c.supabase.from('school_fees').update(row).eq('id', id)
+    : await c.supabase.from('school_fees').insert(row);
+  if (error) return fail(explainSchoolFee(error.message));
+
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+/** Deletes a term; RLS, rather than a redundant user filter, owns isolation. */
+export async function deleteSchoolFee(
+  _prev: SchoolFeeResult,
+  form: FormData,
+): Promise<SchoolFeeResult> {
+  const id = s(form, 'id');
+  const fail = (error: string): SchoolFeeResult => ({ ok: false, error, id });
+  if (!id) return fail('Nothing to delete.');
+  const c = await client();
+  if (!c.ok) return fail(c.error);
+  const { error } = await c.supabase.from('school_fees').delete().eq('id', id);
+  if (error) return fail(explainSchoolFee(error.message));
   revalidatePath('/', 'layout');
   return { ok: true };
 }

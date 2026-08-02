@@ -49,7 +49,7 @@ export default async function CalendarPage() {
     events.set(iso, [...(events.get(iso) ?? []), e]);
   };
 
-  for (const p of m.payments) {
+  for (const p of m.obligations) {
     push(p.dueDate, {
       cls: eventClass(p),
       title: p.type === 'cheque' ? `◆ ${p.payee.split('—')[0].trim()}` : p.payee,
@@ -93,7 +93,7 @@ export default async function CalendarPage() {
     },
   ];
 
-  const agenda = [...m.payments]
+  const agenda = [...m.obligations]
     .filter((p) => p.dueDate >= m.profile.expectedLastDay)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 12);

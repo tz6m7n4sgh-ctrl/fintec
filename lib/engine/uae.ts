@@ -330,7 +330,7 @@ export function chequeExposure(
 ): number {
   const end = addDays(lastDay, windowDays);
   return payments
-    .filter((p) => p.type === 'cheque' && isWithin(p.dueDate, lastDay, end))
+    .filter((p) => p.type === 'cheque' && p.status !== 'paid' && isWithin(p.dueDate, lastDay, end))
     .reduce((sum, p) => sum + p.amount, 0);
 }
 
