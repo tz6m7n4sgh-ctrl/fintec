@@ -211,7 +211,52 @@ that cannot run would be worse than none.
 npm run build && npm start        # production server on :3000
 ```
 
-Deploy to Vercel, Fly, a container, or any Node host. That is a provisioning step outside this repo.
+### Picking a host
+
+Free tiers are all ample here — this is one user — so the things that actually differ are cold
+starts and how much configuration the Next server needs.
+
+| Host | Free tier | Fit |
+|---|---|---|
+| **Vercel Hobby** | 100 GB/mo, no sleep | **Recommended.** Built by the Next team: zero config, middleware and server actions work as-is |
+| Netlify Free | 100 GB, 300 build-min | Works via their Next adapter; more moving parts |
+| Cloudflare Workers | Generous | Needs `@opennextjs/cloudflare`; Node-API gaps can catch middleware |
+| Render Free | 750 hrs | **Avoid.** Spins down after 15 min idle — roughly a 50 s cold start |
+| Fly / Railway | Trial credits | No longer durably free |
+
+Render's cold start is the one that matters. This is an app someone opens to check whether an ILOE
+deadline is 3 days away or 30. Waiting 50 seconds for that answer is a worse failure than it sounds.
+
+Vercel's Hobby licence is non-commercial, which fits a personal tool.
+
+### Deploying to Vercel
+
+Connect the repository, then set two environment variables:
+
+```
+NEXT_PUBLIC_SUPABASE_URL             = https://<project>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = sb_publishable_...
+```
+
+**Leave `NEXT_PUBLIC_BASE_PATH` unset.** It exists only to mount the app under a sub-path, which is
+what GitHub Pages needed. Setting it on a root domain breaks every asset path — that is the one real
+trap left over from the migration.
+
+No `vercel.json` is needed; a Next server build is detected automatically.
+
+### After the first deploy
+
+Two steps, neither obvious, both of which cause confusing failures if skipped:
+
+1. **Add the deployment URL to Supabase Auth** → Authentication → URL Configuration → *Site URL* and
+   *Redirect URLs*. Without it the one-time-code flow fails on the redirect, and the error does not
+   say why.
+2. **Create your user in the Supabase dashboard.** Sign-in uses `shouldCreateUser: false` on purpose
+   — this is a single-user app, and silently provisioning an account for a typo is not wanted. Until
+   a user exists, no address can sign in.
+
+A stable HTTPS origin is also what passkeys (US-40) and PWA install (US-47) need, so this unblocks
+both.
 
 **What the move bought, immediately:**
 
