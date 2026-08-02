@@ -35,17 +35,33 @@ const PREINSTALLED_CHROMIUM = '/opt/pw-browsers/chromium';
  *
  * The crash is at *launch*, inside GPU-process init, before any navigation —
  * so it is resource pressure on a constrained runner rather than anything the
- * worker does. `--disable-gpu` removes the process that is actually crashing,
- * and `--disable-dev-shm-usage` moves shared memory to /tmp, which is the
- * standard fix for Chromium in a container with a small `/dev/shm`.
+ * worker does.
  *
- * Neither weakens a single assertion: this suite renders and reads the DOM, and
+ * `--disable-gpu` and `--disable-dev-shm-usage` took it from five crashes to
+ * two. Not enough, and the log showed why: a GPU process still spawned and
+ * still died there, because `--disable-gpu` falls back to the software
+ * rasteriser rather than skipping the process. `--disable-software-rasterizer`
+ * is the other half of that pair.
+ *
+ * `workers: 1` in CI is the blunt half of the fix, and it is here because the
+ * cause is contention: two browsers launching at once on a two-core runner.
+ * It costs wall-clock (about 1.3m to 3m) and nothing else. This project runs
+ * `retries: 0` deliberately — "a financial UI regression is never probably
+ * fine" — so the alternative to spending that time is a suite that goes red at
+ * random, which would teach us to ignore it.
+ *
+ * None of this weakens an assertion: the suite renders and reads the DOM and
  * has no GPU-dependent expectation anywhere. It does **not** reproduce on this
- * dev machine (`/dev/shm` is 7.9G here), so this is a mitigation for an
- * observed CI failure rather than a fix verified locally — said plainly because
- * the honest version of "CI is green now" matters more than the claim.
+ * dev machine (`/dev/shm` is 7.9G here), so it is a mitigation for an observed
+ * CI failure rather than a fix verified locally, and both changes went in
+ * together — so if it goes green I will know the combination worked, not which
+ * half. Said plainly because that is what the evidence supports.
  */
-const HEADLESS_ARGS = ['--disable-dev-shm-usage', '--disable-gpu'];
+const HEADLESS_ARGS = [
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--disable-software-rasterizer',
+];
 
 const launchOptions = {
   args: HEADLESS_ARGS,
@@ -57,6 +73,10 @@ export default defineConfig({
   // A financial UI regression is never "probably fine" — no retries masking flake.
   retries: 0,
   fullyParallel: true,
+  // See HEADLESS_ARGS above: browser launches crash under contention on the CI
+  // runner. Serialising there trades wall-clock for a suite that means what it
+  // says, which is the only trade this project makes on test reliability.
+  workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [['list'], ['github']] : [['list']],
   timeout: 30_000,
   expect: { timeout: 5_000 },
