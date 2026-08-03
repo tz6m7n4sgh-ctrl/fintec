@@ -24,9 +24,7 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const url = (path: string) => `${BASE_PATH}${path}`;
 
 const ROUTES = [
-  { path: '/', name: 'Home' },
   { path: '/entitlement/', name: 'Your entitlement' },
-  { path: '/answer/', name: 'Answer' },
   { path: '/money/', name: 'Money' },
   { path: '/documents/', name: 'Documents' },
   { path: '/you/', name: 'You' },
@@ -87,9 +85,9 @@ test.describe('every screen', () => {
   }
 });
 
-test.describe('dashboard', () => {
+test.describe('money — the headline figures (moved from the dashboard, HAD-124)', () => {
   test('shows the §11 headline figures', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
 
     // Runway hero: 9.6 months for the reference profile.
     await expect(page.locator('.hero-num')).toContainText('9.6');
@@ -104,7 +102,7 @@ test.describe('dashboard', () => {
   });
 
   test('runway status is never colour alone — it carries an icon and a label', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const badge = page.locator('.hero .status');
     await expect(badge).toHaveCount(1);
     // A text label a screen reader (or a colourblind reader) can use.
@@ -116,7 +114,7 @@ test.describe('dashboard', () => {
   test('the cheque tile caption counts the same cheques its figure sums', async ({ page }) => {
     // Regression: the caption said "8 cheques" while the amount covered only the
     // five inside the six-month window.
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const tile = page.locator('.tile', { hasText: 'Cheques — next 6 months' }).first();
     await expect(tile).toContainText('113,000');
     await expect(tile).toContainText('5 cheques');
@@ -124,7 +122,7 @@ test.describe('dashboard', () => {
 
   test('every stat tile navigates to where its inputs live', async ({ page }) => {
     // Traceability is a hard requirement: no AED figure may be a dead end.
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const tiles = page.locator('.grid.g5 a.tile');
     const count = await tiles.count();
     expect(count).toBe(5);
@@ -136,7 +134,7 @@ test.describe('dashboard', () => {
   });
 
   test('projection chart is described for screen readers and marks the zero crossing', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const svg = page.locator('svg.plot').first();
     const label = await svg.getAttribute('aria-label');
     expect(label, 'chart needs a text alternative').toBeTruthy();
@@ -151,7 +149,7 @@ test.describe('dashboard', () => {
     // reachable via the hover layer. This also guards the hydration failure that
     // adding that layer originally caused: a <title> built from several JSX
     // children emits comment separators React cannot reconcile.
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const titles = page.locator('svg.plot title');
     expect(await titles.count()).toBeGreaterThanOrEqual(18);
     const texts = await titles.allTextContents();
@@ -159,35 +157,16 @@ test.describe('dashboard', () => {
     expect(texts.some((t) => /below zero/.test(t))).toBe(true);
   });
 
-  test('scenario cards end in a shortfall at 12 months', async ({ page }) => {
-    await page.goto(url('/'));
-    const twelve = page.locator('.g4 > .card').filter({ hasText: 'After 12 months' }).first();
-    await expect(twelve).toContainText('55,521');
-    await expect(twelve).toContainText('Shortfall');
-  });
 });
 
-test.describe('cross-screen consistency', () => {
-  test('a scenario gets the same verdict on the dashboard and the report', async ({ page }) => {
-    // Regression: 9 months read "OK" on the dashboard and "Tight" on the report.
-    const verdicts = async (path: string) => {
-      await page.goto(url(path));
-      const out: Record<string, string> = {};
-      for (const months of [3, 6, 9, 12]) {
-        // Scope to the inner scenario cards: a bare `.card` filter also matches
-        // the outer "Scenarios" card, which contains all four badges at once.
-        const card = page.locator('.g4 > .card').filter({ hasText: `After ${months} months` }).first();
-        const badge = card.locator('.status');
-        out[`${months}`] = ((await badge.textContent()) ?? '').replace(/\s+/g, ' ').trim();
-      }
-      return out;
-    };
-
-    const dashboard = await verdicts('/');
-    const report = await verdicts('/report/');
-    expect(report).toEqual(dashboard);
-  });
-});
+/*
+ * 'cross-screen consistency' lived here: it pinned that a scenario got the
+ * same verdict on the dashboard and the report, guarding a regression where
+ * 9 months read "OK" on one and "Tight" on the other. The dashboard is
+ * retired (HAD-124) and scenarios render on /report alone, so the
+ * disagreement it guarded has no second screen to happen on. The verdict
+ * logic itself is pinned by scenarioTone's unit tests.
+ */
 
 test.describe('deterministic explanation', () => {
   test('itemises the settlement without a negative zero', async ({ page }) => {
@@ -198,6 +177,15 @@ test.describe('deterministic explanation', () => {
     const text = (await page.locator('body').textContent()) ?? '';
     expect(text).not.toContain('-0.00');
     expect(text).not.toContain('−0.00');
+  });
+
+  test('scenario cards end in a shortfall at 12 months', async ({ page }) => {
+    // Scenarios stayed on the report when the dashboard retired (HAD-124) —
+    // they are working, not headline, and this is the screen that shows work.
+    await page.goto(url('/report/'));
+    const twelve = page.locator('.g4 > .card').filter({ hasText: 'After 12 months' }).first();
+    await expect(twelve).toContainText('55,521');
+    await expect(twelve).toContainText('Shortfall');
   });
 
   test('states both legal deadlines with countdowns', async ({ page }) => {
@@ -484,7 +472,7 @@ test.describe('typographic hierarchy (HAD-65)', () => {
     );
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     await page.evaluate(() => document.fonts.ready);
   });
 
@@ -566,7 +554,7 @@ test.describe('typographic hierarchy (HAD-65)', () => {
       if (r.resourceType() === 'font') origins.push(new URL(r.url()).origin);
     });
 
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     await page.evaluate(() => document.fonts.ready);
 
     const own = new URL(page.url()).origin;
@@ -871,7 +859,7 @@ test.describe('profile — bank accounts', () => {
   });
 });
 
-test.describe('dashboard — actual spending trend', () => {
+test.describe('money — actual spending trend (moved, HAD-124)', () => {
   test('US-12 — the trend chart states its own figures, not just draws them', async ({ page }) => {
     /*
      * HAD-49 sat In Review for two reasons. One was that ingestion did not
@@ -886,7 +874,7 @@ test.describe('dashboard — actual spending trend', () => {
      * figures and the actual months, which is what a reader gets — and what a
      * screen reader user gets instead of the line.
      */
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
 
     const chart = page.getByRole('img', { name: /Actual monthly spending/ });
     await expect(chart).toBeVisible();
@@ -1252,9 +1240,9 @@ test.describe('payment calendar', () => {
   });
 });
 
-test.describe('dashboard insights', () => {
+test.describe('money — insights (moved, HAD-124)', () => {
   test('US-13 — insights are present and agree with the figures they cite', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const insights = page.locator('ul.insights li');
     await expect(insights.first()).toBeVisible();
     const count = await insights.count();
@@ -1728,7 +1716,7 @@ test.describe('the first visit (HAD-122)', () => {
    */
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('a stranger landing on the dashboard is taken to the doorway', async ({ page }) => {
+  test("a stranger landing on '/' is taken to the doorway", async ({ page }) => {
     await page.goto(url('/'));
     // The problem Phase 2 was opened on: the first screen must not be
     // somebody else's finances and ten navigation items.
@@ -1742,10 +1730,12 @@ test.describe('the first visit (HAD-122)', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.locator('h1')).toHaveText('Six things, then your figure');
 
-    // The reference dashboard is reachable again — honestly labelled, and by
-    // choice rather than by default.
+    // '/' is a door, not a screen (HAD-124): with the doorway answered it
+    // opens the Answer section, and the reference figures are browsable
+    // through the four sections rather than on a dashboard of their own.
     await page.goto(url('/'));
-    await expect(page.locator('h1')).toHaveText('Home');
+    await expect(page.locator('h1')).toHaveText('Your entitlement');
+    await expect(page).toHaveURL(/\/entitlement\/?$/);
   });
 });
 

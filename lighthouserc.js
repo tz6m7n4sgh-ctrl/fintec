@@ -51,7 +51,10 @@ module.exports = {
       startServerCommand: 'npm run start -- --port 3210',
       startServerReadyPattern: 'Ready',
       startServerReadyTimeout: 60000,
-      url: [`${ORIGIN}${BASE_PATH}/`, `${ORIGIN}${BASE_PATH}/report/`],
+      // '/' is a redirect since HAD-124 (to the doorway for a stranger, which
+      // is what Lighthouse's cookie-less Chrome would be). NFR-9 is about the
+      // screen with the figures, so that screen is audited by its own URL.
+      url: [`${ORIGIN}${BASE_PATH}/entitlement/`, `${ORIGIN}${BASE_PATH}/report/`],
       numberOfRuns: 3,
       settings: {
         chromeFlags: '--no-sandbox --headless=new',
