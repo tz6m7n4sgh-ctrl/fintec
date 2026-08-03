@@ -151,11 +151,19 @@ the number rather than beneath the fold, which is what §7 of the discovery reco
 
 ## 7. What is still missing
 
-Tracked as **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)**.
+Tracked under **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)**, one sub-issue each, all labelled `Figma`.
 
-- **Money / Documents / You.** They exist only as descriptions on the navigation card.
-- **Gratuity cap applied.** `capApplied` (24 months' basic) is a real engine state with no visual.
-- **Dark mode.** One mode in the collection; every surface is light.
+| | Missing | Why it matters |
+|---|---|---|
+| [HAD-100](https://linear.app/haddad/issue/HAD-100/figma-draw-the-money-section) | **Money** | Absorbs Budget, Calendar, Schedule and Loans — four of today's ten screens with nothing said about how they coexist. Blocked in part on C-5 (`atRisk`), which is still undecided |
+| [HAD-101](https://linear.app/haddad/issue/HAD-101/figma-draw-the-documents-section) | **Documents** | Upload → parse → review as one flow, plus the parse failure and the PDF refusal, which is a designed state rather than an error toast |
+| [HAD-102](https://linear.app/haddad/issue/HAD-102/figma-draw-the-you-section) | **You** | Needs an *unavailable* state for passkeys and reminders — C-1 and C-2 are built and switched off, and a control that silently fails is how they get rebuilt |
+| [HAD-103](https://linear.app/haddad/issue/HAD-103/figma-draw-the-gratuity-cap-applied-state) | **Cap applied** | The one case where the working and the headline openly disagree; the arithmetic has to explain the reduction |
+| [HAD-104](https://linear.app/haddad/issue/HAD-104/figma-add-a-dark-mode-to-the-fintec-tokens-collection) | **Dark mode** | One mode, all light. Colour tokens are bound, so this is choosing values, not rewiring |
+| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | **Unbound spacing** | `space/*` and `radius/*` are defined and unused; an implementer cannot tell `space/lg` from twenty |
+
+Money, Documents and You are the three sections of workstream C that have no screens. Everything
+else on the list is a state or a token, not a screen.
 
 ## 8. Sequencing note
 
