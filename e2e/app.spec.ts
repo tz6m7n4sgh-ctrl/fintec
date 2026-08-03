@@ -26,6 +26,10 @@ const url = (path: string) => `${BASE_PATH}${path}`;
 const ROUTES = [
   { path: '/', name: 'Home' },
   { path: '/entitlement/', name: 'Your entitlement' },
+  { path: '/answer/', name: 'Answer' },
+  { path: '/money/', name: 'Money' },
+  { path: '/documents/', name: 'Documents' },
+  { path: '/you/', name: 'You' },
   { path: '/calendar/', name: 'Payment calendar' },
   { path: '/schedule/', name: 'Schedule' },
   { path: '/budget/', name: 'Budget' },
@@ -1711,27 +1715,29 @@ test.describe('accessibility', () => {
 });
 
 test.describe('navigation', () => {
-  test('desktop sidebar navigates between screens', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', 'sidebar is hidden on mobile');
+  test('desktop top bar navigates between sections', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'top bar is hidden on mobile');
     await page.goto(url('/'));
-    await page.locator('.nav a', { hasText: 'Calendar' }).click();
-    await expect(page.locator('h1')).toHaveText('Payment calendar');
-    await page.locator('.nav a', { hasText: 'Explain' }).click();
-    await expect(page.locator('h1')).toHaveText('Explain your numbers');
+    // The old per-screen items are gone, so this walks the four sections.
+    await page.locator('.nav a', { hasText: 'Money' }).click();
+    await expect(page.locator('h1')).toHaveText('Money');
+    await page.locator('.nav a', { hasText: 'Documents' }).click();
+    await expect(page.locator('h1')).toHaveText('Documents');
   });
 
-  test('mobile shows bottom tabs instead of the sidebar', async ({ page }, testInfo) => {
+  test('mobile shows four bottom tabs instead of the top bar', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'bottom tabs are desktop-hidden');
     await page.goto(url('/'));
     await expect(page.locator('.bottom-tabs')).toBeVisible();
-    await expect(page.locator('.side')).toBeHidden();
-    await page.locator('.bottom-tabs a', { hasText: 'Calendar' }).click();
-    await expect(page.locator('h1')).toHaveText('Payment calendar');
+    await expect(page.locator('.top-bar')).toBeHidden();
+    await expect(page.locator('.bottom-tabs a')).toHaveCount(4);
+    await page.locator('.bottom-tabs a', { hasText: 'You' }).click();
+    await expect(page.locator('h1')).toHaveText('You');
   });
 
   test('the current screen is marked for assistive technology', async ({ page }) => {
     await page.goto(url('/budget/'));
-    await expect(page.locator('[aria-current="page"]').first()).toContainText('Budget');
+    await expect(page.locator('[aria-current="page"]').first()).toContainText('Money');
   });
 });
 
