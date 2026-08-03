@@ -205,7 +205,21 @@ test.describe('deterministic explanation', () => {
   test('expands every settlement line into its arithmetic without an export', async ({ page }) => {
     await page.goto(url('/report/'));
     await expect(page.locator('.working')).toHaveCount(11);
-    await expect(page.getByText(/174\.96 days × 500\.00 = AED 87,479 accrued/)).toBeVisible();
+
+    /*
+     * The gratuity line shows its arithmetic and concludes with the figure that
+     * arithmetic produces.
+     *
+     * Asserted as two substrings rather than one exact sentence. The original
+     * regex matched `AED 87,479 accrued` while the page renders
+     * `AED 87,479.47 accrued`, so it never passed — and even corrected, a whole
+     * formatted sentence couples this test to `moneyPrecise`, the spacing and
+     * the copy, none of which is what it is here to prove.
+     */
+    const gratuityWorking = page.locator('.working').first();
+    await expect(gratuityWorking).toContainText('174.96 days');
+    await expect(gratuityWorking).toContainText('87,479.47');
+
     await expect(page.getByRole('button', { name: /export to pdf/i })).toHaveCount(0);
   });
 });
