@@ -3,6 +3,8 @@ import localFont from 'next/font/local';
 
 import { BottomTabs, Sidebar } from '@/components/Shell';
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
+import { IdleLock } from '@/components/IdleLock';
+import { getUser } from '@/lib/supabase/server';
 import { LegalFooter } from '@/components/ui';
 import './globals.css';
 
@@ -78,7 +80,17 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  /*
+   * The idle lock is mounted only for a real session (US-41). Signed out, every
+   * screen is the §11 reference dataset — there is nothing to lock, and a
+   * countdown over sample figures would be theatre.
+   *
+   * `getUser()` is React-cached per request, so this shares the call the pages
+   * already make rather than adding a round trip to every render.
+   */
+  const user = await getUser();
+
   return (
     <html lang="en-AE" className={interVariable.variable}>
       <body>
@@ -89,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LegalFooter />
         <BottomTabs />
         <ServiceWorkerRegistration />
+        {user ? <IdleLock /> : null}
       </body>
     </html>
   );

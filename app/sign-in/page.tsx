@@ -21,16 +21,34 @@ export const metadata = { title: 'Sign in — Readiness' };
  * left behind by a failed magic-link click, which needed `useSearchParams` and
  * therefore a boundary. Errors now come back from the server action itself.
  */
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ idle?: string }>;
+}) {
   // Already signed in: nothing to do here.
   const user = await getUser();
   if (user) redirect('/settings');
 
   const configured = isSupabaseConfigured();
+  // Set by `signOutIdle` (US-41). Without it the session appears to have
+  // vanished for no reason, which reads as a bug rather than as the feature
+  // the user was told about.
+  const endedByIdle = (await searchParams).idle === '1';
 
   return (
     <>
       <PageHead title="Sign in" sub="Email and password" />
+
+      {endedByIdle ? (
+        <Card title="Your session ended after 15 minutes idle">
+          <p role="status" style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4, marginBottom: 0 }}>
+            This device was left alone, so the session was closed rather than left open on a
+            screen of your salary and bank figures. <b>Your other devices are still signed in</b> —
+            walking away from one says nothing about the rest. Sign in again below.
+          </p>
+        </Card>
+      ) : null}
 
       <Card title="Sign in to see your own figures">
         <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>

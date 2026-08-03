@@ -44,6 +44,19 @@ export default async function SettingsPage() {
                 rather than only clearing this browser&rsquo;s cookie.
               </span>
             </div>
+            {/*
+              Documented where the other session control lives, because the two
+              differ in exactly the way that matters: the button above is
+              deliberately global, the idle timer deliberately is not.
+            */}
+            <div className="legend">
+              <span className="key">
+                <b>This device signs itself out after 15 minutes idle</b> (US-41), with a warning a
+                minute before. It ends the session rather than drawing a lock screen — an overlay
+                over figures already on the page is removable from devtools, and the cookie behind
+                it would still work. Only this device: your others are unaffected.
+              </span>
+            </div>
           </>
         ) : (
           <>
