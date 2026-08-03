@@ -2,9 +2,14 @@
  * UAE termination calculation engine.
  *
  * Implements §5 of the build spec under Federal Decree-Law 33/2021 and the
- * ILOE scheme, as verified July 2026. Every function here is PURE: same inputs,
- * same outputs, no clock, no I/O. The only time-dependent values (countdowns)
- * live in the date helpers and take an injectable `now`.
+ * ILOE scheme. Every function here is PURE: same inputs, same outputs, no
+ * clock, no I/O. The only time-dependent values (countdowns) live in the date
+ * helpers and take an injectable `now`.
+ *
+ * This header used to end "as verified July 2026". It was not verified in July
+ * 2026 or since — see `citations.ts`, where every rule's provenance is recorded
+ * as null on purpose. Provenance belongs in that file, per rule, where the UI
+ * can render it; a comment claiming currency is one nobody can check.
  *
  * The constants are gathered in ONE place on purpose — when UAE rules change
  * (risk R-1/RB-7), this block is the whole edit.
@@ -32,7 +37,7 @@ import type {
   ServicePeriod,
 } from './types';
 
-// --- Legal constants — current as of July 2026 -----------------------------
+// --- Legal constants — provenance in citations.ts, all of it null ----------
 export const RULES = {
   /** Days used to convert a monthly salary to a daily rate. */
   DAYS_PER_MONTH: 30,
