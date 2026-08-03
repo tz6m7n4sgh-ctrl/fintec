@@ -5,10 +5,13 @@ import { formatDate, formatMonthShort } from '@/lib/engine/dates';
 import { RULES, chequesInWindow, monthlyDebtService } from '@/lib/engine/uae';
 import { getReadModel } from '@/lib/data/store';
 import { aed, money, months, percent } from '@/lib/format/money';
+import { Onboarding } from '@/app/onboarding/Onboarding';
 
 export default async function DashboardPage() {
   const m = await getReadModel();
   const { readiness: r, projection, actuals } = m;
+
+  if (m.isSeedData) return <Onboarding />;
 
   // Insights are derived, never hardcoded — they must stay true if inputs change.
   const fixed =
