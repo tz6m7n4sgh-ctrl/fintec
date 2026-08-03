@@ -822,6 +822,35 @@ test.describe('profile — bank accounts', () => {
   });
 });
 
+test.describe('dashboard — actual spending trend', () => {
+  test('US-12 — the trend chart states its own figures, not just draws them', async ({ page }) => {
+    /*
+     * HAD-49 sat In Review for two reasons. One was that ingestion did not
+     * exist; that closed with #45/#46. The other was this: nothing asserted the
+     * rendered chart, so a chart that silently stopped plotting — or plotted
+     * the wrong series — would have failed no test.
+     *
+     * The assertion is on the accessible name rather than on the path geometry.
+     * The `points` attribute is a screen-space projection, so asserting it
+     * would encode the viewBox and break on any layout change while telling
+     * nobody anything about the money. The aria-label carries the actual
+     * figures and the actual months, which is what a reader gets — and what a
+     * screen reader user gets instead of the line.
+     */
+    await page.goto(url('/'));
+
+    const chart = page.getByRole('img', { name: /Actual monthly spending/ });
+    await expect(chart).toBeVisible();
+
+    // Endpoints named with a currency figure and a month, per NFR-4's
+    // "no legend for one series; endpoints labelled".
+    await expect(chart).toHaveAccessibleName(
+      // Two-digit year: `formatMonthShort` emits "Apr 26", not "Apr 2026".
+      /Actual monthly spending from AED [\d,]+ in \w{3} \d{2} to AED [\d,]+ in \w{3} \d{2}\./,
+    );
+  });
+});
+
 test.describe('budget — categorisation rules', () => {
   const rulesCard = (page: import('@playwright/test').Page) =>
     page.locator('section.card').filter({
