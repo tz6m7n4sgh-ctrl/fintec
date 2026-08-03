@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ActualSpendChart, BudgetBars, ProjectionChart } from '@/components/charts';
+import { UnverifiedBasis } from '@/components/Basis';
 import { Card, Money, PageHead, RunwayStatusBadge, ScenarioBadge, StatTile } from '@/components/ui';
 import { formatDate, formatMonthShort } from '@/lib/engine/dates';
 import { RULES, chequesInWindow, monthlyDebtService } from '@/lib/engine/uae';
@@ -25,7 +26,7 @@ export default async function DashboardPage() {
   const cheques6mCount = chequesInWindow(
     m.payments,
     m.profile.expectedLastDay,
-    RULES.CHEQUE_WINDOW_6M,
+    RULES.CHEQUE_WINDOW_6M.value,
   ).length;
 
   const lumpMonths = projection.points.filter((p) => p.lumpSum > 0);
@@ -46,6 +47,8 @@ export default async function DashboardPage() {
         title="Home"
         sub={`If your job ends ${formatDate(m.profile.expectedLastDay)}`}
       />
+
+      <UnverifiedBasis />
 
       {m.isSeedData && (
         <div

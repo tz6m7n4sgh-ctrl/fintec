@@ -119,12 +119,23 @@ export function AedTotal({ value }: { value: number }) {
   return <span className="tnum">{aed(value)}</span>;
 }
 
+/**
+ * The claim this used to make was "UAE rules current as of July 2026".
+ *
+ * Nobody checked them in July 2026 or since. Phase 2 decision OD-1 recorded
+ * that there is no access to the current legal text and no contact who can
+ * confirm it, and `lib/engine/citations.ts` now says so per rule: every entry
+ * is null. A footer asserting currency the citation model reports as absent is
+ * the same failure this project is organised against, in the place a reader is
+ * most likely to trust it.
+ */
 export function LegalFooter() {
   return (
     <footer className="legal">
-      General information, not legal or financial advice. UAE rules current as of July 2026 —
-      verify with MOHRE (<a href="tel:600590000">600 590 000</a>) or a licensed advisor.
-      Free-zone contracts may differ.
+      General information, not legal or financial advice. The rules behind these figures have not
+      been checked against the current legal text — verify with MOHRE (
+      <a href="tel:600590000">600 590 000</a>) or a licensed advisor. Free-zone contracts may
+      differ.
     </footer>
   );
 }

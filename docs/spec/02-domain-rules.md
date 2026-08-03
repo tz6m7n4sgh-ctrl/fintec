@@ -4,9 +4,11 @@ The UAE calculation rules, as implemented in `lib/engine/uae.ts`.
 
 > **Read this warning before relying on any figure here.**
 >
-> These constants were recorded as *"current as of July 2026"* under Federal Decree-Law 33/2021 and the ILOE scheme. **They carry no citation to a specific article, and no verification date that anything checks.** This document describes what the engine computes; it is not a statement of law.
+> These constants were recorded as *"current as of July 2026"* under Federal Decree-Law 33/2021 and the ILOE scheme. **Nobody checked them in July 2026 or since.** This document describes what the engine computes; it is not a statement of law.
 >
-> Phase 2's workstream A exists to fix exactly this — source each rule from the current legal text, store it with the provision it comes from and the date it was verified, and surface that date in the app. Until then, the app presents figures as its own calculation, not as legal entitlement.
+> Phase 2's workstream A now records that per rule. `lib/engine/citations.ts` carries a provision and a verification date for every constant in `RULES`, **every one of them null**, and `citations.test.ts` fails the build on a constant with no entry or a half-citation — a provision with no date, which looks sourced and is the most dangerous state of the three. The app renders the emptiness rather than hiding it, and the "current as of July 2026" claim has been removed from the engine header and the legal footer, because it was a claim nobody could check.
+>
+> What remains for A is the part that needs a lawyer: populating it. Until then the app presents figures as its own calculation, not as legal entitlement.
 >
 > **Do not generate legal citations from memory when reimplementing this.** A wrong article number quoted in an HR meeting destroys the user's credibility at the moment they most need it.
 

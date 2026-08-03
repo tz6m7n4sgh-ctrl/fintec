@@ -35,6 +35,9 @@ const ROUTES = [
   '/settings/',
   '/sign-in/',
   '/sign-up/',
+  // The first run (B1). It is the first screen a stranger ever sees, so it is
+  // the last one that should go unaudited.
+  '/start/',
 ] as const;
 
 const THEMES = [
@@ -74,5 +77,34 @@ test.describe('axe accessibility audit', () => {
         expect(summarise(violations), `axe violations on ${path} (${theme.name})`).toEqual([]);
       });
     }
+  }
+});
+
+/**
+ * The six fields, which the loop above cannot reach.
+ *
+ * `/start/figures/` redirects to the doorway question when no doorway has been
+ * chosen — deep-linking past it would mean guessing an answer on the user's
+ * behalf. So the cookie has to be set before the page exists to audit, and
+ * adding it to ROUTES would silently audit the doorway twice instead.
+ */
+test.describe('axe accessibility audit — the six fields', () => {
+  for (const theme of THEMES) {
+    test(`/start/figures/ — no WCAG A/AA violations in ${theme.name} mode`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      await context.addCookies([{ name: 'fintec-doorway', value: 'coming', url: baseURL! }]);
+      await page.emulateMedia({ colorScheme: theme.scheme });
+      await page.goto(url('/start/figures/'));
+
+      const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+
+      expect(
+        summarise(violations),
+        `axe violations on /start/figures/ (${theme.name})`,
+      ).toEqual([]);
+    });
   }
 });
