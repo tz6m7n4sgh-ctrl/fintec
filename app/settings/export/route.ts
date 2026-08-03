@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { ERASABLE_TABLES } from '@/lib/settings/erase';
+import { BACKUP_TABLES } from '@/lib/settings/erase';
 import { BACKUP_VERSION, sortRows, stableStringify } from '@/lib/settings/backup';
 
 /**
@@ -42,7 +42,7 @@ export async function GET() {
 
   const tables: Record<string, Array<Record<string, unknown>>> = {};
 
-  for (const table of ERASABLE_TABLES) {
+  for (const table of BACKUP_TABLES) {
     /*
      * `select('*')`, not a column list.
      *

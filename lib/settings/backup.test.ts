@@ -8,7 +8,7 @@ import {
   stableStringify,
   type Backup,
 } from './backup';
-import { ERASABLE_TABLES } from './erase';
+import { BACKUP_TABLES, ERASABLE_TABLES } from './erase';
 
 /**
  * US-45. The acceptance criterion doing the work here is the third one —
@@ -40,17 +40,28 @@ describe('IMPORT_ORDER', () => {
      * foreign key has something to point at. Two hand-maintained lists would be
      * two places to forget a table.
      */
-    expect(IMPORT_ORDER).toEqual([...ERASABLE_TABLES].reverse());
+    expect(IMPORT_ORDER).toEqual([...BACKUP_TABLES].reverse());
   });
 
   it('writes profiles first', () => {
     expect(IMPORT_ORDER[0]).toBe('profiles');
   });
 
-  it('covers every erasable table', () => {
-    // A table that can be erased and not restored is a backup that quietly
+  it('covers every table a backup carries', () => {
+    // A table that can be exported and not restored is a backup that quietly
     // loses it.
-    expect([...IMPORT_ORDER].sort()).toEqual([...ERASABLE_TABLES].sort());
+    expect([...IMPORT_ORDER].sort()).toEqual([...BACKUP_TABLES].sort());
+  });
+
+  it('restores nothing that erase would leave behind', () => {
+    /*
+     * The other direction, and the one that matters now the two lists differ.
+     * Every table an import writes must be one erase clears — otherwise a
+     * restore could put back a row that "erase everything" has no way to
+     * remove, and the user would have no route to a clean account at all.
+     */
+    const erasable = new Set<string>(ERASABLE_TABLES);
+    for (const table of IMPORT_ORDER) expect(erasable.has(table)).toBe(true);
   });
 });
 

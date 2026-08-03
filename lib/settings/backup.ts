@@ -1,4 +1,4 @@
-import { ERASABLE_TABLES, type ErasableTable } from './erase';
+import { BACKUP_TABLES, type ErasableTable } from './erase';
 
 /**
  * JSON export and import (US-45 / FR-I3 / BR-9 / NFR-8).
@@ -16,7 +16,7 @@ import { ERASABLE_TABLES, type ErasableTable } from './erase';
 export const BACKUP_VERSION = 1;
 
 /** Tables in the order an import must write them: parents before children. */
-export const IMPORT_ORDER = [...ERASABLE_TABLES].reverse() as ErasableTable[];
+export const IMPORT_ORDER = [...BACKUP_TABLES].reverse() as ErasableTable[];
 
 /**
  * Ceiling on an uploaded backup.
@@ -112,7 +112,7 @@ export function parseBackup(text: string): ParseResult {
   }
 
   const tables = obj.tables as Record<string, unknown>;
-  const known = new Set<string>(ERASABLE_TABLES);
+  const known = new Set<string>(BACKUP_TABLES);
 
   for (const [name, rows] of Object.entries(tables)) {
     /*

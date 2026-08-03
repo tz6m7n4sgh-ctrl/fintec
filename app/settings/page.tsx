@@ -4,6 +4,7 @@ import { ChangePassword } from './ChangePassword';
 import { EraseData } from './EraseData';
 import { ImportBackup } from './ImportBackup';
 import { NotificationPrefsEditor } from './NotificationPrefs';
+import { Passkeys } from './Passkeys';
 import { PushToggle } from './PushToggle';
 import { isPushConfigured } from '@/lib/settings/push';
 import { RemindersPreview } from './RemindersPreview';
@@ -164,10 +165,15 @@ export default async function SettingsPage() {
         </p>
         <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           That is the trade for a flow that never depends on a mailbox, an SMTP provider or a
-          redirect allow-list. You can change your password here, but a <b>forgotten</b> one is a
-          different problem: recovering from it needs either a reset email or a second factor such
-          as a passkey, and neither exists yet. Until one does, a forgotten password can only be
-          cleared from the Supabase dashboard, under Authentication → Users.
+          redirect allow-list. You can change your password here, and a passkey now lets you{' '}
+          <b>sign in</b> without typing one.
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          A <b>forgotten</b> password is still a different problem, and worth being exact about: a
+          passkey gets you back into the app, but changing a password here requires typing the
+          current one, because a session alone must not be enough to lock the real owner out. So a
+          password you cannot remember still has to be cleared from the Supabase dashboard, under
+          Authentication → Users. The passkey means you are not locked out meanwhile.
         </p>
 
         {m.isSeedData ? (
@@ -180,11 +186,14 @@ export default async function SettingsPage() {
       </Card>
 
       <Card title="Passkeys — biometric sign-in" sub="Fingerprint or Face ID via WebAuthn">
-        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-          No passkeys registered yet. Email and password sign-in is live and always remains
-          available as a recovery path, so a passkey is never the only way in (R-4).
-        </p>
-        <button className="btn" disabled>Register this device</button>
+        {m.isSeedData ? (
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+            <b>Sign in to add a passkey.</b> A passkey is registered against an account, and there
+            is no account here to register one against.
+          </p>
+        ) : (
+          <Passkeys />
+        )}
       </Card>
 
       <Card
