@@ -279,6 +279,43 @@ test.describe('profile — income streams', () => {
   });
 });
 
+test.describe('idle auto-lock (US-41)', () => {
+  test('does not run over the reference dataset', async ({ page }) => {
+    /*
+     * Signed out, every screen is the §11 seed. There is nothing to lock, and a
+     * countdown over sample figures would be theatre — the same objection that
+     * kept a disabled "Delete all data" button off this app.
+     */
+    const problems = collectPageProblems(page);
+    await page.goto(url('/'));
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+
+    const timerRunning = await page.evaluate(
+      () => window.localStorage.getItem('fintec:last-activity') !== null,
+    );
+    expect(timerRunning, 'no idle timer should start without a session').toBe(false);
+    expect(problems).toEqual([]);
+  });
+
+  test('the sign-in screen explains a session that ended on idle', async ({ page }) => {
+    /*
+     * `signOutIdle` redirects with `?idle=1`. Without the explanation the
+     * session appears to have vanished for no reason, which reads as a bug
+     * rather than as the feature the user was told about — and the thing they
+     * most need to know is that their *other* devices are unaffected.
+     */
+    await page.goto(url('/sign-in/?idle=1'));
+    await expect(page.getByText('ended after 15 minutes idle')).toBeVisible();
+    await expect(page.getByText('other devices are still signed in')).toBeVisible();
+  });
+
+  test('the sign-in screen says nothing about idle when arriving normally', async ({ page }) => {
+    // A permanent notice would train people to ignore it.
+    await page.goto(url('/sign-in/'));
+    await expect(page.getByText('ended after 15 minutes idle')).toHaveCount(0);
+  });
+});
+
 test.describe('settings — which Supabase project (HAD-75)', () => {
   const backend = (page: Page) =>
     page.locator('section.card').filter({ has: page.locator('.card-title', { hasText: /^Backend$/ }) });

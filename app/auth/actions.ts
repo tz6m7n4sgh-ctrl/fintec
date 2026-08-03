@@ -166,8 +166,8 @@ export async function signUp(_prev: AuthResult, form: FormData): Promise<AuthRes
  * signed out while the cookie still works.
  *
  * `scope: 'global'` revokes every refresh token for the user, which is the
- * "sign out everywhere" half of US-41. The idle auto-lock half is separate and
- * still unbuilt.
+ * "sign out everywhere" half of US-41. `signOutIdle` below is the other half,
+ * and the difference in scope between them is the point.
  */
 export async function signOut() {
   const supabase = await createClient();
@@ -175,4 +175,27 @@ export async function signOut() {
 
   revalidatePath('/', 'layout');
   redirect('/');
+}
+
+/**
+ * Sign out because the session went idle (US-41 / HAD-7).
+ *
+ * `scope: 'local'`, and that is the whole reason this is a separate action.
+ * Walking away from a laptop says nothing about the phone in your pocket;
+ * reusing the global sign-out here would punish every other device for one
+ * screen being left unattended, and a security control that overreaches is one
+ * people switch off.
+ *
+ * It ends the session for real rather than drawing an overlay. By the time an
+ * overlay appears the figures are already in the DOM and the cookie is still
+ * valid, so it survives being deleted from devtools — see `lib/auth/idle.ts`.
+ */
+export async function signOutIdle() {
+  const supabase = await createClient();
+  if (supabase) await supabase.auth.signOut({ scope: 'local' });
+
+  revalidatePath('/', 'layout');
+  // `?idle=1` so the sign-in screen can say why, rather than looking like the
+  // session vanished for no reason.
+  redirect('/sign-in?idle=1');
 }
