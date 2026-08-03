@@ -215,17 +215,16 @@ landed: #55 recomputed gratuity in the browser without the eligibility threshold
 or the cap, and #56 was the citation model whose design had already shipped
 inside #52. What each contributed is credited on the closed PR.
 
-**C is half done.** The four sections exist; none of the ten they absorb is
-retired, so the app has more routes than before and the information architecture
-underneath is unchanged. HAD-124 is the other half, and until it lands
-"workstream C" should not be read as finished.
+**C is nearly done.** The shell landed in #53, the three sections became their
+screens in #60 (`eb25ea8`), and a first visit now goes to the doorway (#61).
+What remains is the retirement of the ten absorbed routes — HAD-124 — and until
+that lands "workstream C" should not be read as finished.
 
 ### Still open
 
 | | Workstream | Blocked by |
 |---|---|---|
 | [HAD-124](https://linear.app/haddad/issue/HAD-124/retire-the-ten-old-routes-as-the-four-sections-replace-them) | C · Retire the ten routes the four sections absorb | The sections carrying their content |
-| [HAD-122](https://linear.app/haddad/issue/HAD-122/intercept-the-seed-data-dashboard-not-just-add-start-beside-it) | Route a stranger to the first run | Nothing — it is small |
 | [HAD-118](https://linear.app/haddad/issue/HAD-118/d1-ai-wording-layer-over-the-deterministic-working) | D1 · AI wording layer | An API key |
 | [HAD-119](https://linear.app/haddad/issue/HAD-119/d2-ask-anything-grounded-in-the-users-own-figures) | D2 · Ask anything, grounded | An API key |
 | [HAD-120](https://linear.app/haddad/issue/HAD-120/d3-read-my-documents-needs-a-consent-design-first) | D3 · Read my documents | A consent design |

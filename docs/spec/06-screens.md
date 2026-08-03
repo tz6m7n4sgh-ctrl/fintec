@@ -6,9 +6,11 @@ Every route is server-rendered, reads the same `ReadModel`, and renders the §11
 >
 > Four sections now exist — **Answer**, **Money**, **Documents**, **You** — with a top bar on desktop and four tabs on mobile, each owning a set of routes so `/budget` lights up *Money*. Alongside them, `/start` and `/start/figures` are the first run, and `/entitlement` is the date-driven answer.
 >
-> **None of the ten screens below has been retired.** The four sections are hubs that link onward to them, so the app has *more* routes than it started with and the structure underneath is unchanged. OD-2 asks for new routes alongside the old **and** each old screen retired as it is replaced; only the first half has happened. Tracked as HAD-124.
+> **None of the ten screens below has been retired.** The four sections now carry their own content — Money leads with runway and marks its derived rows, Documents leads with the privacy claim and the PDF refusal, You renders the two switched-off features honestly — but the ten screens they absorb remain reachable and remain the places where things are edited. OD-2 asks for each old screen to be retired as it is replaced; the sections can now absorb them, and the retirement itself is tracked as HAD-124.
 >
-> So this document describes screens that are still reachable and still correct — but the ones a Phase 2 user is meant to meet are the four sections, the first run and the answer.
+> **A first visit to `/` goes to the doorway.** The discriminator is the doorway cookie: a stranger is redirected to `/start`, and answering the question once earns the browse — after which the reference dashboard renders as before, honestly labelled. The e2e suite browses as a returning visitor via a shared storage state, with the first-visit redirect specified by its own tests.
+>
+> So this document describes screens that are still reachable and still correct — but the ones a Phase 2 user meets are the doorway, the six fields, the answer and the four sections.
 
 ## Phase 2 routes
 
@@ -18,7 +20,7 @@ Every route is server-rendered, reads the same `ReadModel`, and renders the §11
 | `/start/figures/` | Six fields, then an answer. No invented defaults; a blank states what it costs | B1 |
 | `/entitlement/` | The figure as a function of a date, with comparison and the engine's zero states | B2 |
 | `/report/` | *Explain your numbers* — every line expands into its own arithmetic. No export | B3 |
-| `/answer/` `/money/` `/documents/` `/you/` | The four sections | C |
+| `/answer/` `/money/` `/documents/` `/you/` | The four sections. Money, Documents and You carry their frames' content: the runway hero and derived-row markers, the privacy claim and PDF refusal, the switched-off features saying so | C |
 
 The unverified-basis panel appears beside every figure on `/`, `/report/` and the first run, rendered from the rules themselves so it disappears on its own when one is sourced.
 
