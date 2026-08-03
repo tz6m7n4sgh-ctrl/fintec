@@ -6,9 +6,31 @@ import { formatDate, formatMonthShort } from '@/lib/engine/dates';
 import { RULES, chequesInWindow, monthlyDebtService } from '@/lib/engine/uae';
 import { getReadModel } from '@/lib/data/store';
 import { aed, money, months, percent } from '@/lib/format/money';
+import { DOORWAY_COOKIE, isDoorway } from '@/lib/onboarding/doorway';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export default async function DashboardPage() {
   const m = await getReadModel();
+
+  /*
+   * A first visit goes to the doorway, not to somebody else's finances.
+   *
+   * "The first screen is somebody else's finances and ten navigation items"
+   * is the problem Phase 2 was opened on, and until now the answer to it —
+   * /start — was complete, tested, and reachable only by typing the URL.
+   *
+   * The doorway cookie is the discriminator, not `isSeedData` alone, and the
+   * difference carries weight. `isSeedData` is true for every signed-out
+   * visit, so redirecting on it alone would delete the reference dashboard
+   * outright — for the e2e suite, which specifies it, and for anyone who
+   * chose the doorway and wants to see the worked example. Answering the
+   * doorway once is what earns the browse: after that, this screen says
+   * "Seed data" honestly and the first run is a tab away.
+   */
+  const jar = await cookies();
+  if (m.isSeedData && !isDoorway(jar.get(DOORWAY_COOKIE)?.value)) redirect('/start');
+
   const { readiness: r, projection, actuals } = m;
 
   // Insights are derived, never hardcoded — they must stay true if inputs change.
