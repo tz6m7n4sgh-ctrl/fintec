@@ -80,7 +80,7 @@ Grouped by the screens in §6. Each has a stable ID for traceability into Stage 
 - **FR-F3** Transactions ledger with filters (account, category, date range, direction) + search.
 
 ### FR-G Termination report (§6.7)
-- **FR-G1** One readable, **PDF-exportable** page: itemized settlement, ILOE estimate, deadlines with countdowns, runway, scenarios, cheque exposure, readiness score.
+- **FR-G1** One readable, **PDF-exportable** page: itemized settlement, ILOE estimate, deadlines with countdowns, runway, scenarios, cheque exposure, readiness score. Export uses the browser print dialog (including “Save as PDF”), keeps all data on-device, and must include the unverified-basis panel and legal footer.
 
 ### FR-H Readiness & action plan (§6.8)
 - **FR-H1** Auto-scored criteria (runway / ILOE / gratuity / debt-ratio) + manual toggles; total /18 → STRONG ≥14 · MODERATE 9–13 · AT RISK <9.
