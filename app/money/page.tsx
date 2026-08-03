@@ -1,10 +1,12 @@
 import Link from 'next/link';
 
-import { Card, Empty, Money, PageHead, RunwayStatusBadge } from '@/components/ui';
+import { UnverifiedBasis } from '@/components/Basis';
+import { ActualSpendChart, ProjectionChart } from '@/components/charts';
+import { Card, Empty, Money, PageHead, RunwayStatusBadge, StatTile } from '@/components/ui';
 import { getReadModel } from '@/lib/data/store';
 import { addDays, formatDate } from '@/lib/engine/dates';
-import { RULES } from '@/lib/engine/uae';
-import { aed, money, months } from '@/lib/format/money';
+import { RULES, chequesInWindow, monthlyDebtService } from '@/lib/engine/uae';
+import { aed, money, months, percent } from '@/lib/format/money';
 
 /**
  * Money (workstream C, frame 25:2).
@@ -34,6 +36,39 @@ export default async function MoneyPage() {
     .slice(0, 3);
 
   const debtOutstanding = m.debts.reduce((sum, d) => sum + d.outstandingBalance, 0);
+
+  const { projection, actuals } = m;
+
+  // Insights are derived, never hardcoded — they must stay true if inputs change.
+  const fixed =
+    monthlyDebtService(m.debts) +
+    (m.budget.find((c) => c.autoSource === 'schoolFees')?.survivalAmount ?? 0) +
+    (m.budget.find((c) => c.name === 'Rent / housing')?.survivalAmount ?? 0);
+  const fixedShare = m.survivalTotal === 0 ? 0 : fixed / m.survivalTotal;
+  const discretionary = m.survivalTotal - fixed;
+
+  // Must count the SAME cheques the 113,000 figure sums, or the tile's caption
+  // contradicts its own number. It used to say that and then rebuild the filter
+  // by hand, which held only while nobody changed one side — HAD-82 changed one
+  // side. Now both come from `chequesInWindow`, so they cannot part company.
+  const cheques6mCount = chequesInWindow(
+    m.payments,
+    m.profile.expectedLastDay,
+    RULES.CHEQUE_WINDOW_6M.value,
+  ).length;
+
+  const lumpMonths = projection.points.filter((p) => p.lumpSum > 0);
+  const latestActual = actuals[actuals.length - 1];
+  const actualGap = latestActual ? latestActual.spend - m.survivalTotal : 0;
+
+  const dining = m.budget.find((c) => c.name === 'Dining & entertainment');
+  const diningSaving = dining ? dining.currentAmount - dining.survivalAmount : 0;
+  const diningRunwayGain =
+    diningSaving > 0 && r.runway.netMonthlyBurn > 0
+      ? r.runway.totalResources / r.runway.netMonthlyBurn -
+        r.runway.totalResources / (r.runway.netMonthlyBurn + diningSaving)
+      : 0;
+
 
   return (
     <>
@@ -67,6 +102,49 @@ export default async function MoneyPage() {
           </p>
         </div>
       </Card>
+
+      {/* Stat tiles — each navigates to where its inputs live */}
+      <div className="grid g5" style={{ marginTop: 14 }}>
+        <StatTile label="Total resources" value={money(r.runway.totalResources)} foot="Profile & money" href="/profile" />
+        {/*
+          * Points at the date, not the explanation.
+          *
+          * The rule for a StatTile is that every AED figure navigates to where
+          * its *inputs* live (NFR-5 / BR-11), and the input to a settlement is
+          * the last day — change it and this figure moves. The line-by-line
+          * working is one click on from there.
+          */}
+        <StatTile label="Final settlement" value={money(r.settlement.finalSettlement)} foot="Change the last day" href="/entitlement" />
+        <StatTile
+          label="ILOE total"
+          value={money(r.iloe.iloeTotal)}
+          foot={r.iloe.eligible ? `3 × ${money(r.iloe.monthlyBenefit)} · Category ${r.iloe.category}` : 'Not eligible'}
+          href="/profile"
+        />
+        <StatTile label="Net monthly burn" value={money(r.runway.netMonthlyBurn)} foot="Survival budget" href="/budget" />
+        <StatTile
+          label="Cheques — next 6 months"
+          value={money(r.deadlines.cheques6m)}
+          foot={`${cheques6mCount} cheques · Calendar`}
+          href="/calendar"
+        />
+      </div>
+
+      {/*
+        * Inherited from the dashboard with the tiles (HAD-124): two of the
+        * figures above come out of the engine's rules, so the caveat about
+        * those rules travels with them. Self-removing once a rule is sourced.
+        */}
+      <UnverifiedBasis />
+
+      <Card
+        title="Projected cash balance"
+        sub="18 months from your last working day · lump-sum cheque hits shown on their actual month"
+      >
+        <ProjectionChart projection={projection} />
+      </Card>
+
+
 
       <Card title="What goes out each month" sub="The survival budget — what you could not pause">
         <div className="tbl-wrap" tabIndex={0}>
@@ -192,6 +270,57 @@ export default async function MoneyPage() {
           </table>
         </div>
       </Card>
+
+      <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', marginTop: 14, alignItems: 'start' }}>
+        <div>
+          <Card title="Actual spending trend" sub="From confirmed statement transactions">
+            <ActualSpendChart data={actuals} />
+          </Card>
+
+          <Card title="What this means">
+            <ul className="insights">
+              <li>
+                <span className="ic" style={{ color: 'var(--warning)' }} aria-hidden>▲</span>
+                <span>
+                  <b>Rent + debt + school = {percent(fixedShare)}</b> of the survival budget and
+                  are effectively fixed — cuts have to come from the remaining {aed(discretionary)}.
+                </span>
+              </li>
+              {lumpMonths.length > 0 && (
+                <li>
+                  <span className="ic" style={{ color: 'var(--critical-ink)' }} aria-hidden>▲</span>
+                  <span>
+                    <b>{aed(projection.totalLumpSums)}</b> of cheque lump sums fall due in{' '}
+                    {lumpMonths.map((p) => p.label).join(' and ')} —{' '}
+                    {(projection.totalLumpSums / (r.runway.netMonthlyBurn || 1)).toFixed(1)}× the
+                    monthly burn. This is what pulls the zero date forward.
+                  </span>
+                </li>
+              )}
+              {latestActual && actualGap > 0 && (
+                <li>
+                  <span className="ic" style={{ color: 'var(--s2)' }} aria-hidden>▲</span>
+                  <span>
+                    <b>Actual spend is running {aed(actualGap)}/mo above survival</b> (
+                    {money(latestActual.spend)} vs {money(m.survivalTotal)}) — the survival budget
+                    is a plan, not yet a behaviour.
+                  </span>
+                </li>
+              )}
+              {diningRunwayGain > 0.05 && (
+                <li>
+                  <span className="ic" style={{ color: 'var(--good-ink)' }} aria-hidden>▼</span>
+                  <span>
+                    Holding dining to the survival figure saves {aed(diningSaving)}/mo — about{' '}
+                    <b>+{diningRunwayGain.toFixed(1)} months</b> of runway.
+                  </span>
+                </li>
+              )}
+            </ul>
+          </Card>
+        </div>
+        <div>{/* The per-category bars live on /budget, where they are edited. */}</div>
+      </div>
     </>
   );
 }

@@ -209,26 +209,31 @@ Every workstream and every carried-over item has an issue, with dependencies rec
 | [HAD-116](https://linear.app/haddad/issue/HAD-116/b3-explain-this-number-deterministically) | B3 · Explain this number | `feba38a` (#58) |
 | [HAD-111](https://linear.app/haddad/issue/HAD-111/b2-the-date-driven-entitlement-answer) | B2 · Date-driven answer | `a0e99cd` (#57) |
 | [HAD-117](https://linear.app/haddad/issue/HAD-117/c-collapse-ten-sections-to-four-and-ask-for-the-rest-progressively) | C · Four sections | `0816062` (#53) — the shell only |
+| [HAD-126](https://linear.app/haddad/issue/HAD-126/c-money-documents-and-you-as-their-drawn-screens) | C · The sections as their drawn screens | `eb25ea8` (#60) |
+| [HAD-122](https://linear.app/haddad/issue/HAD-122/first-visit-goes-to-the-doorway) | C · First visit goes to the doorway | `21697ae` (#61) |
+| [HAD-109](https://linear.app/haddad/issue/HAD-109/c-7-stop-shipping-committed-supabase-defaults) | C-7 · Committed Supabase defaults removed | `5a20069` (#54) |
+| [HAD-124](https://linear.app/haddad/issue/HAD-124/retire-the-ten-old-routes-as-the-four-sections-replace-them) | C · Retire the absorbed routes — `/` and `/answer` become redirects, the dashboard's parts move to Money | the retirement PR (this change) |
 
 Two pull requests were closed rather than merged, both duplicates of work that
 landed: #55 recomputed gratuity in the browser without the eligibility threshold
 or the cap, and #56 was the citation model whose design had already shipped
 inside #52. What each contributed is credited on the closed PR.
 
-**C is nearly done.** The shell landed in #53, the three sections became their
-screens in #60 (`eb25ea8`), and a first visit now goes to the doorway (#61).
-What remains is the retirement of the ten absorbed routes — HAD-124 — and until
-that lands "workstream C" should not be read as finished.
+**C is done.** The shell landed in #53, the three sections became their screens
+in #60 (`eb25ea8`), a first visit goes to the doorway (#61), and HAD-124 retired
+what the sections replaced: `/` and `/answer` are redirects rather than screens,
+the dashboard's tiles, charts and insights live on `/money`, and the editing
+routes remain what the sections link to. Retirement here means redirect, not
+deletion — a bookmark from the old architecture still lands somewhere true.
 
 ### Still open
 
 | | Workstream | Blocked by |
 |---|---|---|
-| [HAD-124](https://linear.app/haddad/issue/HAD-124/retire-the-ten-old-routes-as-the-four-sections-replace-them) | C · Retire the ten routes the four sections absorb | The sections carrying their content |
 | [HAD-118](https://linear.app/haddad/issue/HAD-118/d1-ai-wording-layer-over-the-deterministic-working) | D1 · AI wording layer | An API key |
 | [HAD-119](https://linear.app/haddad/issue/HAD-119/d2-ask-anything-grounded-in-the-users-own-figures) | D2 · Ask anything, grounded | An API key |
 | [HAD-120](https://linear.app/haddad/issue/HAD-120/d3-read-my-documents-needs-a-consent-design-first) | D3 · Read my documents | A consent design |
-| [HAD-121](https://linear.app/haddad/issue/HAD-121/e-visual-design-pass-last-deliberately) | E · Visual design pass | C finishing, not starting |
+| [HAD-121](https://linear.app/haddad/issue/HAD-121/e-visual-design-pass-last-deliberately) | E · Visual design pass | Nothing since HAD-124 landed — it was waiting on C |
 | [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | Spacing tokens | A scale decision |
 | [HAD-125](https://linear.app/haddad/issue/HAD-125/figma-the-token-collection-has-no-interactive-accent) | Figma has no interactive accent | Adding it, following the code |
 
@@ -237,7 +242,7 @@ Carried over from Phase 1:
 | | Item | Needs | Delegated |
 |---|---|---|---|
 | [HAD-108](https://linear.app/haddad/issue/HAD-108/c-3-sec-1-gate-passes-by-skipping-set-supabase-db-url) | **C-3 · SEC-1 passes by skipping** | `SUPABASE_DB_URL` | — |
-| [HAD-109](https://linear.app/haddad/issue/HAD-109/c-7-stop-shipping-committed-supabase-defaults) | C-7 · Committed Supabase defaults | **Written (#54), held.** Merging it signs everyone out until the two Supabase variables are set in Vercel — set them first | Codex |
+| [HAD-109](https://linear.app/haddad/issue/HAD-109/c-7-stop-shipping-committed-supabase-defaults) | C-7 · Committed Supabase defaults | **Done.** Merged as `5a20069` (#54) once the two Supabase variables were set in Vercel; sign-in verified live afterwards | Codex |
 | [HAD-110](https://linear.app/haddad/issue/HAD-110/c-5-decide-the-atrisk-rule-which-currently-ships-an-inconsistency) | C-5 · The `atRisk` rule | A decision | — |
 | [HAD-112](https://linear.app/haddad/issue/HAD-112/c-1-passkey-sign-in-returns-503-set-two-edge-function-secrets) | C-1 · Passkeys return 503 | Two secrets | — |
 | [HAD-113](https://linear.app/haddad/issue/HAD-113/c-2-reminders-compute-nightly-and-send-nothing) | C-2 · Reminders send nothing | `RESEND_API_KEY` + Vault | — |
