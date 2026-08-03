@@ -55,7 +55,7 @@ Phase 1 does not do this — the last day is a profile field several clicks from
 ## What it deliberately does not do
 
 - **Investments, tax, or any jurisdiction other than UAE onshore.** Free-zone contracts are disclaimed explicitly.
-- **Legal advice.** It computes from stated rules and shows its working. Phase 2 adds citations; Phase 1 does not claim them.
+- **Legal advice.** It computes from stated rules and shows its working. The citation model exists and is deliberately empty — every rule records that nobody has sourced it, and the app renders that beside the figure rather than implying more.
 - **Automatic anything that moves a number.** Every machine-derived row waits for human confirmation (invariant I-4).
 - **PDF statement parsing.** Refused by name with an instruction to export CSV, because a PDF read as plain text produces a scatter of numbers that a lenient parser turns into convincing, wrong transactions.
 

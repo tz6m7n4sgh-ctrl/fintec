@@ -1,10 +1,32 @@
 # Screens
 
-Ten routes. Every one is server-rendered, reads the same `ReadModel`, and renders the §11 reference dataset when signed out.
+Every route is server-rendered, reads the same `ReadModel`, and renders the §11 reference dataset when signed out.
 
-> **Phase 2 replaces this information architecture.** Ten sections are engine-shaped, not user-shaped — they mirror how the calculation is organised rather than what a person came to find out. The plan collapses them to roughly four, around a single date-driven answer. This documents what exists today; [`../phase-2-discovery.md`](../phase-2-discovery.md) documents what replaces it.
+> **Phase 2 is part-way through replacing this information architecture, and the app currently holds both.**
+>
+> Four sections now exist — **Answer**, **Money**, **Documents**, **You** — with a top bar on desktop and four tabs on mobile, each owning a set of routes so `/budget` lights up *Money*. Alongside them, `/start` and `/start/figures` are the first run, and `/entitlement` is the date-driven answer.
+>
+> **None of the ten screens below has been retired.** The four sections now carry their own content — Money leads with runway and marks its derived rows, Documents leads with the privacy claim and the PDF refusal, You renders the two switched-off features honestly — but the ten screens they absorb remain reachable and remain the places where things are edited. OD-2 asks for each old screen to be retired as it is replaced; the sections can now absorb them, and the retirement itself is tracked as HAD-124.
+>
+> **A first visit to `/` goes to the doorway.** The discriminator is the doorway cookie: a stranger is redirected to `/start`, and answering the question once earns the browse — after which the reference dashboard renders as before, honestly labelled. The e2e suite browses as a returning visitor via a shared storage state, with the first-visit redirect specified by its own tests.
+>
+> So this document describes screens that are still reachable and still correct — but the ones a Phase 2 user meets are the doorway, the six fields, the answer and the four sections.
 
-## The routes
+## Phase 2 routes
+
+| Route | Shows | Workstream |
+| --- | --- | --- |
+| `/start/` | The doorway question — *already happened* / *think it's coming* / *just working things out* | B1 |
+| `/start/figures/` | Six fields, then an answer. No invented defaults; a blank states what it costs | B1 |
+| `/entitlement/` | The figure as a function of a date, with comparison and the engine's zero states | B2 |
+| `/report/` | *Explain your numbers* — every line expands into its own arithmetic. No export | B3 |
+| `/answer/` `/money/` `/documents/` `/you/` | The four sections. Money, Documents and You carry their frames' content: the runway hero and derived-row markers, the privacy claim and PDF refusal, the switched-off features saying so | C |
+
+The unverified-basis panel appears beside every figure on `/`, `/report/` and the first run, rendered from the rules themselves so it disappears on its own when one is sourced.
+
+## The ten original routes
+
+Still reachable, still correct, and still what the four sections link to.
 
 | Route | Shows |
 | --- | --- |
