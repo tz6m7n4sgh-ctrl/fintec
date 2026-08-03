@@ -1447,6 +1447,15 @@ test.describe('sign-in and sign-up', () => {
     expect(body.toLowerCase()).toContain('no password reset');
   });
 
+  test('gives a forgotten-password user an appropriate next step', async ({ page }) => {
+    await page.goto(url('/sign-in/'));
+    const body = await page.locator('body').innerText();
+    if (!body.includes('Email address')) return;
+
+    expect(body).toContain('Contact the person who operates this app');
+    expect(body).not.toContain('Supabase dashboard');
+  });
+
   test('a mismatched confirmation is rejected and says why', async ({ page }) => {
     /*
      * A genuine round trip through the server action. It needs no account and no

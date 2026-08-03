@@ -172,8 +172,8 @@ export default async function SettingsPage() {
           A <b>forgotten</b> password is still a different problem, and worth being exact about: a
           passkey gets you back into the app, but changing a password here requires typing the
           current one, because a session alone must not be enough to lock the real owner out. So a
-          password you cannot remember still has to be cleared from the Supabase dashboard, under
-          Authentication → Users. The passkey means you are not locked out meanwhile.
+          password you cannot remember still requires help from the person who operates this app.
+          The passkey means you are not locked out meanwhile.
         </p>
 
         {m.isSeedData ? (

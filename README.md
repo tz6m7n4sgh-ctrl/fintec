@@ -26,7 +26,7 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 | Private statements bucket | **Done** — namespaced per user id |
 | Authentication (email + password) | **Done** — sign-up and sign-in run entirely in-app, no email sent |
 | Passkeys / biometric sign-in | **Not built** — needs a stable HTTPS origin (US-40) |
-| Password reset | **Not built, deliberately** — there is no email path; see below |
+| Password reset | **Operator-assisted by product decision** — there is no email path; see below |
 | Writing/reading live data | **Done** — a signed-in user with a saved profile sees their own figures |
 | Statement ingestion job | **Not built** — pipeline designed; OQ-1 decided (Claude Cowork parses every statement) |
 | Email / web-push reminders | **Not built** — schema and preferences table exist |
@@ -280,10 +280,11 @@ With it on, `signUp` mails a confirmation link and returns no session, which is 
 this removed. The app detects that state and names the setting on screen rather than appearing to do
 nothing.
 
-**There is no password reset, and that is the trade.** No email path in means no email path out. A
-forgotten password can only be cleared from the Supabase dashboard, under Authentication → Users.
-Both auth screens say so before a password is chosen, rather than leaving it to be discovered. A
-signed-in change-password control is the obvious next step and is not built yet.
+**There is no self-service password reset, and that is the product decision.** No email path in
+means no email path out. A user who has also lost access to their passkeys must contact the person
+who operates their deployment for help regaining access. Auth screens use that end-user instruction
+rather than exposing Supabase implementation details. Signed-in users can change their password in
+Settings.
 
 Two smaller rules the code enforces, both in `lib/auth/credentials.ts` and unit-tested:
 
@@ -552,9 +553,9 @@ ILOE deadline **30 Oct 2026**.
 
 ## Known gaps
 
-1. **No password reset and no passkeys.** Sign-in is email and password with nothing emailed, so a
-   forgotten password has to be cleared from the Supabase dashboard. Changing a password from inside
-   the app is unbuilt, as is biometric sign-in (US-40), which needs a stable HTTPS origin.
+1. **No self-service password reset.** Sign-in is email and password with nothing emailed. A user
+   who has lost both their password and passkeys must contact the operator. Recovery codes or an
+   email-reset service would be needed to remove that dependency.
 2. ~~OQ-1 unresolved~~ **Closed** — Claude Cowork parses every statement, with no deterministic
    no-LLM path. The 7 ingestion stories are unblocked but still unbuilt, and every uploaded
    statement is read by an LLM (disclosed in-app on the Statements screen).

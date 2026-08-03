@@ -105,10 +105,10 @@ export function CredentialsForm({ mode }: { mode: 'signin' | 'signup' }) {
             <>
               At least {PASSWORD_MIN_LENGTH} characters. <b>Choose one you can recover</b> — use a
               password manager if you have one. There is no reset email in this app, so a forgotten
-              password can only be cleared from the Supabase dashboard.
+              password requires help from the person who operates this app.
             </>
           ) : (
-            'Forgotten it? There is no reset email — it has to be cleared from the Supabase dashboard.'
+            'Forgotten it? There is no reset email. Contact the person who operates this app for help regaining access.'
           )}
         </div>
       </div>
