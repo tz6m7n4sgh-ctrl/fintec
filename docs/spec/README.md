@@ -73,4 +73,9 @@ Two things it describes are built but **switched off** pending configuration, an
 - **Passkey sign-in** — needs `PASSKEY_RP_ID` and `PASSKEY_ORIGINS`
 - **Cheque and school-fee reminders** — needs `RESEND_API_KEY` and two Vault secrets
 
-Phase 2 changes the information architecture substantially — see [`../phase-2-discovery.md`](../phase-2-discovery.md). Where that document and this one disagree about the *future*, that one wins. Where they disagree about what exists *today*, this one does.
+Phase 2 changes the information architecture substantially — see [`../phase-2-discovery.md`](../phase-2-discovery.md) for the plan and [`../phase-2-design.md`](../phase-2-design.md) for what is drawn and built. Where that document and this one disagree about the *future*, that one wins. Where they disagree about what exists *today*, this one does.
+
+**Part of it is now built**, and this specification has been updated to match: workstreams A, B1, B2 and B3 are merged, and C is half merged — the four sections exist while the ten they absorb are still there behind them. Two consequences worth carrying into any reimplementation:
+
+- **No rule in this engine has a sourced provision.** `lib/engine/citations.ts` records that per constant, all null, and the app says so beside every figure. Do not restore the *"current as of July 2026"* language that used to appear in the legal footer and the engine header — nobody checked, then or since.
+- **The report is not a document.** P2-6 cancelled the export; `/report` explains rather than prints.

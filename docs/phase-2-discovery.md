@@ -136,6 +136,23 @@ than claimed.
 | **D3** | Read-my-documents | D2, consent design |
 | **E** | Visual design | C |
 
+### Where the plan stands, 3 Aug
+
+| | Workstream | State |
+|---|---|---|
+| **A** | Citation model | **Merged.** Every constant in `RULES` carries a provision and a verified-on date, all null, enforced by `rule()` taking them as required arguments. The app renders the emptiness |
+| **B1** | Doorway + six fields | **Merged.** `/start` and `/start/figures` |
+| **B2** | Date-driven answer | **Merged.** `/entitlement`, delegating every amount to the engine |
+| **B3** | Explain this number | **Merged.** `/report` became the explanation; the PDF export is deleted, per P2-6 |
+| **C** | Ten sections to four | **Half merged.** The four sections exist; none of the ten is retired, so the app has more routes than before and the structure underneath is unchanged (HAD-124) |
+| **D1–D3** | The AI surfaces | Not started. D1 and D2 need an API key; D3 needs a consent design |
+| **E** | Visual design | Not started, and correctly so — it waits on C being finished rather than begun |
+
+Two claims this document made about the app are now false in a good way: the
+legal footer no longer asserts *"UAE rules current as of July 2026"*, and the
+engine header no longer says *"as verified July 2026"*. Nobody had verified
+either, which is what OD-1 recorded.
+
 **E is last, deliberately.** Restyling ten screens that will not survive workstream C is waste.
 This is the part that will feel wrong to defer and is the part most worth deferring.
 

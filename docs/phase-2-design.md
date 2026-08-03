@@ -1,6 +1,6 @@
 # Phase 2 — Design Record
 
-**Status:** Design file in progress · **Date:** 3 Aug 2026 · **Tracked as:** [HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)
+**Status:** Design complete for the screens workstream C keeps · Workstreams A, B1, B2, B3 merged · **Date:** 3 Aug 2026 · **Tracked as:** [HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)
 
 > `phase-2-discovery.md` decides *what* Phase 2 is. This records *what has been drawn*, what the
 > drawings commit to, and what is still missing — so implementation reads from a file rather than
@@ -198,31 +198,52 @@ neither should happen by inference.
 
 ## 8. The Phase 2 backlog
 
-Every workstream and every carried-over item now has an issue, with dependencies recorded.
+Every workstream and every carried-over item has an issue, with dependencies recorded.
 
-| | Workstream | Blocked by | Delegated |
-|---|---|---|---|
-| [HAD-106](https://linear.app/haddad/issue/HAD-106/a-citation-model-built-populated-with-nothing-and-visibly-empty) | A · Citation model, built empty | — | Codex |
-| [HAD-107](https://linear.app/haddad/issue/HAD-107/b1-doorway-question-and-six-field-onboarding) | B1 · Doorway + six fields | — | Codex |
-| [HAD-111](https://linear.app/haddad/issue/HAD-111/b2-the-date-driven-entitlement-answer) | B2 · The date-driven answer | A | Codex |
-| [HAD-116](https://linear.app/haddad/issue/HAD-116/b3-explain-this-number-deterministically) | B3 · Explain this number | B2 | Codex |
-| [HAD-117](https://linear.app/haddad/issue/HAD-117/c-collapse-ten-sections-to-four-and-ask-for-the-rest-progressively) | C · Ten sections to four | B1, B2 | Codex |
-| [HAD-118](https://linear.app/haddad/issue/HAD-118/d1-ai-wording-layer-over-the-deterministic-working) | D1 · AI wording layer | B3, API key | — |
-| [HAD-119](https://linear.app/haddad/issue/HAD-119/d2-ask-anything-grounded-in-the-users-own-figures) | D2 · Ask anything, grounded | C, API key | — |
-| [HAD-120](https://linear.app/haddad/issue/HAD-120/d3-read-my-documents-needs-a-consent-design-first) | D3 · Read my documents | D1, consent design | — |
-| [HAD-121](https://linear.app/haddad/issue/HAD-121/e-visual-design-pass-last-deliberately) | E · Visual design pass | C | — |
+### What is merged
+
+| | Workstream | Merged as |
+|---|---|---|
+| [HAD-106](https://linear.app/haddad/issue/HAD-106/a-citation-model-built-populated-with-nothing-and-visibly-empty) | A · Citation model | `55c477f` (#52) |
+| [HAD-107](https://linear.app/haddad/issue/HAD-107/b1-doorway-question-and-six-field-onboarding) | B1 · Doorway + six fields | `55c477f` (#52) |
+| [HAD-116](https://linear.app/haddad/issue/HAD-116/b3-explain-this-number-deterministically) | B3 · Explain this number | `feba38a` (#58) |
+| [HAD-111](https://linear.app/haddad/issue/HAD-111/b2-the-date-driven-entitlement-answer) | B2 · Date-driven answer | `a0e99cd` (#57) |
+| [HAD-117](https://linear.app/haddad/issue/HAD-117/c-collapse-ten-sections-to-four-and-ask-for-the-rest-progressively) | C · Four sections | `0816062` (#53) — the shell only |
+
+Two pull requests were closed rather than merged, both duplicates of work that
+landed: #55 recomputed gratuity in the browser without the eligibility threshold
+or the cap, and #56 was the citation model whose design had already shipped
+inside #52. What each contributed is credited on the closed PR.
+
+**C is half done.** The four sections exist; none of the ten they absorb is
+retired, so the app has more routes than before and the information architecture
+underneath is unchanged. HAD-124 is the other half, and until it lands
+"workstream C" should not be read as finished.
+
+### Still open
+
+| | Workstream | Blocked by |
+|---|---|---|
+| [HAD-124](https://linear.app/haddad/issue/HAD-124/retire-the-ten-old-routes-as-the-four-sections-replace-them) | C · Retire the ten routes the four sections absorb | The sections carrying their content |
+| [HAD-122](https://linear.app/haddad/issue/HAD-122/intercept-the-seed-data-dashboard-not-just-add-start-beside-it) | Route a stranger to the first run | Nothing — it is small |
+| [HAD-118](https://linear.app/haddad/issue/HAD-118/d1-ai-wording-layer-over-the-deterministic-working) | D1 · AI wording layer | An API key |
+| [HAD-119](https://linear.app/haddad/issue/HAD-119/d2-ask-anything-grounded-in-the-users-own-figures) | D2 · Ask anything, grounded | An API key |
+| [HAD-120](https://linear.app/haddad/issue/HAD-120/d3-read-my-documents-needs-a-consent-design-first) | D3 · Read my documents | A consent design |
+| [HAD-121](https://linear.app/haddad/issue/HAD-121/e-visual-design-pass-last-deliberately) | E · Visual design pass | C finishing, not starting |
+| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | Spacing tokens | A scale decision |
+| [HAD-125](https://linear.app/haddad/issue/HAD-125/figma-the-token-collection-has-no-interactive-accent) | Figma has no interactive accent | Adding it, following the code |
 
 Carried over from Phase 1:
 
 | | Item | Needs | Delegated |
 |---|---|---|---|
 | [HAD-108](https://linear.app/haddad/issue/HAD-108/c-3-sec-1-gate-passes-by-skipping-set-supabase-db-url) | **C-3 · SEC-1 passes by skipping** | `SUPABASE_DB_URL` | — |
-| [HAD-109](https://linear.app/haddad/issue/HAD-109/c-7-stop-shipping-committed-supabase-defaults) | C-7 · Committed Supabase defaults | Code change | Codex |
+| [HAD-109](https://linear.app/haddad/issue/HAD-109/c-7-stop-shipping-committed-supabase-defaults) | C-7 · Committed Supabase defaults | **Written (#54), held.** Merging it signs everyone out until the two Supabase variables are set in Vercel — set them first | Codex |
 | [HAD-110](https://linear.app/haddad/issue/HAD-110/c-5-decide-the-atrisk-rule-which-currently-ships-an-inconsistency) | C-5 · The `atRisk` rule | A decision | — |
 | [HAD-112](https://linear.app/haddad/issue/HAD-112/c-1-passkey-sign-in-returns-503-set-two-edge-function-secrets) | C-1 · Passkeys return 503 | Two secrets | — |
 | [HAD-113](https://linear.app/haddad/issue/HAD-113/c-2-reminders-compute-nightly-and-send-nothing) | C-2 · Reminders send nothing | `RESEND_API_KEY` + Vault | — |
-| [HAD-114](https://linear.app/haddad/issue/HAD-114/c-6-close-the-scheduled-parse-sweep) | C-6 · Scheduled parse sweep | Close it | Codex |
-| [HAD-115](https://linear.app/haddad/issue/HAD-115/c-4-manual-test-pass-supersede-rather-than-run) | C-4 · Manual test pass | Supersede it | — |
+| [HAD-114](https://linear.app/haddad/issue/HAD-114/c-6-close-the-scheduled-parse-sweep) | C-6 · Scheduled parse sweep | **Closed.** A retry button does its only remaining job without a scheduler credential | — |
+| [HAD-115](https://linear.app/haddad/issue/HAD-115/c-4-manual-test-pass-supersede-rather-than-run) | C-4 · Manual test pass | **Closed as superseded.** Rewrite it over the Phase 2 surface once C finishes | — |
 
 **C-3 is the one to act on first**, and it is not a feature. The gate that proves cross-tenant
 isolation completes in six to eight seconds because it cannot reach a database — observed again on
