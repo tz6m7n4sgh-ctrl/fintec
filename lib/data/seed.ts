@@ -56,6 +56,15 @@ export interface StatementUpload {
   status: 'uploaded' | 'queued' | 'processing' | 'parsed' | 'failed' | 'reviewed';
   errorMessage?: string;
   transactionCount?: number;
+  /**
+   * What the parser did, line by line (NFR-6).
+   *
+   * The interesting outcome of reading a statement is rarely "worked" or
+   * "failed" — it is "worked, and skipped four rows". A user told that 96 of
+   * 100 rows imported, with no way to learn which four or why, has a ledger
+   * they can neither trust nor check.
+   */
+  processingLog?: { level: 'info' | 'skipped' | 'error'; message: string; line?: number }[];
   createdAt: string;
 }
 
@@ -202,8 +211,8 @@ export const SEED_CATEGORY_RULES: CategoryRule[] = [
 
 export const SEED_UPLOADS: StatementUpload[] = [
   { id: 'up-1', bankAccountId: 'acc-enbd', fileName: 'ENBD-statement-Sep2026.pdf', storagePath: 'seed/ENBD-Sep2026.pdf', fileType: 'pdf', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 2, createdAt: '2026-09-30' },
-  { id: 'up-2', bankAccountId: 'acc-adcb', fileName: 'ADCB-Sep2026.csv', storagePath: 'seed/ADCB-Sep2026.csv', fileType: 'csv', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 1, createdAt: '2026-09-30' },
-  { id: 'up-3', bankAccountId: 'acc-fab', fileName: 'FAB-scan-Sep2026.pdf', storagePath: 'seed/FAB-scan.pdf', fileType: 'pdf', status: 'failed', errorMessage: 'The PDF contains no extractable text — it looks like a scanned image. Re-export the statement as text or CSV from your bank, or enter the transactions manually.', createdAt: '2026-09-30' },
+  { id: 'up-2', bankAccountId: 'acc-adcb', fileName: 'ADCB-Sep2026.csv', storagePath: 'seed/ADCB-Sep2026.csv', fileType: 'csv', periodStart: '2026-09-01', periodEnd: '2026-09-30', status: 'parsed', transactionCount: 1, processingLog: [{ level: 'info', message: 'Read dates as day/month/year and "." as the decimal point.' }, { level: 'skipped', line: 14, message: 'No readable date in "TOTAL FOR PERIOD". Totals and subtotal lines look like this.' }, { level: 'info', message: 'Checked against the running balance: 1 of 1 rows agree, so the debit and credit directions are confirmed by the file itself.' }, { level: 'info', message: 'Read 1 transaction from 2 rows.' }, { level: 'info', message: '1 transaction added, waiting for you to confirm it.' }], createdAt: '2026-09-30' },
+  { id: 'up-3', bankAccountId: 'acc-fab', fileName: 'FAB-scan-Sep2026.pdf', storagePath: 'seed/FAB-scan.pdf', fileType: 'pdf', status: 'failed', errorMessage: 'The PDF contains no extractable text — it looks like a scanned image. Re-export the statement as text or CSV from your bank, or enter the transactions manually.', processingLog: [{ level: 'error', message: 'PDF statements are not parsed yet. Reading one needs layout reconstruction, and a PDF read as plain text produces a scatter of numbers that would import as convincing, wrong transactions. Export CSV from your bank instead — every UAE bank offers it.' }], createdAt: '2026-09-30' },
 ];
 
 /** §8 action plan. Deadline dates are computed, not stored. */

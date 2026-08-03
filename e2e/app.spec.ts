@@ -787,6 +787,39 @@ test.describe('profile — bank accounts', () => {
     await page.goto(url('/profile/'));
     await expect(accountsCard(page)).toBeVisible();
   });
+
+  test('US-28 — a parsed file says which rows it skipped, and why', async ({ page }) => {
+    /*
+     * NFR-6, and the criterion HAD-8 was reopened for. "96 of 100 rows
+     * imported" is not a useful thing to be told unless you can find out which
+     * four and why — otherwise the honest response is to distrust all hundred.
+     * So the summary names the skipped count rather than saying "Details",
+     * which nobody opens.
+     */
+    await page.goto(url('/statements/'));
+
+    const disclosure = page.getByText('1 row skipped — see why');
+    await expect(disclosure).toBeVisible();
+
+    // Closed by default; the line number is what lets somebody open their own
+    // file and look at the row, so it must be there once expanded.
+    await expect(page.getByText('TOTAL FOR PERIOD')).toBeHidden();
+    await disclosure.click();
+    await expect(page.getByText('Line 14:')).toBeVisible();
+    await expect(page.getByText(/No readable date in "TOTAL FOR PERIOD"/)).toBeVisible();
+  });
+
+  test('US-34 — a file that cannot be parsed says so, and says what to do', async ({ page }) => {
+    await page.goto(url('/statements/'));
+
+    const disclosure = page.getByText('What went wrong');
+    await expect(disclosure).toBeVisible();
+    await disclosure.click();
+
+    // Named, with an alternative. A PDF read as plain text produces a scatter
+    // of numbers that would import as convincing, wrong transactions.
+    await expect(page.getByText(/Export CSV from your bank instead/)).toBeVisible();
+  });
 });
 
 test.describe('budget — categorisation rules', () => {

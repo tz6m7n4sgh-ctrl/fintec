@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import type { BankAccount, StatementUpload } from '@/lib/data/seed';
 import { formatDate } from '@/lib/engine/dates';
+import { ProcessingLog } from './ProcessingLog';
 import {
   deleteUpload,
   statementDownloadUrl,
@@ -46,6 +47,17 @@ function UploadForm({ accounts }: { accounts: BankAccount[] }) {
         </div>
       ) : null}
 
+      {/*
+        A stored file whose parse said something is not a failed upload, and
+        conflating the two would tell somebody their PDF did not upload when it
+        did. `role="status"` rather than `alert` for the same reason.
+      */}
+      {state.notice ? (
+        <div role="status" style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 12 }}>
+          {state.notice}
+        </div>
+      ) : null}
+
       <div className="form-grid">
         <div className="field">
           <label htmlFor="up-account">Bank account</label>
@@ -71,9 +83,16 @@ function UploadForm({ accounts }: { accounts: BankAccount[] }) {
       </div>
 
       <p className="help" style={{ marginTop: 10 }}>
-        PDF, CSV or XLSX, up to 25 MB. The file goes to a private bucket namespaced to your
-        user id — never a public URL. <b>Its contents will be read by an LLM</b> when parsing
-        runs, and nothing it extracts moves a dashboard figure until you confirm it.
+        CSV, up to 25 MB. The file goes to a private bucket namespaced to your user id —
+        never a public URL. A <b>CSV is read here, by code, and never sent anywhere</b>: the
+        columns are matched by name and the dates and amounts are read deterministically.
+        Nothing it extracts moves a dashboard figure until you confirm it.
+      </p>
+      <p className="help" style={{ marginTop: 8 }}>
+        <b>PDF and XLSX are stored but not yet read.</b> A PDF needs layout reconstruction or
+        a language model, and a PDF read as plain text produces a scatter of numbers that
+        would import as convincing, wrong transactions. Export CSV from your bank instead —
+        every UAE bank offers it.
       </p>
 
       <div style={{ marginTop: 14 }}>
@@ -189,6 +208,7 @@ export function UploadsEditor({
                         {u.errorMessage}
                       </span>
                     ) : null}
+                    <ProcessingLog upload={u} />
                   </td>
                   <td>{accountName(u.bankAccountId)}</td>
                   <td className="tnum">

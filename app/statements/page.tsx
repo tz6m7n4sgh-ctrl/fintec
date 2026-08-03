@@ -1,5 +1,6 @@
 import { Card, Empty, PageHead } from '@/components/ui';
 import { TransactionsLedger } from './TransactionsLedger';
+import { ProcessingLog } from './ProcessingLog';
 import { UploadsEditor } from './UploadsEditor';
 import { ReviewInbox } from './ReviewInbox';
 import { propose } from '@/lib/engine/match';
@@ -84,6 +85,7 @@ export default async function StatementsPage() {
                     <td className="payee">
                       {u.fileName}
                       {u.errorMessage ? <span className="sub" style={{ color: 'var(--critical-ink)' }}>{u.errorMessage}</span> : null}
+                      <ProcessingLog upload={u} />
                     </td>
                     <td>{accountName(u.bankAccountId)}</td>
                     <td className="tnum">
