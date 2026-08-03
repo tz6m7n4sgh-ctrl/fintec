@@ -28,6 +28,7 @@ import { usePathname } from 'next/navigation';
 
 const NAV = [
   { href: '/', label: 'Home', icon: '◧', tab: true },
+  { href: '/entitlement', label: 'Entitlement', icon: '◉', tab: false },
   { href: '/calendar', label: 'Calendar', icon: '▤', tab: true },
   { href: '/schedule', label: 'Schedule', icon: '≡', tab: false },
   { href: '/budget', label: 'Budget', icon: '◑', tab: true },

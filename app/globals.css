@@ -220,6 +220,41 @@ main { min-width: 0; }
 .hero-num small { font-size: 21px; font-weight: 550; color: var(--ink-2); letter-spacing: -0.01em; }
 .hero-meta { color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
 
+/* --- date-driven entitlement answer ------------------------------------ */
+.answer-controls { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.answer-controls label { display: block; font-size: 12px; font-weight: 650; color: var(--ink-2); }
+.answer-controls input { min-height: 42px; border: 1px solid var(--axis); border-radius: 9px; padding: 8px 10px; color: var(--ink-1); background: var(--surface-1); font: inherit; }
+.text-button { border: 0; background: transparent; color: var(--s1-ink); text-decoration: underline; padding: 10px 4px; cursor: pointer; }
+.answer-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.answer-grid.comparing { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.answer-figure { background: var(--surface-1); border: 1px solid var(--ring); border-radius: var(--radius); padding: clamp(18px, 3vw, 28px); box-shadow: var(--raise); }
+.answer-kicker { margin: 0 0 8px; color: var(--ink-2); font-size: 14px; }
+.answer-total { font-size: clamp(38px, 6vw, 66px); line-height: 1; font-weight: 640; letter-spacing: -.04em; }
+.answer-total span { font-size: .32em; letter-spacing: .02em; color: var(--ink-2); vertical-align: .45em; }
+.answer-caption { color: var(--ink-3); margin: 8px 0 20px; font-size: 12.5px; }
+.basis-warning { display: flex; gap: 12px; padding: 14px; border: 1px solid color-mix(in oklab, var(--warning) 55%, var(--ring)); border-radius: 11px; background: color-mix(in oklab, var(--warning) 12%, var(--surface-1)); font-size: 12.5px; line-height: 1.5; }
+.basis-warning > span { display: grid; place-items: center; flex: 0 0 24px; height: 24px; border-radius: 50%; background: var(--warning); color: #111; font-weight: 800; }
+.answer-state { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; border-left: 3px solid var(--s1); padding: 8px 12px; background: var(--surface-2); font-size: 12.5px; }
+.answer-breakdown { margin: 22px 0 0; }
+.answer-breakdown > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--grid); }
+.answer-breakdown dt { color: var(--ink-2); }
+.answer-breakdown dd { margin: 0; font-weight: 600; text-align: right; }
+.answer-breakdown .answer-breakdown-total { border: 0; font-weight: 650; }
+.answer-breakdown .answer-breakdown-total dt { color: var(--ink-1); }
+.answer-deadlines { margin-top: 16px; border-top: 1px solid var(--grid); padding-top: 18px; }
+.answer-deadlines h3 { font-size: 15px; margin-bottom: 8px; }
+.answer-deadlines > div { display: grid; grid-template-columns: 112px 1fr; gap: 12px; padding: 9px 0; }
+.answer-deadlines time { font-weight: 650; font-size: 13px; }
+.answer-deadlines span { color: var(--ink-2); font-size: 12.5px; }
+.compare-empty, .answer-empty { min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; color: var(--ink-2); border: 1px dashed var(--axis); border-radius: var(--radius); padding: 28px; }
+.compare-empty span, .answer-empty p { max-width: 520px; margin: 0 0 10px; }
+.answer-empty > span { font-size: 36px; color: var(--s1-ink); }
+.demo-note { margin: 0 0 14px; padding: 11px 14px; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); font-size: 12.5px; }
+
+@media (max-width: 800px) {
+  .answer-grid.comparing { grid-template-columns: minmax(0, 1fr); }
+}
+
 .status {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 13px; font-weight: 650; padding: 4px 10px;

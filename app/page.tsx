@@ -120,7 +120,15 @@ export default async function DashboardPage() {
       {/* Stat tiles — each navigates to where its inputs live */}
       <div className="grid g5" style={{ marginTop: 14 }}>
         <StatTile label="Total resources" value={money(r.runway.totalResources)} foot="Profile & money" href="/profile" />
-        <StatTile label="Final settlement" value={money(r.settlement.finalSettlement)} foot="Explain this number" href="/report" />
+        {/*
+          * Points at the date, not the explanation.
+          *
+          * The rule for a StatTile is that every AED figure navigates to where
+          * its *inputs* live (NFR-5 / BR-11), and the input to a settlement is
+          * the last day — change it and this figure moves. The line-by-line
+          * working is one click on from there.
+          */}
+        <StatTile label="Final settlement" value={money(r.settlement.finalSettlement)} foot="Change the last day" href="/entitlement" />
         <StatTile
           label="ILOE total"
           value={money(r.iloe.iloeTotal)}

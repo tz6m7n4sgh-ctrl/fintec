@@ -25,6 +25,7 @@ const url = (path: string) => `${BASE_PATH}${path}`;
 
 const ROUTES = [
   { path: '/', name: 'Home' },
+  { path: '/entitlement/', name: 'Your entitlement' },
   { path: '/calendar/', name: 'Payment calendar' },
   { path: '/schedule/', name: 'Schedule' },
   { path: '/budget/', name: 'Budget' },
@@ -221,6 +222,29 @@ test.describe('deterministic explanation', () => {
     await expect(gratuityWorking).toContainText('87,479.47');
 
     await expect(page.getByRole('button', { name: /export to pdf/i })).toHaveCount(0);
+  });
+});
+
+test.describe('date-driven entitlement', () => {
+  test('recalculates the answer and deadlines from the on-screen date', async ({ page }) => {
+    await page.goto(url('/entitlement/'));
+    await expect(page.locator('.answer-total')).toContainText('93,479.47');
+    await expect(page.locator('.basis-warning')).toContainText('Legal basis unverified');
+
+    await page.getByLabel('Your last working day').fill('2026-12-31');
+    await expect(page.locator('.answer-total')).not.toContainText('93,479.47');
+    await expect(page.locator('.answer-deadlines')).toContainText('14 Jan 2027');
+    await expect(page.locator('.answer-deadlines')).toContainText('30 Jan 2027');
+  });
+
+  test('does not invent the second date in comparison mode', async ({ page }) => {
+    await page.goto(url('/entitlement/'));
+    await page.getByRole('button', { name: 'Compare another date' }).click();
+    await expect(page.getByText('Choose a second date')).toBeVisible();
+    await expect(page.locator('.answer-figure')).toHaveCount(1);
+
+    await page.getByLabel('Compare with').fill('2026-12-31');
+    await expect(page.locator('.answer-figure')).toHaveCount(2);
   });
 });
 
