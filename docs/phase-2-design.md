@@ -27,6 +27,8 @@ Node IDs are stable and link directly: append `?node-id=<id with : replaced by -
 | **Compare — two last days** | `16:2` | 390 × 757 | B2 — the *expecting it* doorway | this pass |
 | **Answer — nothing entered yet** | `17:2` | 390 × 984 | B2 + P2-5 — empty state | this pass |
 | **Six fields — blanks and errors** | `18:2` | 390 × 1094 | B1 — validation states | this pass |
+| **Answer — under one year** | `22:2` | 390 × 1155 | B2 + B3 — engine zero states | this pass |
+| **Answer — desktop 1280** | `23:2` | 1280 × 888 | B2 + B3 + C — desktop layout | this pass |
 
 Five of the nine workstreams in the discovery plan now have drawings: A (as a visible UI state),
 B1, B2, B3 and C. D (the AI surfaces) and E (visual design proper) have none, by design.
@@ -127,21 +129,35 @@ defined consequence:
 
 The submit is drawn blocked, with a count of what is still needed.
 
-## 6. What is still missing
+`22:2` draws the two zero states the engine can return, which matter more than they look: a
+first-year expat is exactly the person likely to be dismissed, and they see **two** zeroes. Gratuity
+is zero because `serviceYears < GRATUITY_MIN_YEARS` — 0.58 years, 152 days short — and the frame
+says it is a threshold rather than a smaller amount. ILOE is *Not eligible* because `iloeBenefit()`
+requires twelve months of contributions against seven months of employment. One short employment,
+two thresholds missed, and the ILOE deadline row reads *Does not apply* rather than showing a date
+that cannot be used.
+
+## 6. Desktop
+
+`23:2` is the only non-mobile frame and it settles two things. The four sections from `6:2` become a
+top bar rather than the current ten-item sidebar, so navigation stops being a wall and the answer
+gets the width. The body splits into a main column carrying the date control, the figure and the
+expanded working, and a 380px rail carrying the unverified-basis panel, the deadlines and the
+compare action.
+
+The rail placement is the decision worth noting: on mobile the unverified basis sits directly under
+the figure, and on desktop it sits at the top of the rail, level with it. In both cases it is beside
+the number rather than beneath the fold, which is what §7 of the discovery record requires.
+
+## 7. What is still missing
 
 Tracked as **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)**.
 
-- **Answer — under one year.** `gratuity()` returns `ineligible` below `GRATUITY_MIN_YEARS`, and
-  `iloeBenefit()` returns `eligible: false` without twelve months of contributions. A first-year
-  expat sees two zeroes for one reason and no frame covers it. Drafted; the write was rejected by
-  the Figma MCP call limit on the Starter plan and created nothing.
-- **Answer — desktop.** Every frame is mobile 390. The app ships a sidebar layout today and nothing
-  says how the answer reflows.
 - **Money / Documents / You.** They exist only as descriptions on the navigation card.
 - **Gratuity cap applied.** `capApplied` (24 months' basic) is a real engine state with no visual.
 - **Dark mode.** One mode in the collection; every surface is light.
 
-## 7. Sequencing note
+## 8. Sequencing note
 
 Workstream E is last in the discovery plan, and this does not change that. Restyling ten screens
 that workstream C will delete is still waste. What these frames are is different work: the
