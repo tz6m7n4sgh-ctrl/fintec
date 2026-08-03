@@ -29,6 +29,11 @@ Node IDs are stable and link directly: append `?node-id=<id with : replaced by -
 | **Six fields — blanks and errors** | `18:2` | 390 × 1094 | B1 — validation states | this pass |
 | **Answer — under one year** | `22:2` | 390 × 1155 | B2 + B3 — engine zero states | this pass |
 | **Answer — desktop 1280** | `23:2` | 1280 × 888 | B2 + B3 + C — desktop layout | this pass |
+| **Money — mobile 390** | `25:2` | 390 × 1159 | C — absorbs Budget, Calendar, Schedule, Loans | this pass |
+| **Documents — mobile 390** | `26:2` | 390 × 1037 | C — absorbs Statements | this pass |
+| **You — mobile 390** | `26:52` | 390 × 1155 | C — absorbs Profile, Settings | this pass |
+| **Answer — gratuity cap applied** | `28:2` | 390 × 953 | B3 — the `capApplied` state | this pass |
+| **Answer — dark (mobile 390)** | `29:3` | 390 × 1014 | Dark mode preview | this pass |
 
 Five of the nine workstreams in the discovery plan now have drawings: A (as a visible UI state),
 B1, B2, B3 and C. D (the AI surfaces) and E (visual design proper) have none, by design.
@@ -85,8 +90,9 @@ exist and are conformance-tested. The build is new routes and components, not ne
 
 ## 4. Tokens
 
-Collection **`Fintec tokens`**, one mode, 23 variables. Colour values below are the current file
-values; spacing and radius values live in the file and are not duplicated here to avoid drift.
+Collection **`Fintec tokens`**, 24 variables, two modes — **Light** and **Dark**. Colour values below
+are the Light values; spacing and radius values live in the file and are not duplicated here to
+avoid drift.
 
 | Token | Value | Used for |
 |---|---|---|
@@ -98,6 +104,7 @@ values; spacing and radius values live in the file and are not duplicated here t
 | `ink/tertiary` | `#8a939e` | Labels, empty values, unavailable states |
 | `line/hairline` | `#e6e3de` | Card and input borders |
 | `money/ink` | `#0e6e5b` | The figure, primary action |
+| `ink/on-money` | `#ffffff` | Label on a `money/ink` button — added so buttons stop hardcoding white |
 | `money/wash` | `#e7f1ee` | Hero panel, positive difference |
 | `flag/unverified-ink` | `#8a6a1f` | Unverified-basis text |
 | `flag/unverified-bg` | `#fbf3e2` | Unverified-basis panel |
@@ -151,21 +158,79 @@ the number rather than beneath the fold, which is what §7 of the discovery reco
 
 ## 7. What is still missing
 
-Tracked under **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)**, one sub-issue each, all labelled `Figma`.
+Tracked under **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)**, one sub-issue each, all labelled `Figma`. Five of six are done; every screen in workstream C now exists.
 
-| | Missing | Why it matters |
+| | Item | State |
 |---|---|---|
-| [HAD-100](https://linear.app/haddad/issue/HAD-100/figma-draw-the-money-section) | **Money** | Absorbs Budget, Calendar, Schedule and Loans — four of today's ten screens with nothing said about how they coexist. Blocked in part on C-5 (`atRisk`), which is still undecided |
-| [HAD-101](https://linear.app/haddad/issue/HAD-101/figma-draw-the-documents-section) | **Documents** | Upload → parse → review as one flow, plus the parse failure and the PDF refusal, which is a designed state rather than an error toast |
-| [HAD-102](https://linear.app/haddad/issue/HAD-102/figma-draw-the-you-section) | **You** | Needs an *unavailable* state for passkeys and reminders — C-1 and C-2 are built and switched off, and a control that silently fails is how they get rebuilt |
-| [HAD-103](https://linear.app/haddad/issue/HAD-103/figma-draw-the-gratuity-cap-applied-state) | **Cap applied** | The one case where the working and the headline openly disagree; the arithmetic has to explain the reduction |
-| [HAD-104](https://linear.app/haddad/issue/HAD-104/figma-add-a-dark-mode-to-the-fintec-tokens-collection) | **Dark mode** | One mode, all light. Colour tokens are bound, so this is choosing values, not rewiring |
-| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | **Unbound spacing** | `space/*` and `radius/*` are defined and unused; an implementer cannot tell `space/lg` from twenty |
+| [HAD-100](https://linear.app/haddad/issue/HAD-100/figma-draw-the-money-section) | Money | Done — `25:2` |
+| [HAD-101](https://linear.app/haddad/issue/HAD-101/figma-draw-the-documents-section) | Documents | Done — `26:2` |
+| [HAD-102](https://linear.app/haddad/issue/HAD-102/figma-draw-the-you-section) | You | Done — `26:52` |
+| [HAD-103](https://linear.app/haddad/issue/HAD-103/figma-draw-the-gratuity-cap-applied-state) | Cap applied | Done — `28:2` |
+| [HAD-104](https://linear.app/haddad/issue/HAD-104/figma-add-a-dark-mode-to-the-fintec-tokens-collection) | Dark mode | Done — Light + Dark, preview `29:3` |
+| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | Spacing tokens | **Open** — 450 bound, 486 need a decision |
 
-Money, Documents and You are the three sections of workstream C that have no screens. Everything
-else on the list is a state or a token, not a screen.
+### What dark mode found
 
-## 8. Sequencing note
+Adding the second mode was supposed to be a value-picking exercise. It surfaced two defects that
+were invisible in light mode, which is the argument for doing it early rather than in workstream E:
+
+1. **Two primary buttons hardcoded white labels.** On a light-green dark `money/ink` that fails.
+   Fixed by adding `ink/on-money` — white in Light, near-black in Dark — and binding both labels.
+2. **75 containers had hardcoded white fills** rather than the `surface/raised` token, so they stayed
+   white when the mode flipped and made whole blocks unreadable. All 75 were layout wrappers rather
+   than cards, so they are now transparent and inherit the page surface. The cards themselves were
+   already bound correctly.
+
+### Why HAD-105 is still open
+
+450 bindings were applied wherever a value already matched the scale — 373 spacing, 77 radius. The
+remaining 486 do not match, and the shape of the mismatch is the finding: `13` appears 102 times,
+`14` 82 times, `20` 54 times, `6` 47 times, `10` 46 times.
+
+The frames use a roughly 2px rhythm that a 4 / 8 / 12 / 16 / 24 / 32 / 48 scale does not describe.
+Snapping 486 values to the nearest step would silently redesign every screen; adding a token per
+observed value would produce a fourteen-step "scale" that is not one. Either redraw against the
+existing scale, or replace the scale to match the design's actual rhythm — both are defensible, and
+neither should happen by inference.
+
+## 8. The Phase 2 backlog
+
+Every workstream and every carried-over item now has an issue, with dependencies recorded.
+
+| | Workstream | Blocked by | Delegated |
+|---|---|---|---|
+| [HAD-106](https://linear.app/haddad/issue/HAD-106/a-citation-model-built-populated-with-nothing-and-visibly-empty) | A · Citation model, built empty | — | Codex |
+| [HAD-107](https://linear.app/haddad/issue/HAD-107/b1-doorway-question-and-six-field-onboarding) | B1 · Doorway + six fields | — | Codex |
+| [HAD-111](https://linear.app/haddad/issue/HAD-111/b2-the-date-driven-entitlement-answer) | B2 · The date-driven answer | A | Codex |
+| [HAD-116](https://linear.app/haddad/issue/HAD-116/b3-explain-this-number-deterministically) | B3 · Explain this number | B2 | Codex |
+| [HAD-117](https://linear.app/haddad/issue/HAD-117/c-collapse-ten-sections-to-four-and-ask-for-the-rest-progressively) | C · Ten sections to four | B1, B2 | Codex |
+| [HAD-118](https://linear.app/haddad/issue/HAD-118/d1-ai-wording-layer-over-the-deterministic-working) | D1 · AI wording layer | B3, API key | — |
+| [HAD-119](https://linear.app/haddad/issue/HAD-119/d2-ask-anything-grounded-in-the-users-own-figures) | D2 · Ask anything, grounded | C, API key | — |
+| [HAD-120](https://linear.app/haddad/issue/HAD-120/d3-read-my-documents-needs-a-consent-design-first) | D3 · Read my documents | D1, consent design | — |
+| [HAD-121](https://linear.app/haddad/issue/HAD-121/e-visual-design-pass-last-deliberately) | E · Visual design pass | C | — |
+
+Carried over from Phase 1:
+
+| | Item | Needs | Delegated |
+|---|---|---|---|
+| [HAD-108](https://linear.app/haddad/issue/HAD-108/c-3-sec-1-gate-passes-by-skipping-set-supabase-db-url) | **C-3 · SEC-1 passes by skipping** | `SUPABASE_DB_URL` | — |
+| [HAD-109](https://linear.app/haddad/issue/HAD-109/c-7-stop-shipping-committed-supabase-defaults) | C-7 · Committed Supabase defaults | Code change | Codex |
+| [HAD-110](https://linear.app/haddad/issue/HAD-110/c-5-decide-the-atrisk-rule-which-currently-ships-an-inconsistency) | C-5 · The `atRisk` rule | A decision | — |
+| [HAD-112](https://linear.app/haddad/issue/HAD-112/c-1-passkey-sign-in-returns-503-set-two-edge-function-secrets) | C-1 · Passkeys return 503 | Two secrets | — |
+| [HAD-113](https://linear.app/haddad/issue/HAD-113/c-2-reminders-compute-nightly-and-send-nothing) | C-2 · Reminders send nothing | `RESEND_API_KEY` + Vault | — |
+| [HAD-114](https://linear.app/haddad/issue/HAD-114/c-6-close-the-scheduled-parse-sweep) | C-6 · Scheduled parse sweep | Close it | Codex |
+| [HAD-115](https://linear.app/haddad/issue/HAD-115/c-4-manual-test-pass-supersede-rather-than-run) | C-4 · Manual test pass | Supersede it | — |
+
+**C-3 is the one to act on first**, and it is not a feature. The gate that proves cross-tenant
+isolation completes in six to eight seconds because it cannot reach a database — observed again on
+PR #52 at 8 seconds — and a skipped check is indistinguishable from a passing one. Phase 2 makes the
+app multi-tenant for strangers, which is exactly when that guarantee stops being theoretical.
+
+Everything delegated to Codex is buildable now or as soon as its dependency lands. Everything not
+delegated needs a decision or a secret from a person — which is the honest split, and the reason
+those items are named individually rather than pooled into "config".
+
+## 9. Sequencing note
 
 Workstream E is last in the discovery plan, and this does not change that. Restyling ten screens
 that workstream C will delete is still waste. What these frames are is different work: the
