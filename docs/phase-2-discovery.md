@@ -139,6 +139,10 @@ than claimed.
 **E is last, deliberately.** Restyling ten screens that will not survive workstream C is waste.
 This is the part that will feel wrong to defer and is the part most worth deferring.
 
+A design file now exists for A, B1, B2, B3 and C — the screens C keeps, not the ten it deletes, so
+this does not reorder the plan. What has been drawn, what it commits to, and what is still missing
+is recorded in [`phase-2-design.md`](phase-2-design.md) and tracked as HAD-99.
+
 **D3 is last for a different reason.** The app's current privacy position is unusually strong: a
 CSV is parsed on the user's own server and never sent anywhere. Sending a labour contract and an
 offer letter to a model reverses that, for strangers, in a jurisdiction where employment documents
