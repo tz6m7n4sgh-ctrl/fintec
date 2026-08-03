@@ -46,6 +46,11 @@
   /* Filled surface bearing white text — needs to be dark enough for #fff. */
   --s1-fill: #2976d2;
 
+  /* The unverified-basis panel (Figma flag/unverified-*). Its own pair rather
+     than a tint of --warning, which is reserved for status. 8.9:1. */
+  --flag-unverified-ink: #624600;
+  --flag-unverified-bg: #fff4d6;
+
   --raise: 0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 1px rgba(11, 11, 11, 0.04);
   --radius: 14px;
 }
@@ -69,6 +74,8 @@
     --critical-ink: #db6868;
     --s1-ink: #3f8be6;
     --s1-fill: #3277ca;
+    --flag-unverified-ink: #f2cd6b;
+    --flag-unverified-bg: #30270f;
     --raise: none;
   }
 }
@@ -91,6 +98,8 @@
   --critical-ink: #db6868;
   --s1-ink: #3f8be6;
   --s1-fill: #3277ca;
+  --flag-unverified-ink: #f2cd6b;
+  --flag-unverified-bg: #30270f;
   --raise: none;
 }
 
@@ -428,15 +437,25 @@ button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
  * Per NFR-4 the tint never carries the meaning on its own: `.basis-h` says it
  * in words above the paragraph.
  */
+/*
+ * Its own token pair rather than a tint of --warning.
+ *
+ * --warning is a status hue reserved for state, and mixing it at 14% produced a
+ * panel whose text colour was inherited rather than chosen. These two are the
+ * Figma `flag/unverified-*` pair, picked for this panel and legible in both
+ * modes: #624600 on #fff4d6 is 8.9:1, #f2cd6b on #30270f is 9.6:1.
+ */
 .basis {
-  border: 1px solid color-mix(in oklab, var(--warning) 55%, transparent);
-  background: color-mix(in oklab, var(--warning) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--flag-unverified-ink) 32%, transparent);
+  background: var(--flag-unverified-bg);
+  color: var(--flag-unverified-ink);
   border-radius: var(--radius);
   padding: 13px 15px;
   margin: 14px 0;
 }
-.basis-h { font-size: 13px; font-weight: 650; color: var(--ink-1); margin-bottom: 3px; }
-.basis p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.basis-h { font-size: 13px; font-weight: 650; margin-bottom: 3px; }
+.basis p { margin: 0; font-size: 12.5px; line-height: 1.5; }
+.basis .basis-count { margin-top: 5px; font-size: 11.5px; opacity: 0.85; }
 .basis-line { font-size: 11.5px; color: var(--ink-3); }
 
 /* --- first run (workstream B1) -------------------------------------------- */
