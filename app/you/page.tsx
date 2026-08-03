@@ -39,7 +39,7 @@ export default async function YouPage() {
 
       {m.isSeedData && (
         <Empty>
-          These are the reference figures, not yours. <Link href="/start">Six answers</Link>{' '}
+          These are the reference figures, not yours. <Link prefetch={false} href="/start">Six answers</Link>{' '}
           replace them.
         </Empty>
       )}
@@ -65,7 +65,7 @@ export default async function YouPage() {
         <div className="legend">
           <span className="key">
             Change any of them on{' '}
-            <Link className="banner-link" href="/profile">
+            <Link prefetch={false} className="banner-link" href="/profile">
               your profile
             </Link>{' '}
             — every figure moves with them. The rest of the profile lives there too.
@@ -83,7 +83,7 @@ export default async function YouPage() {
                   <span className="sub">Changed from inside the app, with your current one</span>
                 </th>
                 <td className="r">
-                  <Link className="banner-link" href="/settings">
+                  <Link prefetch={false} className="banner-link" href="/settings">
                     Change
                   </Link>
                 </td>
@@ -131,7 +131,7 @@ export default async function YouPage() {
             Your cheque and school-fee reminders are worked out every night, but email sending is
             not configured on this deployment, so nothing reaches you. Do not rely on them yet —
             the{' '}
-            <Link className="banner-link" href="/calendar">
+            <Link prefetch={false} className="banner-link" href="/calendar">
               calendar
             </Link>{' '}
             is the source of truth for what is due.
@@ -140,7 +140,7 @@ export default async function YouPage() {
         <div className="legend">
           <span className="key">
             Timing and channels are set in{' '}
-            <Link className="banner-link" href="/settings">
+            <Link prefetch={false} className="banner-link" href="/settings">
               settings
             </Link>
             .
@@ -158,7 +158,7 @@ export default async function YouPage() {
                   <span className="sub">Every figure, as JSON, in a file you keep</span>
                 </th>
                 <td className="r">
-                  <Link className="banner-link" href="/settings/export">
+                  <Link prefetch={false} className="banner-link" href="/settings/export">
                     Download
                   </Link>
                 </td>
@@ -169,7 +169,7 @@ export default async function YouPage() {
                   <span className="sub">From a previous export</span>
                 </th>
                 <td className="r">
-                  <Link className="banner-link" href="/settings">
+                  <Link prefetch={false} className="banner-link" href="/settings">
                     From a file
                   </Link>
                 </td>
@@ -183,6 +183,7 @@ export default async function YouPage() {
                 </th>
                 <td className="r">
                   <Link
+                    prefetch={false}
                     className="banner-link"
                     href="/settings"
                     style={{ color: 'var(--critical-ink)' }}

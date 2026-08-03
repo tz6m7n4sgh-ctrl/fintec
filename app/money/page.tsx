@@ -42,7 +42,7 @@ export default async function MoneyPage() {
       {m.isSeedData && (
         <Empty>
           These are the reference figures, not yours. Six answers and your monthly spending are
-          enough to replace them — <Link href="/start">start there</Link>.
+          enough to replace them — <Link prefetch={false} href="/start">start there</Link>.
         </Empty>
       )}
 
@@ -86,7 +86,7 @@ export default async function MoneyPage() {
                       <span className="sub">
                         Derived from your{' '}
                         {row.autoSource === 'debts' ? 'debts' : 'fee schedule'} —{' '}
-                        <Link className="banner-link" href="/loans">
+                        <Link prefetch={false} className="banner-link" href="/loans">
                           edit them there
                         </Link>
                       </span>
@@ -107,7 +107,7 @@ export default async function MoneyPage() {
         <div className="legend">
           <span className="key">
             Amounts are edited on the{' '}
-            <Link className="banner-link" href="/budget">
+            <Link prefetch={false} className="banner-link" href="/budget">
               budget
             </Link>{' '}
             — runway moves as you type.
@@ -148,11 +148,11 @@ export default async function MoneyPage() {
         <div className="legend">
           <span className="key">
             The full list lives on the{' '}
-            <Link className="banner-link" href="/calendar">
+            <Link prefetch={false} className="banner-link" href="/calendar">
               calendar
             </Link>{' '}
             and the{' '}
-            <Link className="banner-link" href="/schedule">
+            <Link prefetch={false} className="banner-link" href="/schedule">
               schedule
             </Link>
             .
@@ -168,7 +168,7 @@ export default async function MoneyPage() {
                 <th scope="row" className="rowhead payee">
                   Outstanding across {m.debts.length} {m.debts.length === 1 ? 'debt' : 'debts'}
                   <span className="sub">
-                    <Link className="banner-link" href="/loans">
+                    <Link prefetch={false} className="banner-link" href="/loans">
                       Loans, mortgage and school fees
                     </Link>
                   </span>

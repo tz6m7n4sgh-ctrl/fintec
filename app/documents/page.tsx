@@ -44,7 +44,7 @@ export default async function DocumentsPage() {
             confirming payments, spotting the spending your budget missed. Export one from your
             bank&rsquo;s app and it stays yours.
           </Empty>
-          <Link href="/statements" className="btn primary">
+          <Link prefetch={false} href="/statements" className="btn primary">
             Add a CSV statement
           </Link>
         </Card>
@@ -100,7 +100,7 @@ export default async function DocumentsPage() {
                 <span className="key">
                   {pending.length > 0 ? (
                     <>
-                      <Link className="banner-link" href="/statements">
+                      <Link prefetch={false} className="banner-link" href="/statements">
                         Review {pending.length}{' '}
                         {pending.length === 1 ? 'transaction' : 'transactions'}
                       </Link>{' '}
@@ -109,7 +109,7 @@ export default async function DocumentsPage() {
                   ) : (
                     <>
                       Nothing waiting.{' '}
-                      <Link className="banner-link" href="/statements">
+                      <Link prefetch={false} className="banner-link" href="/statements">
                         All statements and transactions
                       </Link>
                     </>
@@ -120,7 +120,7 @@ export default async function DocumentsPage() {
           ) : null}
 
           <Card title="All statements" sub={`${m.uploads.length} uploaded`}>
-            <Link href="/statements" className="btn primary">
+            <Link prefetch={false} href="/statements" className="btn primary">
               Statements and transactions
             </Link>
           </Card>
