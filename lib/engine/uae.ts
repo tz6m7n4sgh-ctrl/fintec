@@ -2,9 +2,15 @@
  * UAE termination calculation engine.
  *
  * Implements §5 of the build spec under Federal Decree-Law 33/2021 and the
- * ILOE scheme, as verified July 2026. Every function here is PURE: same inputs,
- * same outputs, no clock, no I/O. The only time-dependent values (countdowns)
- * live in the date helpers and take an injectable `now`.
+ * ILOE scheme. Every function here is PURE: same inputs, same outputs, no
+ * clock, no I/O. The only time-dependent values (countdowns) live in the date
+ * helpers and take an injectable `now`.
+ *
+ * This header used to end "as verified July 2026". It was not verified in July
+ * 2026 or since, so the claim is gone and each constant in `RULES` now carries
+ * its own provenance — all of it null. A comment asserting currency is one
+ * nobody can check; a field on the value is one the UI can render and a test
+ * can enforce. See `citations.ts` for the helpers that read it.
  *
  * The constants are gathered in ONE place on purpose — when UAE rules change
  * (risk R-1/RB-7), this block is the whole edit.
@@ -32,37 +38,95 @@ import type {
   ServicePeriod,
 } from './types';
 
-// --- Legal constants — current as of July 2026 -----------------------------
+// --- Legal constants — each one carrying its own provenance ----------------
+
+/**
+ * A number the engine computes from, and the evidence for it.
+ *
+ * The evidence lives *on the value* rather than in a table beside it. A
+ * separate map can fall out of step with what it describes — somebody adds a
+ * constant, the map does not grow, and the new number quietly has no basis. Here
+ * a constant without provenance is not a gap to notice later; it does not
+ * compile.
+ */
+export type Rule<T extends number = number> = Readonly<{
+  value: T;
+  /** What this rule is, in words, so the UI can name an unverified basis. */
+  label: string;
+  /**
+   * The provision it comes from. `null` means nobody has sourced it — an
+   * honest, renderable state.
+   */
+  provision: string | null;
+  /**
+   * The day a person last checked it against the current legal text. `null`
+   * means never — not "a while ago", not "probably fine".
+   *
+   * Separate from `provision` because law changes underneath a correct article
+   * number. UAE employment law was substantially rewritten in 2022, and a
+   * citation with no date cannot tell you whether it predates that.
+   */
+  verifiedOn: IsoDate | null;
+}>;
+
+/**
+ * All four arguments are required, which is the point: omitting the evidence is
+ * a type error rather than an oversight. `null` is a decision you have to type.
+ */
+function rule<const T extends number>(
+  value: T,
+  label: string,
+  provision: string | null,
+  verifiedOn: IsoDate | null,
+): Rule<T> {
+  return { value, label, provision, verifiedOn };
+}
+
+/**
+ * Every provision below is `null` on purpose.
+ *
+ * Phase 2 decision OD-1: there is no access to the current UAE legal text and
+ * no contact who can confirm it, so P2-4 downgraded from *a figure good enough
+ * to take to HR* to *orient me, roughly*.
+ *
+ * The tempting response is to leave provenance out until a lawyer is available.
+ * That is the wrong order — without somewhere to record its absence the app
+ * cannot *say* it is unsourced, so it says nothing, and a figure that says
+ * nothing about its own basis reads as authoritative. This project's signature
+ * failure is a plausible wrong answer rather than a visible one; in law it is
+ * worse, because a wrong article number quoted in an HR meeting destroys the
+ * user's credibility at the moment they most need it.
+ *
+ * `citations.test.ts` fails on a half-citation — a provision with no date —
+ * because that is the state that *looks* sourced.
+ */
 export const RULES = {
-  /** Days used to convert a monthly salary to a daily rate. */
-  DAYS_PER_MONTH: 30,
-  /** Divisor converting service days to years. §5.1 fixes 365.25 (see C-3). */
-  DAYS_PER_YEAR: 365.25,
-  /** Gratuity accrual: 21 days per year for the first five years. */
-  GRATUITY_DAYS_FIRST_5Y: 21,
-  /** 30 days per year beyond five years. */
-  GRATUITY_DAYS_AFTER_5Y: 30,
-  /** Minimum service for any gratuity entitlement. */
-  GRATUITY_MIN_YEARS: 1,
-  /** Gratuity is capped at two years' basic salary. */
-  GRATUITY_CAP_MONTHS: 24,
-  /** ILOE pays 60% of average basic salary. */
-  ILOE_RATE: 0.6,
-  /** Category A applies at or below this average basic salary. */
-  ILOE_CATEGORY_THRESHOLD: 16_000,
-  ILOE_CAP_A: 10_000,
-  ILOE_CAP_B: 20_000,
-  /** ILOE pays for a maximum of three months. */
-  ILOE_MAX_MONTHS: 3,
-  /** Employer must settle within 14 days of the last working day. */
-  SETTLEMENT_DUE_DAYS: 14,
-  /** Hard ILOE claim window from termination. */
-  ILOE_CLAIM_DAYS: 30,
-  /** Cheque exposure windows, in days. */
-  CHEQUE_WINDOW_6M: 183,
-  CHEQUE_WINDOW_12M: 366,
-  /** Overstay penalty after the visa grace period, AED per day. */
-  OVERSTAY_AED_PER_DAY: 50,
+  DAYS_PER_MONTH: rule(30, 'Converting a monthly salary to a daily rate', null, null),
+  DAYS_PER_YEAR: rule(365.25, 'Converting service days to years', null, null),
+  GRATUITY_DAYS_FIRST_5Y: rule(21, 'Gratuity accrual for the first five years', null, null),
+  GRATUITY_DAYS_AFTER_5Y: rule(30, 'Gratuity accrual beyond five years', null, null),
+  GRATUITY_MIN_YEARS: rule(1, 'Minimum service before any gratuity is owed', null, null),
+  GRATUITY_CAP_MONTHS: rule(24, 'The ceiling on total gratuity', null, null),
+  ILOE_RATE: rule(0.6, 'ILOE benefit as a share of basic salary', null, null),
+  ILOE_CATEGORY_THRESHOLD: rule(
+    16_000,
+    'The salary threshold dividing ILOE category A from B',
+    null,
+    null,
+  ),
+  ILOE_CAP_A: rule(10_000, 'ILOE monthly cap, category A', null, null),
+  ILOE_CAP_B: rule(20_000, 'ILOE monthly cap, category B', null, null),
+  ILOE_MAX_MONTHS: rule(3, 'How long ILOE pays for', null, null),
+  SETTLEMENT_DUE_DAYS: rule(14, 'The window an employer has to settle', null, null),
+  ILOE_CLAIM_DAYS: rule(
+    30,
+    'The window to claim ILOE, which cannot be recovered once missed',
+    null,
+    null,
+  ),
+  CHEQUE_WINDOW_6M: rule(183, 'Cheque exposure window, six months', null, null),
+  CHEQUE_WINDOW_12M: rule(366, 'Cheque exposure window, twelve months', null, null),
+  OVERSTAY_AED_PER_DAY: rule(50, 'The daily penalty after the visa grace period', null, null),
 } as const;
 
 /** Runway status bands. Half-open by decision OQ-3/C-2: 6.0 is good, 3.0 is warning. */
@@ -75,7 +139,7 @@ export function servicePeriod(profile: Profile): ServicePeriod {
   const serviceDays = calendarDays - profile.unpaidLeaveDays;
   return {
     serviceDays,
-    serviceYears: serviceDays / RULES.DAYS_PER_YEAR,
+    serviceYears: serviceDays / RULES.DAYS_PER_YEAR.value,
   };
 }
 
@@ -87,16 +151,27 @@ export function servicePeriod(profile: Profile): ServicePeriod {
  */
 export function gratuity(profile: Profile, service?: ServicePeriod): GratuityBreakdown {
   const { serviceYears } = service ?? servicePeriod(profile);
-  const dailyBasic = profile.basicSalary / RULES.DAYS_PER_MONTH;
+  const dailyBasic = profile.basicSalary / RULES.DAYS_PER_MONTH.value;
 
   const gratuityDays =
-    RULES.GRATUITY_DAYS_FIRST_5Y * Math.min(serviceYears, 5) +
-    RULES.GRATUITY_DAYS_AFTER_5Y * Math.max(serviceYears - 5, 0);
+    RULES.GRATUITY_DAYS_FIRST_5Y.value * Math.min(serviceYears, 5) +
+    RULES.GRATUITY_DAYS_AFTER_5Y.value * Math.max(serviceYears - 5, 0);
 
-  const ineligible = serviceYears < RULES.GRATUITY_MIN_YEARS;
-  const gratuityRaw = ineligible ? 0 : gratuityDays * dailyBasic;
-  const gratuityCap = RULES.GRATUITY_CAP_MONTHS * profile.basicSalary;
-  const capped = Math.min(gratuityRaw, gratuityCap);
+  const ineligible = serviceYears < RULES.GRATUITY_MIN_YEARS.value;
+
+  /*
+   * The accrual is kept even when it is not payable.
+   *
+   * `gratuityRaw` used to become 0 the moment service fell under a year, which
+   * erased the very thing the explanation screen has to show: what you accrued,
+   * and why none of it is owed. A user who cannot see both figures cannot
+   * restate the rule, and restating it is the whole point of B3.
+   *
+   * Eligibility is applied to what is *paid*, not to what is counted.
+   */
+  const gratuityRaw = gratuityDays * dailyBasic;
+  const gratuityCap = RULES.GRATUITY_CAP_MONTHS.value * profile.basicSalary;
+  const capped = ineligible ? 0 : Math.min(gratuityRaw, gratuityCap);
 
   return {
     dailyBasic,
@@ -113,12 +188,12 @@ export function gratuity(profile: Profile, service?: ServicePeriod): GratuityBre
 
 /** Accrued annual leave, encashed at BASIC salary. */
 export function leaveEncashment(profile: Profile): number {
-  return (profile.unusedLeaveDays * profile.basicSalary) / RULES.DAYS_PER_MONTH;
+  return (profile.unusedLeaveDays * profile.basicSalary) / RULES.DAYS_PER_MONTH.value;
 }
 
 /** Waived notice days, paid at GROSS salary. */
 export function noticePayInLieu(profile: Profile): number {
-  return (profile.noticeDaysPaidInLieu * profile.grossSalary) / RULES.DAYS_PER_MONTH;
+  return (profile.noticeDaysPaidInLieu * profile.grossSalary) / RULES.DAYS_PER_MONTH.value;
 }
 
 export function finalSettlement(profile: Profile): FinalSettlement {
@@ -141,9 +216,9 @@ export function finalSettlement(profile: Profile): FinalSettlement {
 export function iloeBenefit(profile: Profile): IloeBenefit {
   const eligible = profile.iloeSubscribed12m && profile.iloeInvoluntary;
   const category =
-    profile.iloeAvgBasic6m <= RULES.ILOE_CATEGORY_THRESHOLD ? 'A' : 'B';
-  const monthlyCap = category === 'A' ? RULES.ILOE_CAP_A : RULES.ILOE_CAP_B;
-  const rated = RULES.ILOE_RATE * profile.iloeAvgBasic6m;
+    profile.iloeAvgBasic6m <= RULES.ILOE_CATEGORY_THRESHOLD.value ? 'A' : 'B';
+  const monthlyCap = category === 'A' ? RULES.ILOE_CAP_A.value : RULES.ILOE_CAP_B.value;
+  const rated = RULES.ILOE_RATE.value * profile.iloeAvgBasic6m;
   const monthlyBenefit = eligible ? Math.min(rated, monthlyCap) : 0;
 
   return {
@@ -151,7 +226,7 @@ export function iloeBenefit(profile: Profile): IloeBenefit {
     category: eligible ? category : null,
     monthlyCap,
     monthlyBenefit,
-    iloeTotal: RULES.ILOE_MAX_MONTHS * monthlyBenefit,
+    iloeTotal: RULES.ILOE_MAX_MONTHS.value * monthlyBenefit,
     capApplied: eligible && rated > monthlyCap,
   };
 }
@@ -391,11 +466,11 @@ export function chequeExposure(
 export function deadlines(profile: Profile, payments: ScheduledPayment[] = []): Deadlines {
   const last = profile.expectedLastDay;
   return {
-    settlementDue: addDays(last, RULES.SETTLEMENT_DUE_DAYS),
-    iloeDeadline: addDays(last, RULES.ILOE_CLAIM_DAYS),
+    settlementDue: addDays(last, RULES.SETTLEMENT_DUE_DAYS.value),
+    iloeDeadline: addDays(last, RULES.ILOE_CLAIM_DAYS.value),
     visaGraceEnd: addDays(last, profile.visaGraceDays),
-    cheques6m: chequeExposure(payments, last, RULES.CHEQUE_WINDOW_6M),
-    cheques12m: chequeExposure(payments, last, RULES.CHEQUE_WINDOW_12M),
+    cheques6m: chequeExposure(payments, last, RULES.CHEQUE_WINDOW_6M.value),
+    cheques12m: chequeExposure(payments, last, RULES.CHEQUE_WINDOW_12M.value),
   };
 }
 

@@ -181,6 +181,9 @@ describe('§11 edge cases', () => {
     expect(s.serviceYears).toBeCloseTo(0.9, 2);
     const g = gratuity(p);
     expect(g.ineligible).toBe(true);
+    // Accrual is retained so the explanation can show why the calculated
+    // amount and the legally payable amount differ.
+    expect(g.gratuityRaw).toBeGreaterThan(0);
     expect(g.gratuity).toBe(0);
     expect(finalSettlement(p).gratuity).toBe(0);
   });
@@ -407,23 +410,23 @@ describe('cheque exposure', () => {
 
   it('excludes non-cheque payment types', () => {
     const onlyAutoDebit = REF_CHEQUES.filter((p) => p.type === 'autoDebit');
-    expect(chequeExposure(onlyAutoDebit, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(0);
+    expect(chequeExposure(onlyAutoDebit, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M.value)).toBe(0);
   });
 
   it('excludes cheques dated before the last working day', () => {
     const past: ScheduledPayment[] = [
       { ...REF_CHEQUES[0], id: 'past', dueDate: '2026-09-29', amount: 99_000 },
     ];
-    expect(chequeExposure(past, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M)).toBe(0);
+    expect(chequeExposure(past, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M.value)).toBe(0);
   });
 
   it('includes a cheque falling exactly on the window boundary', () => {
-    const boundary = addDays(REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M);
+    const boundary = addDays(REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M.value);
     const p: ScheduledPayment[] = [{ ...REF_CHEQUES[0], id: 'edge', dueDate: boundary, amount: 1_000 }];
-    expect(chequeExposure(p, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(1_000);
+    expect(chequeExposure(p, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M.value)).toBe(1_000);
     const dayAfter = addDays(boundary, 1);
     const q: ScheduledPayment[] = [{ ...REF_CHEQUES[0], id: 'edge2', dueDate: dayAfter, amount: 1_000 }];
-    expect(chequeExposure(q, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(0);
+    expect(chequeExposure(q, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M.value)).toBe(0);
   });
 
   /*
@@ -439,9 +442,9 @@ describe('cheque exposure', () => {
       p.id === 'p3' ? { ...p, status: 'paid' as const } : p,
     );
     // 113,000 less the 18,000 January rent cheque that has now cleared.
-    expect(chequeExposure(cleared, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(95_000);
+    expect(chequeExposure(cleared, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M.value)).toBe(95_000);
     // And the 12-month figure moves by the same amount, not a different one.
-    expect(chequeExposure(cleared, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M)).toBe(143_000);
+    expect(chequeExposure(cleared, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M.value)).toBe(143_000);
   });
 
   it('keeps an atRisk cheque in exposure — it is more owed, not less', () => {
@@ -455,8 +458,8 @@ describe('cheque exposure', () => {
     const flagged = REF_CHEQUES.map((p) =>
       p.id === 'p1' || p.id === 'p5' ? { ...p, status: 'atRisk' as const } : p,
     );
-    expect(chequeExposure(flagged, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(113_000);
-    expect(chequeExposure(flagged, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M)).toBe(161_000);
+    expect(chequeExposure(flagged, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M.value)).toBe(113_000);
+    expect(chequeExposure(flagged, REF.expectedLastDay, RULES.CHEQUE_WINDOW_12M.value)).toBe(161_000);
   });
 
   it('a cheque cleared outside the window changes nothing', () => {
@@ -466,7 +469,7 @@ describe('cheque exposure', () => {
       { ...REF_CHEQUES[0], id: 'past', dueDate: '2026-09-29', amount: 99_000, status: 'paid' },
       ...REF_CHEQUES,
     ];
-    expect(chequeExposure(paidPast, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M)).toBe(113_000);
+    expect(chequeExposure(paidPast, REF.expectedLastDay, RULES.CHEQUE_WINDOW_6M.value)).toBe(113_000);
   });
 
   it('visa grace end follows the profile grace days', () => {
@@ -686,7 +689,7 @@ describe('schoolFeeObligations', () => {
   it('a cheque-paid term becomes a cheque and reaches exposure', () => {
     // The whole point. Before, this was 0.
     const derived = schoolFeeObligations(fees);
-    expect(chequeExposure(derived, '2026-09-30', RULES.CHEQUE_WINDOW_12M)).toBe(12_000);
+    expect(chequeExposure(derived, '2026-09-30', RULES.CHEQUE_WINDOW_12M.value)).toBe(12_000);
   });
 
   it('a term paid by transfer is not counted as cheque exposure', () => {

@@ -24,14 +24,17 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const url = (path: string) => `${BASE_PATH}${path}`;
 
 const ROUTES = [
-  { path: '/', name: 'Home' },
+  { path: '/entitlement/', name: 'Your entitlement' },
+  { path: '/money/', name: 'Money' },
+  { path: '/documents/', name: 'Documents' },
+  { path: '/you/', name: 'You' },
   { path: '/calendar/', name: 'Payment calendar' },
   { path: '/schedule/', name: 'Schedule' },
   { path: '/budget/', name: 'Budget' },
   { path: '/loans/', name: 'Loans, mortgage, school fees & cheques' },
   { path: '/profile/', name: 'Income & profile' },
   { path: '/statements/', name: 'Bank statements & transactions' },
-  { path: '/report/', name: 'Termination report' },
+  { path: '/report/', name: 'Explain your numbers' },
   { path: '/plan/', name: 'Readiness & action plan' },
   { path: '/settings/', name: 'Settings' },
 ] as const;
@@ -82,9 +85,9 @@ test.describe('every screen', () => {
   }
 });
 
-test.describe('dashboard', () => {
+test.describe('money — the headline figures (moved from the dashboard, HAD-124)', () => {
   test('shows the §11 headline figures', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
 
     // Runway hero: 9.6 months for the reference profile.
     await expect(page.locator('.hero-num')).toContainText('9.6');
@@ -99,7 +102,7 @@ test.describe('dashboard', () => {
   });
 
   test('runway status is never colour alone — it carries an icon and a label', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const badge = page.locator('.hero .status');
     await expect(badge).toHaveCount(1);
     // A text label a screen reader (or a colourblind reader) can use.
@@ -111,7 +114,7 @@ test.describe('dashboard', () => {
   test('the cheque tile caption counts the same cheques its figure sums', async ({ page }) => {
     // Regression: the caption said "8 cheques" while the amount covered only the
     // five inside the six-month window.
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const tile = page.locator('.tile', { hasText: 'Cheques — next 6 months' }).first();
     await expect(tile).toContainText('113,000');
     await expect(tile).toContainText('5 cheques');
@@ -119,7 +122,7 @@ test.describe('dashboard', () => {
 
   test('every stat tile navigates to where its inputs live', async ({ page }) => {
     // Traceability is a hard requirement: no AED figure may be a dead end.
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const tiles = page.locator('.grid.g5 a.tile');
     const count = await tiles.count();
     expect(count).toBe(5);
@@ -131,7 +134,7 @@ test.describe('dashboard', () => {
   });
 
   test('projection chart is described for screen readers and marks the zero crossing', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const svg = page.locator('svg.plot').first();
     const label = await svg.getAttribute('aria-label');
     expect(label, 'chart needs a text alternative').toBeTruthy();
@@ -146,7 +149,7 @@ test.describe('dashboard', () => {
     // reachable via the hover layer. This also guards the hydration failure that
     // adding that layer originally caused: a <title> built from several JSX
     // children emits comment separators React cannot reconcile.
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const titles = page.locator('svg.plot title');
     expect(await titles.count()).toBeGreaterThanOrEqual(18);
     const texts = await titles.allTextContents();
@@ -154,37 +157,18 @@ test.describe('dashboard', () => {
     expect(texts.some((t) => /below zero/.test(t))).toBe(true);
   });
 
-  test('scenario cards end in a shortfall at 12 months', async ({ page }) => {
-    await page.goto(url('/'));
-    const twelve = page.locator('.g4 > .card').filter({ hasText: 'After 12 months' }).first();
-    await expect(twelve).toContainText('55,521');
-    await expect(twelve).toContainText('Shortfall');
-  });
 });
 
-test.describe('cross-screen consistency', () => {
-  test('a scenario gets the same verdict on the dashboard and the report', async ({ page }) => {
-    // Regression: 9 months read "OK" on the dashboard and "Tight" on the report.
-    const verdicts = async (path: string) => {
-      await page.goto(url(path));
-      const out: Record<string, string> = {};
-      for (const months of [3, 6, 9, 12]) {
-        // Scope to the inner scenario cards: a bare `.card` filter also matches
-        // the outer "Scenarios" card, which contains all four badges at once.
-        const card = page.locator('.g4 > .card').filter({ hasText: `After ${months} months` }).first();
-        const badge = card.locator('.status');
-        out[`${months}`] = ((await badge.textContent()) ?? '').replace(/\s+/g, ' ').trim();
-      }
-      return out;
-    };
+/*
+ * 'cross-screen consistency' lived here: it pinned that a scenario got the
+ * same verdict on the dashboard and the report, guarding a regression where
+ * 9 months read "OK" on one and "Tight" on the other. The dashboard is
+ * retired (HAD-124) and scenarios render on /report alone, so the
+ * disagreement it guarded has no second screen to happen on. The verdict
+ * logic itself is pinned by scenarioTone's unit tests.
+ */
 
-    const dashboard = await verdicts('/');
-    const report = await verdicts('/report/');
-    expect(report).toEqual(dashboard);
-  });
-});
-
-test.describe('termination report', () => {
+test.describe('deterministic explanation', () => {
   test('itemises the settlement without a negative zero', async ({ page }) => {
     await page.goto(url('/report/'));
     await expect(page.locator('body')).toContainText('93,479.47');
@@ -195,6 +179,15 @@ test.describe('termination report', () => {
     expect(text).not.toContain('−0.00');
   });
 
+  test('scenario cards end in a shortfall at 12 months', async ({ page }) => {
+    // Scenarios stayed on the report when the dashboard retired (HAD-124) —
+    // they are working, not headline, and this is the screen that shows work.
+    await page.goto(url('/report/'));
+    const twelve = page.locator('.g4 > .card').filter({ hasText: 'After 12 months' }).first();
+    await expect(twelve).toContainText('55,521');
+    await expect(twelve).toContainText('Shortfall');
+  });
+
   test('states both legal deadlines with countdowns', async ({ page }) => {
     await page.goto(url('/report/'));
     await expect(page.locator('body')).toContainText('14 Oct 2026');
@@ -202,9 +195,48 @@ test.describe('termination report', () => {
     await expect(page.locator('.count').first()).toContainText('days');
   });
 
-  test('offers a PDF export', async ({ page }) => {
+  test('expands every settlement line into its arithmetic without an export', async ({ page }) => {
     await page.goto(url('/report/'));
-    await expect(page.getByRole('button', { name: /export to pdf/i })).toBeVisible();
+    await expect(page.locator('.working')).toHaveCount(11);
+
+    /*
+     * The gratuity line shows its arithmetic and concludes with the figure that
+     * arithmetic produces.
+     *
+     * Asserted as two substrings rather than one exact sentence. The original
+     * regex matched `AED 87,479 accrued` while the page renders
+     * `AED 87,479.47 accrued`, so it never passed — and even corrected, a whole
+     * formatted sentence couples this test to `moneyPrecise`, the spacing and
+     * the copy, none of which is what it is here to prove.
+     */
+    const gratuityWorking = page.locator('.working').first();
+    await expect(gratuityWorking).toContainText('174.96 days');
+    await expect(gratuityWorking).toContainText('87,479.47');
+
+    await expect(page.getByRole('button', { name: /export to pdf/i })).toHaveCount(0);
+  });
+});
+
+test.describe('date-driven entitlement', () => {
+  test('recalculates the answer and deadlines from the on-screen date', async ({ page }) => {
+    await page.goto(url('/entitlement/'));
+    await expect(page.locator('.answer-total')).toContainText('93,479.47');
+    await expect(page.locator('.basis-warning')).toContainText('Legal basis unverified');
+
+    await page.getByLabel('Your last working day').fill('2026-12-31');
+    await expect(page.locator('.answer-total')).not.toContainText('93,479.47');
+    await expect(page.locator('.answer-deadlines')).toContainText('14 Jan 2027');
+    await expect(page.locator('.answer-deadlines')).toContainText('30 Jan 2027');
+  });
+
+  test('does not invent the second date in comparison mode', async ({ page }) => {
+    await page.goto(url('/entitlement/'));
+    await page.getByRole('button', { name: 'Compare another date' }).click();
+    await expect(page.getByText('Choose a second date')).toBeVisible();
+    await expect(page.locator('.answer-figure')).toHaveCount(1);
+
+    await page.getByLabel('Compare with').fill('2026-12-31');
+    await expect(page.locator('.answer-figure')).toHaveCount(2);
   });
 });
 
@@ -324,9 +356,9 @@ test.describe('settings — which Supabase project (HAD-75)', () => {
     /*
      * The defect. Two `isSupabaseConfigured()` functions disagreed: one read
      * `process.env` with no fallback and was printed here, the other read the
-     * committed defaults and decided whether sign-in actually worked. On a
-     * deployment with no environment variables — which is this one — the screen
-     * said "Not configured" while signing in worked perfectly.
+     * then-committed defaults and decided whether sign-in actually worked. The
+     * defaults are gone now, but this remains the regression check that the
+     * Settings answer and actual sign-in availability cannot diverge.
      *
      * Asserted against the *sign-in* screen rather than in isolation, because
      * the bug was the disagreement between them, not either answer alone.
@@ -343,18 +375,23 @@ test.describe('settings — which Supabase project (HAD-75)', () => {
     ).toBe(true);
   });
 
-  test('says which project it is reaching, not merely that one exists', async ({ page }) => {
+  test('claims a project only when a deployment actually chose one', async ({ page }) => {
     /*
-     * Deleting the duplicate alone would make this row say "Configured" always,
-     * which reports that a constant exists rather than that a deployment was
-     * set up. It now distinguishes the two, and warns when the committed
-     * default is in use — because every preview and fork inherits it, so an
-     * account created on a preview URL is an account in the real project.
+     * This used to assert /Shared default|This deployment/, because a
+     * committed default meant some project was always reachable and the row's
+     * job was to say which. The default is gone (C-7 / HAD-109): every state
+     * this row can show is now an explicit deployment choice, and this suite
+     * runs unconfigured — so the honest answer here is "Not configured".
+     *
+     * What must never come back is the inversion HAD-75 fixed: a row claiming
+     * a project this deployment never chose. So the unconfigured state must
+     * say so plainly, and must not name a Supabase host it is not using.
      */
     await page.goto(url('/settings/'));
     const card = backend(page);
     const row = card.locator('tbody tr', { hasText: 'Supabase project' }).first();
-    await expect(row).toContainText(/Shared default|This deployment/);
+    await expect(row).toContainText('Not configured');
+    await expect(row).not.toContainText('.supabase.co');
   });
 });
 
@@ -435,7 +472,7 @@ test.describe('typographic hierarchy (HAD-65)', () => {
     );
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     await page.evaluate(() => document.fonts.ready);
   });
 
@@ -517,7 +554,7 @@ test.describe('typographic hierarchy (HAD-65)', () => {
       if (r.resourceType() === 'font') origins.push(new URL(r.url()).origin);
     });
 
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     await page.evaluate(() => document.fonts.ready);
 
     const own = new URL(page.url()).origin;
@@ -822,7 +859,7 @@ test.describe('profile — bank accounts', () => {
   });
 });
 
-test.describe('dashboard — actual spending trend', () => {
+test.describe('money — actual spending trend (moved, HAD-124)', () => {
   test('US-12 — the trend chart states its own figures, not just draws them', async ({ page }) => {
     /*
      * HAD-49 sat In Review for two reasons. One was that ingestion did not
@@ -837,7 +874,7 @@ test.describe('dashboard — actual spending trend', () => {
      * figures and the actual months, which is what a reader gets — and what a
      * screen reader user gets instead of the line.
      */
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
 
     const chart = page.getByRole('img', { name: /Actual monthly spending/ });
     await expect(chart).toBeVisible();
@@ -1203,9 +1240,9 @@ test.describe('payment calendar', () => {
   });
 });
 
-test.describe('dashboard insights', () => {
+test.describe('money — insights (moved, HAD-124)', () => {
   test('US-13 — insights are present and agree with the figures they cite', async ({ page }) => {
-    await page.goto(url('/'));
+    await page.goto(url('/money/'));
     const insights = page.locator('ul.insights li');
     await expect(insights.first()).toBeVisible();
     const count = await insights.count();
@@ -1670,28 +1707,62 @@ test.describe('accessibility', () => {
   }
 });
 
-test.describe('navigation', () => {
-  test('desktop sidebar navigates between screens', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', 'sidebar is hidden on mobile');
+test.describe('the first visit (HAD-122)', () => {
+  /*
+   * Every other test in this suite carries the doorway cookie from the shared
+   * storage state and browses as a returning visitor. This block clears it,
+   * because the redirect it specifies exists precisely for the person who has
+   * never been here.
+   */
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("a stranger landing on '/' is taken to the doorway", async ({ page }) => {
     await page.goto(url('/'));
-    await page.locator('.nav a', { hasText: 'Calendar' }).click();
-    await expect(page.locator('h1')).toHaveText('Payment calendar');
-    await page.locator('.nav a', { hasText: 'Report' }).click();
-    await expect(page.locator('h1')).toHaveText('Termination report');
+    // The problem Phase 2 was opened on: the first screen must not be
+    // somebody else's finances and ten navigation items.
+    await expect(page.locator('h1')).toHaveText('Where are you right now?');
+    await expect(page).toHaveURL(/\/start\/?$/);
   });
 
-  test('mobile shows bottom tabs instead of the sidebar', async ({ page }, testInfo) => {
+  test('answering the doorway earns the browse', async ({ page }) => {
+    await page.goto(url('/start/'));
+    await page.locator('#door-planning').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.locator('h1')).toHaveText('Six things, then your figure');
+
+    // '/' is a door, not a screen (HAD-124): with the doorway answered it
+    // opens the Answer section, and the reference figures are browsable
+    // through the four sections rather than on a dashboard of their own.
+    await page.goto(url('/'));
+    await expect(page.locator('h1')).toHaveText('Your entitlement');
+    await expect(page).toHaveURL(/\/entitlement\/?$/);
+  });
+});
+
+test.describe('navigation', () => {
+  test('desktop top bar navigates between sections', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'top bar is hidden on mobile');
+    await page.goto(url('/'));
+    // The old per-screen items are gone, so this walks the four sections.
+    await page.locator('.nav a', { hasText: 'Money' }).click();
+    await expect(page.locator('h1')).toHaveText('Money');
+    await page.locator('.nav a', { hasText: 'Documents' }).click();
+    await expect(page.locator('h1')).toHaveText('Documents');
+  });
+
+  test('mobile shows four bottom tabs instead of the top bar', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'bottom tabs are desktop-hidden');
     await page.goto(url('/'));
     await expect(page.locator('.bottom-tabs')).toBeVisible();
-    await expect(page.locator('.side')).toBeHidden();
-    await page.locator('.bottom-tabs a', { hasText: 'Calendar' }).click();
-    await expect(page.locator('h1')).toHaveText('Payment calendar');
+    await expect(page.locator('.top-bar')).toBeHidden();
+    await expect(page.locator('.bottom-tabs a')).toHaveCount(4);
+    await page.locator('.bottom-tabs a', { hasText: 'You' }).click();
+    await expect(page.locator('h1')).toHaveText('You');
   });
 
   test('the current screen is marked for assistive technology', async ({ page }) => {
     await page.goto(url('/budget/'));
-    await expect(page.locator('[aria-current="page"]').first()).toContainText('Budget');
+    await expect(page.locator('[aria-current="page"]').first()).toContainText('Money');
   });
 });
 

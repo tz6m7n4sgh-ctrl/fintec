@@ -136,8 +136,29 @@ than claimed.
 | **D3** | Read-my-documents | D2, consent design |
 | **E** | Visual design | C |
 
+### Where the plan stands, 3 Aug
+
+| | Workstream | State |
+|---|---|---|
+| **A** | Citation model | **Merged.** Every constant in `RULES` carries a provision and a verified-on date, all null, enforced by `rule()` taking them as required arguments. The app renders the emptiness |
+| **B1** | Doorway + six fields | **Merged.** `/start` and `/start/figures` |
+| **B2** | Date-driven answer | **Merged.** `/entitlement`, delegating every amount to the engine |
+| **B3** | Explain this number | **Merged.** `/report` became the explanation; the PDF export is deleted, per P2-6 |
+| **C** | Ten sections to four | **Merged, including the retirement (HAD-124).** The four sections carry their content; `/` and `/answer` are redirects, the dashboard's parts moved to `/money`, and the editing routes remain what the sections link to |
+| **D1–D3** | The AI surfaces | Not started. D1 and D2 need an API key; D3 needs a consent design |
+| **E** | Visual design | Not started — but unblocked, now that C is finished rather than begun |
+
+Two claims this document made about the app are now false in a good way: the
+legal footer no longer asserts *"UAE rules current as of July 2026"*, and the
+engine header no longer says *"as verified July 2026"*. Nobody had verified
+either, which is what OD-1 recorded.
+
 **E is last, deliberately.** Restyling ten screens that will not survive workstream C is waste.
 This is the part that will feel wrong to defer and is the part most worth deferring.
+
+A design file now exists for A, B1, B2, B3 and C — the screens C keeps, not the ten it deletes, so
+this does not reorder the plan. What has been drawn, what it commits to, and what is still missing
+is recorded in [`phase-2-design.md`](phase-2-design.md) and tracked as HAD-99.
 
 **D3 is last for a different reason.** The app's current privacy position is unusually strong: a
 CSV is parsed on the user's own server and never sent anywhere. Sending a labour contract and an
@@ -202,7 +223,7 @@ then rebuilt.** Two of Phase 1's highest-stakes features are in exactly that sta
 | C-4 | **Manual test pass** (HAD-68) | Not started | Needs *Confirm email = OFF*. Largely superseded anyway: Phase 2 replaces the screens it would test |
 | C-5 | **`atRisk` rule** (HAD-83) | Undecided | A product decision. Phase 2 redesigns the dashboard, so the concept may not survive in its current form |
 | C-6 | **Scheduled parse sweep** (HAD-9) | Recommended for closure | Its only remaining job is retrying a failed parse, which a retry button does without introducing the one key this project holds nowhere |
-| C-7 | **Committed Supabase defaults** (HAD-75) | Undecided | Becomes mandatory in Phase 2: a product for strangers must not ship credentials that point every fork at one project |
+| C-7 | **Committed Supabase defaults** (HAD-75) | Resolved in HAD-109 | Deployments now require both variables; previews use their own project or run without a backend |
 
 ### C-3 is not like the others
 

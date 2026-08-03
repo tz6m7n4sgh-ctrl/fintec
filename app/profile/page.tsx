@@ -97,10 +97,10 @@ export default async function ProfilePage() {
           <Field label="Involuntary & non-disciplinary" value={p.iloeInvoluntary ? 'Yes' : 'No'}
             help="Resignation and dismissal for misconduct are both excluded." />
           <Field label="Average basic salary, last 6 months" value={money(p.iloeAvgBasic6m)}
-            help={`At or below ${money(RULES.ILOE_CATEGORY_THRESHOLD)} is Category A (cap ${money(RULES.ILOE_CAP_A)}/mo); above is Category B (cap ${money(RULES.ILOE_CAP_B)}/mo).`} />
+            help={`At or below ${money(RULES.ILOE_CATEGORY_THRESHOLD.value)} is Category A (cap ${money(RULES.ILOE_CAP_A.value)}/mo); above is Category B (cap ${money(RULES.ILOE_CAP_B.value)}/mo).`} />
           <Field label="Computed monthly benefit" value={money(r.iloe.monthlyBenefit)}
             help={r.iloe.eligible
-              ? `60% of average basic, capped at ${money(r.iloe.monthlyCap)}. Paid for up to ${RULES.ILOE_MAX_MONTHS} months = ${aed(r.iloe.iloeTotal)}.`
+              ? `60% of average basic, capped at ${money(r.iloe.monthlyCap)}. Paid for up to ${RULES.ILOE_MAX_MONTHS.value} months = ${aed(r.iloe.iloeTotal)}.`
               : 'Not eligible on the answers above.'} />
         </div>
       </Card>
@@ -121,7 +121,7 @@ export default async function ProfilePage() {
         <div className="form-grid">
           <Field label="Dependents" value={String(p.dependents)} />
           <Field label="Visa grace days" value={String(p.visaGraceDays)}
-            help={`30–90 standard; 180 for Golden/Green visas. AED ${RULES.OVERSTAY_AED_PER_DAY}/day overstay after ${formatDate(r.deadlines.visaGraceEnd)}.`} />
+            help={`30–90 standard; 180 for Golden/Green visas. AED ${RULES.OVERSTAY_AED_PER_DAY.value}/day overstay after ${formatDate(r.deadlines.visaGraceEnd)}.`} />
           <Field label="Health cover months after end" value={String(p.healthCoverMonthsAfterEnd)}
             help="Health insurance is mandatory for residency once employer cover lapses." />
         </div>

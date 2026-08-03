@@ -180,7 +180,7 @@ export interface ServicePeriod {
 export interface GratuityBreakdown {
   dailyBasic: number;
   gratuityDays: number;
-  /** Before the 24-month cap is applied. */
+  /** Accrued amount before eligibility and the 24-month cap are applied. */
   gratuityRaw: number;
   /** 24 × basic salary. */
   gratuityCap: number;

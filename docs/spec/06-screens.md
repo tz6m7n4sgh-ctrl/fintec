@@ -1,14 +1,37 @@
 # Screens
 
-Ten routes. Every one is server-rendered, reads the same `ReadModel`, and renders the §11 reference dataset when signed out.
+Every route is server-rendered, reads the same `ReadModel`, and renders the §11 reference dataset when signed out.
 
-> **Phase 2 replaces this information architecture.** Ten sections are engine-shaped, not user-shaped — they mirror how the calculation is organised rather than what a person came to find out. The plan collapses them to roughly four, around a single date-driven answer. This documents what exists today; [`../phase-2-discovery.md`](../phase-2-discovery.md) documents what replaces it.
+> **Phase 2's information architecture has replaced the old one (HAD-124).**
+>
+> Four sections — **Answer**, **Money**, **Documents**, **You** — with a top bar on desktop and four tabs on mobile, each owning a set of routes so `/budget` lights up *Money*. Alongside them, `/start` and `/start/figures` are the first run, and `/entitlement` is the Answer section's screen: the figure as a function of a date.
+>
+> **Two screens were retired, both as redirects rather than deletions**, so any bookmark still lands somewhere true:
+>
+> - `/` is a door, not a screen. A stranger (no doorway cookie, nothing of their own) is sent to `/start`; everyone else to `/entitlement`. The dashboard it used to render is gone, and each of its parts lives in the section that owns it — the stat tiles, both charts and the money insights on `/money`, scenarios on `/report`, the score and checklist on `/plan`.
+> - `/answer` — the hub of onward links that shipped with the shell — redirects to `/entitlement`, which is what the navigation had pointed at since the sections landed.
+>
+> The screens the sections *absorb* (budget, calendar, schedule, loans, and so on) remain reachable and remain the places where things are **edited**; the sections are where they are read. The e2e suite browses as a returning visitor via a shared storage state, with the first-visit redirect specified by its own tests.
 
-## The routes
+## Phase 2 routes
+
+| Route | Shows | Workstream |
+| --- | --- | --- |
+| `/start/` | The doorway question — *already happened* / *think it's coming* / *just working things out* | B1 |
+| `/start/figures/` | Six fields, then an answer. No invented defaults; a blank states what it costs | B1 |
+| `/entitlement/` | The figure as a function of a date, with comparison and the engine's zero states | B2 |
+| `/report/` | *Explain your numbers* — every line expands into its own arithmetic. No export | B3 |
+| `/money/` `/documents/` `/you/` | Three of the four sections (Answer's screen is `/entitlement/`). Money carries the runway hero, the dashboard's stat tiles and charts, and the derived-row markers; Documents the privacy claim and PDF refusal; You the switched-off features saying so | C |
+| `/` `/answer/` | Redirects, not screens — `/` to the doorway or the answer, `/answer/` to `/entitlement/` | C |
+
+The unverified-basis panel appears beside the engine's figures on `/money/`, `/report/` and the first run, rendered from the rules themselves so it disappears on its own when one is sourced. `/entitlement/` carries the same caveat inline, beside the figure it qualifies.
+
+## The editing routes
+
+Still reachable, still correct — the sections are where figures are read, these are (mostly) where they are edited. `/report/` and `/plan/` are the exceptions: they are the Answer section's deeper reads, and its `routes` array lights *Answer* up for both.
 
 | Route | Shows |
 | --- | --- |
-| `/` | Dashboard — readiness band and score, runway, the projection chart, actual spending trend, upcoming payments |
 | `/calendar/` | Payment occurrences by month |
 | `/schedule/` | Scheduled payments — create, edit, mark paid |
 | `/budget/` | Categories with current, survival, difference and actual per month; categorisation rules |
@@ -31,9 +54,9 @@ The reasoning: a financial app that shows nothing until you sign up cannot be ev
 
 > Phase 2 identifies this as a usability problem rather than a virtue — *"the first screen is somebody else's finances and ten navigation items"* — but the mechanism is sound and should survive. What changes is that a first run comes first.
 
-## Dashboard
+## Money (formerly the dashboard's home)
 
-The readiness band, the score with its criteria, the runway in months, a projection chart to the zero-crossing, the actual spending trend, and what is due next.
+The runway hero, the five stat tiles, a projection chart to the zero-crossing, the survival budget with its derived-row markers, what is due next, what is owed, the actual spending trend and the derived insights. Every AED figure links to the screen where its inputs are edited (NFR-5/BR-11).
 
 The projection chart is a **server-rendered SVG** with an `aria-label` stating its endpoints in figures — so a screen reader user gets the same information as a sighted one, and the e2e asserts the label rather than the path geometry.
 
@@ -71,6 +94,6 @@ Concrete consequences visible in the code: every form field is programmatically 
 
 ## Performance
 
-Lighthouse gates on the **median** of three runs. The dashboard sits around 0.98 with total-blocking-time near 0.99.
+Lighthouse gates on the **median** of three runs, auditing `/entitlement/` and `/report/` (`/` is a redirect since HAD-124, so the screen NFR-9 names is audited by its own URL).
 
 One finding worth carrying forward: the sidebar renders ten `next/link`s, all in the viewport, and every route in this app is dynamic — so default prefetching triggered ten full server renders during page load, inside the window total-blocking-time measures. On the CI runner that was the difference between 0.99 and 0.77 on the same commit. All navigation links set `prefetch={false}`.

@@ -3,77 +3,62 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-/**
- * App shell: sidebar on desktop, bottom tabs on mobile (NFR-3).
- * The five mobile tabs are the spec's set: Home · Calendar · Budget · Loans · Plan.
- *
- * ## Why every link here sets `prefetch={false}` (HAD-86)
- *
- * Next prefetches a `<Link>` as soon as it enters the viewport. The sidebar
- * puts *all ten* routes in the viewport at once, and every route in this app is
- * dynamic — `ƒ` in the build output, server-rendered on demand — so each
- * prefetch is a full server render, a network round trip, and an RSC payload
- * for the browser to parse.
- *
- * That happens during page load, on the main thread, in exactly the window
- * total-blocking-time measures. On the CI runner it was the difference between
- * a performance score of 0.99 and 0.77 on the same commit, which made the gate
- * pass on its median while failing one run in three.
- *
- * The cost is real and small: the first click on a nav item now fetches rather
- * than reading a cache. That cache was worth little anyway — a dynamic route's
- * prefetch is only held for thirty seconds, so it expires before most people
- * navigate, and it was being paid for on every single page load by every user.
- */
-
+/** The four destinations describe what someone came to do, not our data model. */
 const NAV = [
-  { href: '/', label: 'Home', icon: '◧', tab: true },
-  { href: '/calendar', label: 'Calendar', icon: '▤', tab: true },
-  { href: '/schedule', label: 'Schedule', icon: '≡', tab: false },
-  { href: '/budget', label: 'Budget', icon: '◑', tab: true },
-  { href: '/loans', label: 'Loans', icon: '◈', tab: true },
-  { href: '/statements', label: 'Statements', icon: '↥', tab: false },
-  { href: '/report', label: 'Report', icon: '▦', tab: false },
-  { href: '/plan', label: 'Plan', icon: '✓', tab: true },
-  { href: '/profile', label: 'Profile', icon: '◔', tab: false },
-  { href: '/settings', label: 'Settings', icon: '⚙', tab: false },
-];
+  /*
+   * `/entitlement` sits inside Answer rather than beside it.
+   *
+   * B2 added it as an eleventh item while this workstream exists to get to
+   * four, so inheriting it would have left the two pulling in opposite
+   * directions. It is the answer — the figure, the date that drives it — so
+   * Answer is where it belongs and where its `aria-current` should light up.
+   */
+  { href: '/entitlement', label: 'Answer', icon: '◧', routes: ['/', '/answer', '/entitlement', '/report', '/plan'] },
+  { href: '/money', label: 'Money', icon: '◑', routes: ['/money', '/budget', '/calendar', '/schedule', '/loans'] },
+  { href: '/documents', label: 'Documents', icon: '↥', routes: ['/documents', '/statements'] },
+  { href: '/you', label: 'You', icon: '◔', routes: ['/you', '/profile', '/settings'] },
+] as const;
 
 function useCurrent() {
   const pathname = usePathname();
-  return (href: string) =>
-    (href === '/' ? pathname === '/' : pathname.startsWith(href)) ? 'page' : undefined;
+  return (routes: readonly string[]) =>
+    routes.some((route) => route === '/' ? pathname === '/' : pathname.startsWith(route))
+      ? 'page'
+      : undefined;
 }
 
-export function Sidebar() {
+function Navigation({ className }: { className: string }) {
   const current = useCurrent();
   return (
-    <aside className="side">
-      <div className="brand">
-        <div className="brand-mark" aria-hidden>₯</div>
-        <div className="brand-name">Readiness</div>
-      </div>
-      <nav className="nav" aria-label="Main">
-        {NAV.map((n) => (
-          <Link key={n.href} href={n.href} prefetch={false} aria-current={current(n.href)}>
-            <span className="ico" aria-hidden>{n.icon}</span> {n.label}
-          </Link>
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
-export function BottomTabs() {
-  const current = useCurrent();
-  return (
-    <nav className="bottom-tabs" aria-label="Main">
-      {NAV.filter((n) => n.tab).map((n) => (
-        <Link key={n.href} href={n.href} prefetch={false} aria-current={current(n.href)}>
-          <span className="ico" aria-hidden>{n.icon}</span>
-          {n.label}
+    <nav className={className} aria-label="Main">
+      {NAV.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          prefetch={false}
+          aria-current={current(item.routes)}
+        >
+          <span className="ico" aria-hidden>{item.icon}</span>
+          {item.label}
         </Link>
       ))}
     </nav>
   );
+}
+
+/** Desktop top bar. Kept under the old export name to avoid coupling layout to presentation. */
+export function Sidebar() {
+  return (
+    <header className="top-bar">
+      <Link className="brand" href="/entitlement" prefetch={false} aria-label="Readiness — Answer">
+        <span className="brand-mark" aria-hidden>₯</span>
+        <span className="brand-name">Readiness</span>
+      </Link>
+      <Navigation className="nav" />
+    </header>
+  );
+}
+
+export function BottomTabs() {
+  return <Navigation className="bottom-tabs" />;
 }

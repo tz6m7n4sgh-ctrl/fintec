@@ -92,6 +92,30 @@ export default defineConfig({
     channel: 'chromium',
     launchOptions,
     trace: 'retain-on-failure',
+    /*
+     * The suite browses as a returning visitor who has answered the doorway.
+     *
+     * A first visit to `/` now redirects to `/start` (HAD-122), and the
+     * discriminator is this cookie. Without it, every test that opens `/`
+     * would land on the doorway instead of the screen it specifies. The
+     * first-visit redirect itself is covered by a test that explicitly
+     * clears this state — so both sides of the door stay specified.
+     */
+    storageState: {
+      cookies: [
+        {
+          name: 'fintec-doorway',
+          value: 'planning',
+          domain: '127.0.0.1',
+          path: '/',
+          expires: -1,
+          httpOnly: true,
+          secure: false,
+          sameSite: 'Lax' as const,
+        },
+      ],
+      origins: [],
+    },
   },
 
   projects: [
