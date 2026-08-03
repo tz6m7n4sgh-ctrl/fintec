@@ -49,7 +49,10 @@ function Figure({ profile, payments, date }: { profile: Profile; payments: Sched
       </dl>
 
       <div className="answer-deadlines">
-        <h3>What happens next</h3>
+        {/* h2, not h3: the page's h1 is "Your entitlement" and nothing sits
+          * between — a skipped level fails Lighthouse's heading-order audit,
+          * which axe's WCAG-tagged sweep does not run. */}
+        <h2>What happens next</h2>
         <div><time dateTime={deadlines.settlementDue}>{formatDate(deadlines.settlementDue)}</time><span>Employer settlement due · 14 days after your last day</span></div>
         <div><time dateTime={deadlines.iloeDeadline}>{formatDate(deadlines.iloeDeadline)}</time><span>ILOE claim deadline · 30 days after your last day</span></div>
         <div><time dateTime={deadlines.visaGraceEnd}>{formatDate(deadlines.visaGraceEnd)}</time><span>Saved visa grace period ends</span></div>
