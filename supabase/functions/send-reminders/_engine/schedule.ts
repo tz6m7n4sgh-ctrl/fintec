@@ -1,8 +1,8 @@
 // GENERATED FILE — do not edit.
 //
-// Copied from lib/engine/ by scripts/vendor-engine.mjs so the reminder job
-// computes exactly what the app shows. Edit the source and re-run the script;
-// vendor-engine.test.ts fails if this copy is out of date.
+// Copied from lib/engine/ by scripts/vendor-engine.mjs so the deployed
+// function behaves exactly as the app and its tests do. Edit the source and
+// re-run the script; vendor-engine.test.ts fails if this copy is out of date.
 import type { IsoDate, Recurrence, ScheduledPayment } from './types.ts';
 
 /**

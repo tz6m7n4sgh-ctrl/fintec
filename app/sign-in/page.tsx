@@ -5,6 +5,7 @@ import { getUser } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { Assurances, NotConfigured } from '@/app/auth/Assurances';
 import { CredentialsForm } from '@/app/auth/CredentialsForm';
+import { PasskeySignIn } from '@/app/auth/PasskeySignIn';
 
 export const metadata = { title: 'Sign in — Readiness' };
 
@@ -55,7 +56,21 @@ export default async function SignInPage({
           Signed out, this app shows the reference dataset — real numbers in shape, but not yours.
           Signing in is what lets it read and write your own.
         </p>
-        {configured ? <CredentialsForm mode="signin" /> : <NotConfigured />}
+        {configured ? (
+          <>
+            {/*
+              Above the form, because a user with a passkey should not have to
+              scroll past a password box to find the thing that replaces it —
+              and below the heading, because a user without one must not read
+              the screen as "passkey required". It renders nothing at all until
+              the browser has confirmed it supports WebAuthn.
+            */}
+            <PasskeySignIn />
+            <CredentialsForm mode="signin" />
+          </>
+        ) : (
+          <NotConfigured />
+        )}
       </Card>
 
       {configured && (
