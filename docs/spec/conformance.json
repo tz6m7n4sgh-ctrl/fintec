@@ -1,0 +1,62 @@
+{
+  "$comment": "GENERATED FROM THE ENGINE. Asserted by lib/engine/conformance.test.ts — if the engine changes, that test fails and this file must be regenerated. Do not hand-edit.",
+  "profile": {
+    "basicSalary": 15000,
+    "grossSalary": 25000,
+    "employmentStart": "2019-06-01",
+    "expectedLastDay": "2026-09-30",
+    "unpaidLeaveDays": 0,
+    "unusedLeaveDays": 12,
+    "noticePeriodDays": 30,
+    "noticeDaysPaidInLieu": 0,
+    "otherOwedToEmployee": 0,
+    "owedToEmployer": 0,
+    "iloeSubscribed12m": true,
+    "iloeInvoluntary": true,
+    "iloeAvgBasic6m": 15000,
+    "cashSavings": 80000,
+    "otherLiquidAssets": 20000,
+    "dependents": 2,
+    "visaGraceDays": 90,
+    "healthCoverMonthsAfterEnd": 1
+  },
+  "expected": {
+    "servicePeriod": { "serviceDays": 2678, "serviceYears": 7.3319644079397674 },
+    "gratuity": {
+      "dailyBasic": 500,
+      "gratuityDays": 174.95893223819303,
+      "gratuityRaw": 87479.46611909651,
+      "gratuityCap": 360000,
+      "gratuity": 87479.46611909651,
+      "capApplied": false,
+      "ineligible": false
+    },
+    "leaveEncashment": 6000,
+    "noticePayInLieu": 0,
+    "finalSettlement": {
+      "gratuity": 87479.46611909651,
+      "leaveEncashment": 6000,
+      "noticePayInLieu": 0,
+      "otherOwedToEmployee": 0,
+      "owedToEmployer": 0,
+      "finalSettlement": 93479.46611909651
+    },
+    "iloe": {
+      "eligible": true,
+      "category": "A",
+      "monthlyCap": 10000,
+      "monthlyBenefit": 9000,
+      "iloeTotal": 27000,
+      "capApplied": false
+    },
+    "deadlines": {
+      "settlementDue": "2026-10-14",
+      "iloeDeadline": "2026-10-30",
+      "visaGraceEnd": "2026-12-29",
+      "cheques6m": 101000,
+      "cheques12m": 137000
+    },
+    "monthlyDebtService": 6000,
+    "monthlySchoolFees": 3000
+  }
+}
