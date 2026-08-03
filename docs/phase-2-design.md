@@ -34,6 +34,9 @@ Node IDs are stable and link directly: append `?node-id=<id with : replaced by -
 | **You — mobile 390** | `26:52` | 390 × 1155 | C — absorbs Profile, Settings | this pass |
 | **Answer — gratuity cap applied** | `28:2` | 390 × 953 | B3 — the `capApplied` state | this pass |
 | **Answer — dark (mobile 390)** | `29:3` | 390 × 1014 | Dark mode preview | this pass |
+| **Doorway — a choice made** | `33:2` | 390 × 684 | B1 — selected state | after implementation |
+| **Six fields — saved** | `33:26` | 390 × 576 | B1 — the end of the first run | after implementation |
+| **Six fields — whole days** | `34:2` | 390 × 638 | B1 — integer validation | after implementation |
 
 Five of the nine workstreams in the discovery plan now have drawings: A (as a visible UI state),
 B1, B2, B3 and C. D (the AI surfaces) and E (visual design proper) have none, by design.
@@ -230,7 +233,32 @@ Everything delegated to Codex is buildable now or as soon as its dependency land
 delegated needs a decision or a secret from a person — which is the honest split, and the reason
 those items are named individually rather than pooled into "config".
 
-## 9. Sequencing note
+## 9. States that were designed in code, and put back
+
+Implementing B1 produced three screens the file did not have, because they only
+became necessary once the code existed:
+
+- **`33:2` Doorway — a choice made.** `4:2` shows the question but never a selection, so nothing
+  said which of the three *Continue* would submit.
+- **`33:26` Six fields — saved.** The end of the first run. It exists because the flow originally
+  redirected to `/report`, which would have shown a fresh account the reference dataset as its own
+  answer — every screen reads through `getReadModel()`, which stays on the seed until an account has
+  budget rows.
+- **`34:2` Six fields — whole days.** Leave columns are integers and money is not.
+
+All three are now drawn. The rule worth keeping: **a state invented during implementation goes back
+into the file in the same change.** Otherwise the file quietly stops describing the product, and the
+next person builds from a picture that is no longer true.
+
+One divergence came out of doing it, and is tracked as
+[HAD-125](https://linear.app/haddad/issue/HAD-125/figma-the-token-collection-has-no-interactive-accent)
+rather than hidden: the app marks a selected doorway with `--s1` (blue, its interactive accent) while
+the Figma frame uses `money/ink` (green), because the token collection has no interactive hue at all.
+Using the money colour for interaction erodes what it means — a green figure is *what you are owed*,
+a green card is *the one you picked*, and once one hue carries both, neither is a signal. Here the
+code holds the better-reasoned palette and the file should follow it.
+
+## 10. Sequencing note
 
 Workstream E is last in the discovery plan, and this does not change that. Restyling ten screens
 that workstream C will delete is still waste. What these frames are is different work: the
