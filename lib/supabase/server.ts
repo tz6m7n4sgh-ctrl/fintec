@@ -12,9 +12,25 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, isSupabaseConfigured } from './
  * the code has to acknowledge rather than a crash.
  */
 export async function createClient() {
-  if (!isSupabaseConfigured()) return null;
-
+  /*
+   * Cookies are read BEFORE the configured check, and the order is the point.
+   *
+   * Touching the request's cookies is what tells Next a route is per-request.
+   * While a default project was committed, this call always ran and every
+   * route built as ƒ (dynamic). The moment the default was removed, an
+   * unconfigured build returned null on the line above — nothing touched the
+   * request — and almost every route silently flipped to ○ (static). That
+   * froze the seed data into the HTML at build time and broke the CSP on
+   * every page: the middleware issues a fresh nonce per request, and a
+   * prerendered page carries the stale one, so the browser refuses every
+   * script including Next's own.
+   *
+   * The e2e CSP sweep is what caught it. If this line moves below the guard
+   * again, that sweep is the tripwire.
+   */
   const cookieStore = await cookies();
+
+  if (!isSupabaseConfigured()) return null;
 
   return createServerClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     cookies: {
