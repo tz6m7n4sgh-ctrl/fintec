@@ -4,6 +4,7 @@ import { getReadModel } from '@/lib/data/store';
 import { RULES } from '@/lib/engine/uae';
 import { aed, money, moneyPrecise, months } from '@/lib/format/money';
 import { PrintButton } from './PrintButton';
+import { RuleBasisPanel } from '@/components/RuleBasisPanel';
 
 /**
  * The "if it happens tomorrow" page. Printable to PDF via the browser's own
@@ -32,6 +33,8 @@ export default async function ReportPage() {
         sub={`Prepared ${formatDate(new Date().toISOString().slice(0, 10))} · assumes a last working day of ${formatDate(m.profile.expectedLastDay)}`}
       />
 
+      <RuleBasisPanel />
+
       <div style={{ marginBottom: 14 }}>
         <PrintButton />
       </div>
@@ -42,7 +45,7 @@ export default async function ReportPage() {
             <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>▸</span>
             <span>
               You are owed <b>{aed(r.settlement.finalSettlement)}</b>, payable within{' '}
-              {RULES.SETTLEMENT_DUE_DAYS} days — by <b>{formatDate(r.deadlines.settlementDue)}</b>.
+              {RULES.SETTLEMENT_DUE_DAYS.value} days — by <b>{formatDate(r.deadlines.settlementDue)}</b>.
             </span>
           </li>
           <li>
@@ -51,7 +54,7 @@ export default async function ReportPage() {
               {r.iloe.eligible ? (
                 <>
                   You can claim <b>{aed(r.iloe.iloeTotal)}</b> of ILOE benefit
-                  ({aed(r.iloe.monthlyBenefit)}/month × {RULES.ILOE_MAX_MONTHS}), but only if you
+                  ({aed(r.iloe.monthlyBenefit)}/month × {RULES.ILOE_MAX_MONTHS.value}), but only if you
                   file by <b>{formatDate(r.deadlines.iloeDeadline)}</b>.
                 </>
               ) : (
@@ -114,7 +117,7 @@ export default async function ReportPage() {
           {[
             ['Final settlement due', r.deadlines.settlementDue, `Compare against ${aed(r.settlement.finalSettlement)}. If short or late: MOHRE 600 590 000.`],
             ['ILOE claim — hard deadline', r.deadlines.iloeDeadline, 'iloe.ae with Emirates ID, termination letter and work-permit cancellation.'],
-            ['Visa grace period ends', r.deadlines.visaGraceEnd, `AED ${RULES.OVERSTAY_AED_PER_DAY}/day overstay penalty afterwards.`],
+            ['Visa grace period ends', r.deadlines.visaGraceEnd, `AED ${RULES.OVERSTAY_AED_PER_DAY.value}/day overstay penalty afterwards.`],
           ].map(([name, date, note]) => {
             const d = daysUntil(date as string);
             return (

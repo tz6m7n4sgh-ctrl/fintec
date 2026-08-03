@@ -17,8 +17,8 @@ const RECURRENCE_LABEL: Record<string, string> = {
 export default async function SchedulePage() {
   const m = await getReadModel();
   const last = m.profile.expectedLastDay;
-  const end6 = addDays(last, RULES.CHEQUE_WINDOW_6M);
-  const end12 = addDays(last, RULES.CHEQUE_WINDOW_12M);
+  const end6 = addDays(last, RULES.CHEQUE_WINDOW_6M.value);
+  const end12 = addDays(last, RULES.CHEQUE_WINDOW_12M.value);
 
   const rows = [...m.payments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
@@ -30,8 +30,8 @@ export default async function SchedulePage() {
   // `deadlines.cheques6m` and `cheques12m`, so a filter that disagreed by one
   // cheque would put "113,000" next to a count that does not produce it
   // (HAD-82).
-  const cheques6 = chequesInWindow(m.payments, last, RULES.CHEQUE_WINDOW_6M);
-  const cheques12 = chequesInWindow(m.payments, last, RULES.CHEQUE_WINDOW_12M);
+  const cheques6 = chequesInWindow(m.payments, last, RULES.CHEQUE_WINDOW_6M.value);
+  const cheques12 = chequesInWindow(m.payments, last, RULES.CHEQUE_WINDOW_12M.value);
   const outOfBudget = m.payments.filter((p) => !p.includedInBudget);
 
   // 12-month total expands recurrences, so a monthly bill counts 12 times.

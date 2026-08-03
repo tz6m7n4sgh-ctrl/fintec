@@ -5,6 +5,7 @@ import { formatDate, formatMonthShort } from '@/lib/engine/dates';
 import { RULES, chequesInWindow, monthlyDebtService } from '@/lib/engine/uae';
 import { getReadModel } from '@/lib/data/store';
 import { aed, money, months, percent } from '@/lib/format/money';
+import { RuleBasisPanel } from '@/components/RuleBasisPanel';
 
 export default async function DashboardPage() {
   const m = await getReadModel();
@@ -25,7 +26,7 @@ export default async function DashboardPage() {
   const cheques6mCount = chequesInWindow(
     m.payments,
     m.profile.expectedLastDay,
-    RULES.CHEQUE_WINDOW_6M,
+    RULES.CHEQUE_WINDOW_6M.value,
   ).length;
 
   const lumpMonths = projection.points.filter((p) => p.lumpSum > 0);
@@ -46,6 +47,8 @@ export default async function DashboardPage() {
         title="Home"
         sub={`If your job ends ${formatDate(m.profile.expectedLastDay)}`}
       />
+
+      <RuleBasisPanel />
 
       {m.isSeedData && (
         <div

@@ -46,6 +46,10 @@
   /* Filled surface bearing white text — needs to be dark enough for #fff. */
   --s1-fill: #2976d2;
 
+  /* Figma: flag/unverified-ink and flag/unverified-bg. */
+  --flag-unverified-ink: #624600;
+  --flag-unverified-bg: #fff4d6;
+
   --raise: 0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 1px rgba(11, 11, 11, 0.04);
   --radius: 14px;
 }
@@ -69,6 +73,8 @@
     --critical-ink: #db6868;
     --s1-ink: #3f8be6;
     --s1-fill: #3277ca;
+    --flag-unverified-ink: #f2cd6b;
+    --flag-unverified-bg: #30270f;
     --raise: none;
   }
 }
@@ -91,6 +97,8 @@
   --critical-ink: #db6868;
   --s1-ink: #3f8be6;
   --s1-fill: #3277ca;
+  --flag-unverified-ink: #f2cd6b;
+  --flag-unverified-bg: #30270f;
   --raise: none;
 }
 
@@ -132,6 +140,23 @@ a { color: var(--s1-ink); }
  * an underline so they still read as links without relying on colour.
  */
 .banner-link { color: var(--ink-1); text-decoration: underline; text-underline-offset: 2px; }
+
+.rule-basis {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, currentColor 28%, transparent);
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rule-basis.unverified {
+  color: var(--flag-unverified-ink);
+  background: var(--flag-unverified-bg);
+}
+.rule-basis.verified { color: var(--good-ink); background: var(--surface-1); }
+.rule-basis-count { font-size: 12px; opacity: .82; }
 
 /* Tabular figures so AED columns align. NOT a monospace family — monospace
    letterforms read as code rather than money. */
