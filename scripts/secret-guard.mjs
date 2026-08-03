@@ -37,8 +37,8 @@ try {
 
 // --- 2. .env.example must hold placeholders, never values. ----------------
 // Anything that looks like a real credential rather than an empty or obviously
-// fake value. `sb_publishable_...` is exempt: it is public by design and the
-// real one is already committed in lib/supabase/config.ts on purpose.
+// fake value. `sb_publishable_...` is exempt because the example uses that
+// documented prefix; publishable keys still must not be committed as defaults.
 const REAL_LOOKING = [
   /^eyJ[A-Za-z0-9_-]{20,}/, // a JWT — service-role keys are JWTs
   /^sb_secret_/,

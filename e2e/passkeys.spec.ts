@@ -394,17 +394,27 @@ test.describe('negative controls', () => {
 });
 
 test.describe('the sign-in screen', () => {
-  test('offers the passkey button only once the browser has confirmed support', async ({
+  test('degrades to "you cannot sign in" rather than offering dead controls', async ({
     page,
   }) => {
+    /*
+     * This used to assert the passkey button appears after hydration. That was
+     * true while a default Supabase project was committed, because sign-in was
+     * always live. The default is gone (C-7 / HAD-109), this suite runs
+     * unconfigured, and a passkey button with no backend behind it would be a
+     * control that cannot succeed — so the screen now hides the whole sign-in
+     * surface and says why.
+     *
+     * The button-appears-only-after-WebAuthn-confirmation behaviour is still
+     * specified, by the verifier tests above driving the component directly.
+     * What this test now pins is the degradation contract from the spec: a
+     * missing environment variable reads as "you cannot sign in", never as a
+     * form that swallows a password.
+     */
     await page.goto(`${ORIGIN}${BASE_PATH}/sign-in/`);
 
-    // Chromium supports WebAuthn, so the button appears after hydration. On a
-    // browser that does not, it never renders at all rather than failing on
-    // click — see the component.
-    await expect(page.getByRole('button', { name: 'Sign in with a passkey' })).toBeVisible();
-
-    // The password form is still there and is still the recovery path (R-4).
-    await expect(page.getByLabel('Email address')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in with a passkey' })).toHaveCount(0);
+    await expect(page.getByLabel('Email address')).toHaveCount(0);
+    await expect(page.locator('main')).toContainText(/not configured/i);
   });
 });

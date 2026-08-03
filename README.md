@@ -236,18 +236,14 @@ Vercel's Hobby licence is non-commercial, which fits a personal tool.
 
 ### Deploying to Vercel
 
-Connect the repository. **Nothing else is required** — the Supabase project URL and publishable key
-are committed as defaults in `lib/supabase/config.ts`, so a fresh deploy can sign in immediately.
+Connect the repository, then explicitly set `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for the Supabase project this deployment should use. A
+deployment without both variables has no backend: it still renders the reference dataset, but
+account creation and sign-in are disabled.
 
-Setting `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` still overrides them,
-which is how a fork points at its own project without editing source.
-
-Committing those two values is deliberate, not laziness. Both are public by construction: the
-publishable key ships inside the JavaScript bundle to every visitor either way, and row-level
-security — enabled *and forced* on all thirteen tables, with all four policies on each keyed to
-`(select auth.uid()) = user_id` — is what actually protects the data. Querying the live project as
-the `anon` role returns zero rows from every table and cannot insert one. The key buys an attacker
-exactly what loading the page already would.
+Do not give preview deployments production's values. Either provision a separate preview project
+or leave both variables unset. Although a publishable key is public by construction, committing a
+default would make every fork and preview point at the same real project.
 
 `SUPABASE_SERVICE_ROLE_KEY` is the opposite case. It bypasses RLS entirely, it is not in this repo,
 and it must never be.

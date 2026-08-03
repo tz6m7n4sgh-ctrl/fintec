@@ -368,9 +368,9 @@ test.describe('settings — which Supabase project (HAD-75)', () => {
     /*
      * The defect. Two `isSupabaseConfigured()` functions disagreed: one read
      * `process.env` with no fallback and was printed here, the other read the
-     * committed defaults and decided whether sign-in actually worked. On a
-     * deployment with no environment variables — which is this one — the screen
-     * said "Not configured" while signing in worked perfectly.
+     * then-committed defaults and decided whether sign-in actually worked. The
+     * defaults are gone now, but this remains the regression check that the
+     * Settings answer and actual sign-in availability cannot diverge.
      *
      * Asserted against the *sign-in* screen rather than in isolation, because
      * the bug was the disagreement between them, not either answer alone.
@@ -387,18 +387,23 @@ test.describe('settings — which Supabase project (HAD-75)', () => {
     ).toBe(true);
   });
 
-  test('says which project it is reaching, not merely that one exists', async ({ page }) => {
+  test('claims a project only when a deployment actually chose one', async ({ page }) => {
     /*
-     * Deleting the duplicate alone would make this row say "Configured" always,
-     * which reports that a constant exists rather than that a deployment was
-     * set up. It now distinguishes the two, and warns when the committed
-     * default is in use — because every preview and fork inherits it, so an
-     * account created on a preview URL is an account in the real project.
+     * This used to assert /Shared default|This deployment/, because a
+     * committed default meant some project was always reachable and the row's
+     * job was to say which. The default is gone (C-7 / HAD-109): every state
+     * this row can show is now an explicit deployment choice, and this suite
+     * runs unconfigured — so the honest answer here is "Not configured".
+     *
+     * What must never come back is the inversion HAD-75 fixed: a row claiming
+     * a project this deployment never chose. So the unconfigured state must
+     * say so plainly, and must not name a Supabase host it is not using.
      */
     await page.goto(url('/settings/'));
     const card = backend(page);
     const row = card.locator('tbody tr', { hasText: 'Supabase project' }).first();
-    await expect(row).toContainText(/Shared default|This deployment/);
+    await expect(row).toContainText('Not configured');
+    await expect(row).not.toContainText('.supabase.co');
   });
 });
 
