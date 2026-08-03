@@ -4,6 +4,11 @@ import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { MAX_UPLOAD_BYTES, checkUpload } from '@/lib/statements/upload';
+import { hashesOf, planMerge, prepare, runOutcome, type MergePlan } from '@/lib/ingestion/dedupe';
+import { parseStatement, unsupportedReason, type LogEntry } from '@/lib/ingestion/parse';
+import { isParserConfig, type ParserConfig } from '@/lib/ingestion/columns';
+import { noticeFor, periodOf, withMergeLog } from '@/lib/ingestion/report';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Statement upload to private storage (US-28 / FR-F1 / NFR-1).
@@ -34,6 +39,15 @@ import { MAX_UPLOAD_BYTES, checkUpload } from '@/lib/statements/upload';
 export interface UploadResult {
   ok: boolean;
   error?: string;
+  /**
+   * What the parse did, when the upload itself succeeded.
+   *
+   * Separate from `error` because they are different claims. `error` means the
+   * file is not stored; `notice` means it is stored and something about reading
+   * it is worth saying — including "this is a PDF and cannot be read yet",
+   * which is not a failed upload.
+   */
+  notice?: string;
 }
 
 const NOT_CONFIGURED = 'Supabase is not configured for this deployment.';
@@ -111,24 +125,225 @@ export async function uploadStatement(
   });
   if (uploaded.error) return fail(explain(uploaded.error.message));
 
-  const { error } = await supabase.from('statement_uploads').insert({
-    user_id: user.id,
-    bank_account_id: bankAccountId,
-    file_name: file.name,
-    storage_path: objectKey,
-    file_type: fileType,
-    status: 'uploaded',
-  });
+  const { data: row, error } = await supabase
+    .from('statement_uploads')
+    .insert({
+      user_id: user.id,
+      bank_account_id: bankAccountId,
+      file_name: file.name,
+      storage_path: objectKey,
+      file_type: fileType,
+      status: 'uploaded',
+    })
+    // The id is needed to attach transactions to this upload, and to write the
+    // parse result back onto the same row.
+    .select('id')
+    .single();
 
-  if (error) {
+  if (error || !row) {
     // Invariant 1: no row, so no object. Best-effort — if this cleanup also
     // fails the result is an orphaned file, which is the harmless direction.
     await supabase.storage.from(BUCKET).remove([objectKey]);
-    return fail(explain(error.message));
+    return fail(explain(error?.message ?? 'The upload could not be recorded.'));
   }
 
+  const notice = await parseUpload(supabase, user.id, {
+    uploadId: row.id as string,
+    bankAccountId,
+    file,
+  });
+
   revalidatePath('/statements');
-  return { ok: true };
+  return { ok: true, notice };
+}
+
+/* ------------------------------------------------------------------ *
+ * Parsing
+ * ------------------------------------------------------------------ */
+
+/**
+ * Reads the uploaded file and writes what it found (US-28 / US-29 / US-30).
+ *
+ * ## Why this runs here, and not on a schedule
+ *
+ * US-29 designed a fifteen-minute sweep needing `SUPABASE_SERVICE_ROLE_KEY`,
+ * and SEC-3 established that this project has zero uses of that key — the
+ * isolation SEC-1 proves is unconditional precisely because nothing anywhere
+ * can bypass a policy.
+ *
+ * The sweep is not needed for this. The user is *present*: they just chose the
+ * file. Their JWT is on this request, RLS applies exactly as it does to every
+ * other write in the app, and the parse finishes before the page revalidates —
+ * so somebody who has just uploaded a statement sees their transactions rather
+ * than waiting a quarter of an hour for them. The unattended sweep's only
+ * remaining job would be retrying a failed parse, which a button does without
+ * spending that guarantee.
+ *
+ * ## Why a parse failure is not an upload failure
+ *
+ * The bytes are stored either way, and they are the user's own statement. A
+ * file that cannot be read is worth keeping — so it can be downloaded, or read
+ * by a later version of this parser — and the row records why with a status and
+ * a log rather than vanishing.
+ *
+ * Returns a sentence for the upload form, or undefined when there is nothing
+ * worth saying.
+ */
+async function parseUpload(
+  supabase: SupabaseClient,
+  userId: string,
+  upload: { uploadId: string; bankAccountId: string; file: File },
+): Promise<string | undefined> {
+  const { uploadId, bankAccountId, file } = upload;
+
+  const unsupported = unsupportedReason(file.name);
+  if (unsupported) {
+    await finish(supabase, uploadId, {
+      error: unsupported,
+      log: [{ level: 'error', message: unsupported }],
+    });
+    return unsupported;
+  }
+
+  let text: string;
+  try {
+    text = await file.text();
+  } catch {
+    const message = 'That file could not be read as text.';
+    await finish(supabase, uploadId, { error: message, log: [{ level: 'error', message }] });
+    return message;
+  }
+
+  /*
+   * The saved mapping for this account, used for one thing: supplying a date
+   * order a file with no evidence cannot establish for itself. See
+   * `inferLayout` — it never overrides what the current file does say.
+   */
+  const { data: account } = await supabase
+    .from('bank_accounts')
+    .select('parser_config')
+    .eq('id', bankAccountId)
+    .maybeSingle();
+
+  const saved: ParserConfig | null = isParserConfig(account?.parser_config)
+    ? account.parser_config
+    : null;
+
+  const parsed = parseStatement(text, bankAccountId, saved);
+  if (parsed.error) {
+    await finish(supabase, uploadId, { error: parsed.error, log: parsed.log });
+    return parsed.error;
+  }
+
+  /*
+   * Every hash this user already has, not just this account's. The unique index
+   * is on `(user_id, dedupe_hash)` and the hash includes the account, so
+   * filtering by account here would be a narrower question than the one the
+   * database asks — and a batch that passed this check could still be rejected
+   * by the index, failing the whole insert rather than marking a row.
+   */
+  const { data: existing, error: hashError } = await supabase
+    .from('transactions')
+    .select('id, dedupe_hash');
+
+  if (hashError) {
+    const message = 'Your existing transactions could not be read, so nothing was imported.';
+    await finish(supabase, uploadId, {
+      error: message,
+      log: [...parsed.log, { level: 'error', message }],
+    });
+    return message;
+  }
+
+  const batch = await prepare(parsed.rows);
+  const plan = planMerge(
+    hashesOf((existing ?? []).map((t) => ({ id: t.id as string, dedupeHash: t.dedupe_hash as string }))),
+    batch,
+  );
+
+  if (plan.toInsert.length > 0) {
+    const rows = plan.toInsert.map((r) => ({
+      user_id: userId,
+      bank_account_id: r.bankAccountId,
+      statement_upload_id: uploadId,
+      date: r.date,
+      description: r.description,
+      amount: r.amount,
+      direction: r.direction,
+      balance_after: r.balanceAfter ?? null,
+      dedupe_hash: r.dedupeHash,
+      is_duplicate: false,
+      source: 'statement',
+      // BR-6: nothing a parser produced counts until a person confirms it.
+      review_status: 'pending',
+    }));
+
+    // In batches, because one insert of ten thousand rows is a single request
+    // that either works or loses the lot.
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error: insertError } = await supabase.from('transactions').insert(rows.slice(i, i + 500));
+      if (insertError) {
+        const message = `Some transactions could not be saved: ${insertError.message}`;
+        await finish(supabase, uploadId, {
+          error: message,
+          log: [...parsed.log, { level: 'error', message }],
+        });
+        return message;
+      }
+    }
+  }
+
+  const period = periodOf(parsed.rows);
+  await finish(supabase, uploadId, {
+    log: withMergeLog(parsed.log, plan),
+    plan,
+    period,
+  });
+
+  /*
+   * Saved only after a successful run. A config written from a parse that then
+   * failed to store anything would be a mapping nothing has ever validated,
+   * carried forward into every future upload for this account.
+   */
+  if (parsed.config) {
+    await supabase
+      .from('bank_accounts')
+      .update({ parser_config: parsed.config })
+      .eq('id', bankAccountId);
+  }
+
+  return noticeFor(undefined, plan);
+}
+
+/** Writes the outcome onto the upload row. */
+async function finish(
+  supabase: SupabaseClient,
+  uploadId: string,
+  result: {
+    error?: string;
+    log: LogEntry[];
+    plan?: MergePlan;
+    period?: { start: string; end: string } | null;
+  },
+) {
+  const outcome = runOutcome(
+    result.error,
+    result.plan?.toInsert.length ?? 0,
+    result.plan?.duplicates.length ?? 0,
+  );
+
+  await supabase
+    .from('statement_uploads')
+    .update({
+      status: outcome.status,
+      error_message: outcome.errorMessage ?? null,
+      transaction_count: outcome.transactionCount,
+      processing_log: result.log,
+      ...(result.period
+        ? { period_start: result.period.start, period_end: result.period.end }
+        : {}),
+    })
+    .eq('id', uploadId);
 }
 
 /**

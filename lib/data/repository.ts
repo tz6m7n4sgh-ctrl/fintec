@@ -247,6 +247,11 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       status: r.status,
       errorMessage: r.error_message ?? undefined,
       transactionCount: r.transaction_count ?? undefined,
+      // jsonb, defaulting to '[]'. Undefined rather than an empty array so the
+      // screen can tell "no log" from "a log that said nothing".
+      processingLog: Array.isArray(r.processing_log) && r.processing_log.length > 0
+        ? r.processing_log
+        : undefined,
       createdAt: r.created_at,
     })),
     /*
