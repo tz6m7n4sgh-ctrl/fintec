@@ -368,9 +368,9 @@ test.describe('settings — which Supabase project (HAD-75)', () => {
     /*
      * The defect. Two `isSupabaseConfigured()` functions disagreed: one read
      * `process.env` with no fallback and was printed here, the other read the
-     * committed defaults and decided whether sign-in actually worked. On a
-     * deployment with no environment variables — which is this one — the screen
-     * said "Not configured" while signing in worked perfectly.
+     * then-committed defaults and decided whether sign-in actually worked. The
+     * defaults are gone now, but this remains the regression check that the
+     * Settings answer and actual sign-in availability cannot diverge.
      *
      * Asserted against the *sign-in* screen rather than in isolation, because
      * the bug was the disagreement between them, not either answer alone.

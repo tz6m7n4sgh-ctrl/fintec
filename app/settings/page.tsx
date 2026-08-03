@@ -11,12 +11,12 @@ import { RemindersPreview } from './RemindersPreview';
 import { todayInDubai } from '@/lib/engine/dates';
 import { signOut } from '@/app/auth/actions';
 import { getReadModel } from '@/lib/data/store';
-import { isSupabaseConfigured, isUsingCommittedDefault } from '@/lib/supabase/config';
+import { isSupabaseConfigured, supabaseProjectHost } from '@/lib/supabase/config';
 
 export default async function SettingsPage() {
   const m = await getReadModel();
   const configured = isSupabaseConfigured();
-  const usingDefaultProject = isUsingCommittedDefault();
+  const projectHost = supabaseProjectHost();
   const pushConfigured = isPushConfigured();
 
   return (
@@ -86,25 +86,22 @@ export default async function SettingsPage() {
                   Supabase project
                   {/*
                     This row used to read a *second* isSupabaseConfigured() that
-                    checked process.env with no fallback, while sign-in used the
-                    one with committed defaults. On a deployment with no
-                    environment variables — which is this one — the screen said
-                    "Not configured" while signing in worked. It stated the
-                    opposite of the truth (HAD-75).
+                    checked process.env while sign-in used committed defaults.
+                    They could therefore give opposite answers (HAD-75). Both
+                    this identity and every client now use the single config
+                    module, without a fallback.
                   */}
-                  {usingDefaultProject ? (
+                  {projectHost ? (
                     <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
-                      Falling back to the project committed in the source
+                      {projectHost}
                     </span>
                   ) : null}
                 </th>
                 <td className="r">
                   {!configured ? (
                     <span className="pill cheque"><span aria-hidden>✕</span> Not configured</span>
-                  ) : usingDefaultProject ? (
-                    <span className="pill risk"><span aria-hidden>▲</span> Shared default</span>
                   ) : (
-                    <span className="pill ok"><span aria-hidden>✓</span> This deployment&rsquo;s own</span>
+                    <span className="pill ok"><span aria-hidden>✓</span> Configured</span>
                   )}
                 </td>
               </tr>
@@ -145,14 +142,13 @@ export default async function SettingsPage() {
             defined. To check them yourself, run the RLS query in the README against your project.
           </span>
         </div>
-        {usingDefaultProject ? (
+        {!configured ? (
           <div className="legend">
             <span className="key">
-              <b>▲ This deployment did not set its own credentials</b>, so it is using the project
-              committed in the source. Every preview build and every fork inherits the same one —
-              which means an account created on a preview URL is an account in this project.
-              Set <code>NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
-              <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> to point somewhere of your own.
+              <b>This deployment has no backend.</b> Set both{' '}
+              <code>NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
+              <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> to use a Supabase project.
+              Leaving them unset is the safe choice for preview deployments.
             </span>
           </div>
         ) : null}

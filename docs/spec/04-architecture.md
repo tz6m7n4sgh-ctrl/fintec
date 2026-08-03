@@ -87,7 +87,7 @@ That is a deliberate trade for a flow that never depends on a mailbox, an SMTP p
 
 This is not a convenience. A missing environment variable should degrade to *"you cannot sign in"* rather than crash a screen showing someone their termination deadlines. The entire e2e suite runs in this state, which is what keeps it true.
 
-> It also has an unused benefit worth taking: **preview deployments should run unconfigured.** They currently inherit committed defaults and point at the production database, so anyone opening a preview URL creates a real account. The degradation path is already built and tested.
+Preview deployments should run unconfigured unless they are explicitly given their own project. No committed fallback exists, so they cannot silently point at the production database.
 
 ## CI
 

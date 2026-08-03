@@ -29,11 +29,11 @@ Both were reachable another way. Neither was worth the guarantee.
 
 ### The publishable key is not a secret
 
-`lib/supabase/config.ts` commits a project URL and publishable key, and that is correct: the key is meant for the browser and ships in the bundle regardless. **The policies are the boundary; the key is not.**
+`lib/supabase/config.ts` requires a project URL and publishable key from the deployment environment. The key is meant for the browser and ships in the bundle regardless. **The policies are the data boundary; explicit configuration is the deployment boundary.**
 
 Asserted rather than assumed — querying the live project as `anon` returns zero rows from every table, and an `anon` insert fails the `WITH CHECK` clause, because every policy is keyed to a uid an anonymous request does not have.
 
-> **Open issue:** committing *defaults* means every preview deployment and every fork points at the same project, so a stranger opening a preview URL creates a real account in it. That is fine for a single-user app and not fine for Phase 2's audience. Tracked as HAD-75.
+No project values are committed. Preview deployments must use their own project or remain unconfigured, so opening a preview cannot create an account in production.
 
 ### Storage
 

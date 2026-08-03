@@ -223,7 +223,7 @@ then rebuilt.** Two of Phase 1's highest-stakes features are in exactly that sta
 | C-4 | **Manual test pass** (HAD-68) | Not started | Needs *Confirm email = OFF*. Largely superseded anyway: Phase 2 replaces the screens it would test |
 | C-5 | **`atRisk` rule** (HAD-83) | Undecided | A product decision. Phase 2 redesigns the dashboard, so the concept may not survive in its current form |
 | C-6 | **Scheduled parse sweep** (HAD-9) | Recommended for closure | Its only remaining job is retrying a failed parse, which a retry button does without introducing the one key this project holds nowhere |
-| C-7 | **Committed Supabase defaults** (HAD-75) | Undecided | Becomes mandatory in Phase 2: a product for strangers must not ship credentials that point every fork at one project |
+| C-7 | **Committed Supabase defaults** (HAD-75) | Resolved in HAD-109 | Deployments now require both variables; previews use their own project or run without a backend |
 
 ### C-3 is not like the others
 
