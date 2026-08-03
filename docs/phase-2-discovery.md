@@ -5,8 +5,8 @@
 
 > Phase 1 shipped the engine, the data model, auth, ingestion and the security posture. It is
 > also, by your own assessment, not usable by a stranger. This records what the discovery
-> interview established, what it made obsolete, the risks it surfaced, and the two decisions
-> still open.
+> interview established, what it made obsolete, and the risks it surfaced. Both open decisions
+> were resolved on 3 Aug — see §7, which also records what one of them costs.
 >
 > Decisions below are treated as **binding unless corrected**, in the same way as
 > `stage-1-requirements.md`.
@@ -126,7 +126,7 @@ than claimed.
 
 | | Workstream | Depends on |
 |---|---|---|
-| **A** | **Legal foundation** — rules sourced, cited, dated, verifiable | Open decision 1 |
+| **A** | **Citation model** — every rule carries its provision and verified-on date, both empty, and the app renders the basis as unverified. See §7 | — |
 | **B1** | Doorway question + six-field onboarding | — |
 | **B2** | The date-driven entitlement answer | A |
 | **B3** | Explain-this-number, deterministic | B2 |
@@ -147,19 +147,28 @@ consent design and a decision about what is stored versus discarded.
 
 ---
 
-## 7. Open decisions
+## 7. Open decisions — both resolved 3 Aug
 
-**OD-1 · Legal sourcing.** Is there access to the current law text, or an HR/legal contact who can
-confirm the rules? The fallback — citing provisions the user is told to verify themselves —
-weakens P2-4 considerably and should be chosen deliberately rather than by default. **Blocks
-workstream A, which blocks B2.**
+**OD-2 · Where Phase 2 lives → build alongside.** New routes go up beside the existing ones, and each old screen is retired as it is replaced. The information architecture changes underneath these screens, so editing in place would leave the app half-migrated for the length of the phase.
 
-**OD-2 · Where Phase 2 lives.** Recommendation: build the new routes alongside the existing ones
-and retire each old screen as it is replaced, rather than restyling in place. The information
-architecture changes underneath these screens, so editing in place leaves the app half-migrated for
-the length of the phase. Slower, and much safer to review.
+**OD-1 · Legal sourcing → none.** No access to the current legal text and no contact who can confirm it. This is a decision, not an omission, and it changes P2-4.
 
----
+### What that costs, and the shape that keeps it cheap
+
+P2-4 chose a figure **good enough to take to HR**. Without sourced citations it is not, and building it anyway while claiming otherwise is precisely the failure this project is organised against — a confident answer nobody checked.
+
+So **P2-4 downgrades to "orient me, roughly"**, and the app says so rather than implying more.
+
+The structure, however, is built as though the citations existed:
+
+- every rule carries the provision it comes from and **the date it was verified** — both null for now
+- the app renders the basis as **unverified**, visibly, next to the figure
+- a rule with no citation is a state the UI has, not a gap it hides
+- the entitlement is presented as *this app's calculation*, with a plain instruction to confirm against the employer
+
+The cost of skipping OD-1 is then **a UI state rather than an architecture**. On the day the law text is available, the same structure fills in and the presentation changes — no rewrite, and no figure that silently became more authoritative than its evidence.
+
+Workstream A is therefore not cancelled. It becomes: *build the citation model, populate nothing, and surface the emptiness.*
 
 ## 8. Correction to a Stage 1 decision
 
