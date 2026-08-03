@@ -99,6 +99,36 @@ describe('what it says about input it cannot use', () => {
     expect(r.problems.find((p) => p.field === 'grossSalary')?.message).toMatch(/wrong way round/);
   });
 
+  it.each([['unpaidLeaveDays'], ['unusedLeaveDays']] as [SixFieldName][])(
+    'rejects a fractional %s before it reaches the database',
+    (field) => {
+      /*
+       * Both columns are integers. Without this the upsert fails at the
+       * database boundary and a Postgres error string is shown to somebody
+       * filling in a form — an error about the wrong thing, in the wrong words,
+       * attached to nothing.
+       */
+      const r = readSix(from({ ...COMPLETE, [field]: '1.5' }));
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.problems.find((p) => p.field === field)?.message).toMatch(/whole number of days/);
+    },
+  );
+
+  it('still accepts a whole number written with a decimal point', () => {
+    const r = readSix(from({ ...COMPLETE, unusedLeaveDays: '12.0' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values.unusedLeaveDays).toBe(12);
+  });
+
+  it('leaves money fields free to carry fils', () => {
+    const r = readSix(from({ ...COMPLETE, basicSalary: '15000.50' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values.basicSalary).toBe(15000.5);
+  });
+
   it('rejects a date that does not exist', () => {
     const r = readSix(from({ ...COMPLETE, employmentStart: '2026-02-31' }));
     expect(r.ok).toBe(false);

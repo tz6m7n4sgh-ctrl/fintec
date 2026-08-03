@@ -182,6 +182,24 @@ export function readSix(get: (name: string) => string): SixReading {
       problems.push({ field: name, message: numberError(FIELD[name].label, parsed.reason) });
       continue;
     }
+
+    /*
+     * Days are whole days.
+     *
+     * `parseFormNumber` accepts `1.5` — correctly, it is a number — but
+     * `unpaid_leave_days` and `unused_leave_days` are integer columns. Left to
+     * the database, the upsert fails and `saveFigures` surfaces a Postgres
+     * error string to somebody filling in a form. The boundary that knows what
+     * the field means should be the one that objects.
+     */
+    if (FIELD[name].kind === 'days' && !Number.isInteger(parsed.value)) {
+      problems.push({
+        field: name,
+        message: `${FIELD[name].label} has to be a whole number of days. Round to the nearest day.`,
+      });
+      continue;
+    }
+
     numbers[name] = parsed.value;
   }
 

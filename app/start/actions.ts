@@ -94,12 +94,23 @@ export async function saveFigures(_prev: FiguresResult, form: FormData): Promise
   revalidatePath('/', 'layout');
 
   /*
-   * Six fields, then an answer — so this goes straight to the figure rather
-   * than to a "saved successfully" screen nobody asked for.
+   * This used to redirect to `/report`, and that was wrong.
    *
-   * `/report` is the closest thing that exists today. Workstream B2 replaces it
-   * with the date-driven Answer screen, and this redirect is the one line that
-   * changes when it does.
+   * Every existing screen reads through `getReadModel()`, which stays on the
+   * §11 reference dataset until the account has budget rows — deliberately, and
+   * for a good reason: burn comes entirely from the budget, so going live
+   * without it makes runway `Infinity`, prints "Unlimited" on the hero tile and
+   * awards a full 6/6 for runway readiness. A confident wrong answer in the
+   * reassuring direction is the worst thing this app can produce.
+   *
+   * A fresh account is exactly the first-run case, and it has no budget rows. So
+   * the redirect sent somebody who had just answered six questions to a page of
+   * figures belonging to nobody, captioned as though they were theirs — the
+   * precise failure Phase 2 exists to fix, reintroduced by a convenience.
+   *
+   * Until workstream B2 lands a screen that computes from the profile alone,
+   * saying what was saved is the honest end of this flow. Nothing is shown that
+   * is not the user's.
    */
-  redirect('/report');
+  return { ok: true };
 }

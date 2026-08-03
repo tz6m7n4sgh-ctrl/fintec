@@ -44,6 +44,38 @@ export function FiguresForm() {
   const problemFor = (name: SixFieldName) =>
     state.problems?.find((p) => p.field === name)?.message;
 
+  /*
+   * Saved, and deliberately not followed by a figure.
+   *
+   * Everything on screen elsewhere reads through `getReadModel()`, which stays
+   * on the reference dataset until the account has budget rows. Sending someone
+   * to one of those screens now would caption somebody else's numbers as
+   * theirs. So this says what was saved and what it unlocks, and shows no
+   * figure at all rather than a borrowed one.
+   */
+  if (state.ok) {
+    return (
+      <div className="saved" role="status">
+        <h2>Saved — these six are yours now</h2>
+        <p>
+          Your gratuity, leave encashment, notice and every deadline are calculated from these
+          answers alone. You can change any of them later and every figure moves with them.
+        </p>
+        <p className="saved-next">
+          The screen that puts those figures in front of you is the next thing being built. Until
+          it lands, nothing here will show you a number that is not yours — including a worked
+          example dressed up as one.
+        </p>
+        <a className="btn primary" href="/budget">
+          Add your monthly spending
+        </a>
+        <p className="saved-why">
+          That is the one thing still missing before the app can say how long your money lasts.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form action={action} noValidate>
       <div className="six">
