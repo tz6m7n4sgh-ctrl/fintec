@@ -77,22 +77,21 @@ function UploadForm({ accounts }: { accounts: BankAccount[] }) {
             name="file"
             type="file"
             required
-            accept=".pdf,.csv,.xls,.xlsx"
+            accept=".pdf,.csv,.xlsx"
           />
         </div>
       </div>
 
       <p className="help" style={{ marginTop: 10 }}>
-        CSV, up to 25 MB. The file goes to a private bucket namespaced to your user id —
-        never a public URL. A <b>CSV is read here, by code, and never sent anywhere</b>: the
+        CSV or XLSX, up to 25 MB. The file goes to a private bucket namespaced to your user id —
+        never a public URL. <b>CSV and XLSX are read here, by code, and never sent anywhere</b>: the
         columns are matched by name and the dates and amounts are read deterministically.
         Nothing it extracts moves a dashboard figure until you confirm it.
       </p>
       <p className="help" style={{ marginTop: 8 }}>
-        <b>PDF and XLSX are stored but not yet read.</b> A PDF needs layout reconstruction or
-        a language model, and a PDF read as plain text produces a scatter of numbers that
-        would import as convincing, wrong transactions. Export CSV from your bank instead —
-        every UAE bank offers it.
+        <b>PDF is stored for download but is formally out of parsing scope.</b> Reading it safely
+        needs layout reconstruction or a language model and explicit consent. Export CSV or XLSX
+        from your bank to import transactions; a PDF upload will be marked failed immediately.
       </p>
 
       <div style={{ marginTop: 14 }}>

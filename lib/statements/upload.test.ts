@@ -69,12 +69,9 @@ describe('checkUpload', () => {
     ['march.csv', 'csv'],
     ['march.Csv', 'csv'],
     ['march.xlsx', 'xlsx'],
-    ['march.xls', 'xlsx'],
-    ['march.XLS', 'xlsx'],
   ] as const)('%s maps to file_type %s', (name, expected) => {
     /*
-     * Banks export `.XLS` and `.xlsx` interchangeably and the enum has one
-     * value for both. A case-sensitive check would reject a legitimate
+     * A case-sensitive check would reject a legitimate
      * statement with "that type cannot be parsed" — a claim about the file that
      * is simply untrue, and the sort of confident wrong answer this app exists
      * to avoid.
@@ -82,6 +79,10 @@ describe('checkUpload', () => {
     const r = checkUpload(file(name), ACCOUNT);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.fileType).toBe(expected);
+  });
+
+  it('refuses legacy XLS instead of accepting a file the XLSX parser cannot read', () => {
+    expect(checkUpload(file('march.xls'), ACCOUNT).ok).toBe(false);
   });
 
   it('takes the last dot, so a dotted filename still resolves', () => {

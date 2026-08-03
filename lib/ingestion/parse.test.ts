@@ -239,9 +239,8 @@ describe('unsupportedReason', () => {
     expect(unsupportedReason('STATEMENT.PDF')).toMatch(/Export CSV/);
   });
 
-  it('names Excel and says what to do instead', () => {
-    expect(unsupportedReason('aug.xlsx')).toMatch(/Save it as CSV/);
-    expect(unsupportedReason('aug.xls')).toMatch(/Save it as CSV/);
+  it('passes XLSX through to its deterministic adapter', () => {
+    expect(unsupportedReason('aug.xlsx')).toBeNull();
   });
 
   it('passes delimited files through', () => {
