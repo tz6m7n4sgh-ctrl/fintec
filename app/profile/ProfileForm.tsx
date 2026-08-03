@@ -25,7 +25,7 @@ function Field({
   label,
   defaultValue,
   help,
-  type = 'number',
+  type = 'text',
   step,
   required,
 }: {
@@ -50,7 +50,23 @@ function Field({
         name={name}
         type={type}
         step={step}
-        min={type === 'number' ? 0 : undefined}
+        /*
+         * `type="text"` with a decimal keypad, deliberately, rather than
+         * `type="number"` — which is what these were.
+         *
+         * Measured in Chromium rather than assumed: given "32,000", a
+         * `type="number"` input reports `value === ""` and its form submits an
+         * empty string. The comma is not rejected with a message; the figure
+         * is silently discarded. On the server that arrives as blank, blank
+         * legitimately means zero, and a basic salary of 32,000 becomes a
+         * basic salary of nothing — with gratuity, leave encashment, ILOE and
+         * the runway all computed from it.
+         *
+         * A text input sends "32,000" verbatim, and `lib/forms/numbers.ts`
+         * reads it. `inputMode="decimal"` keeps the numeric keypad on a phone,
+         * which is the only thing `type="number"` was buying here.
+         */
+        inputMode={type === 'text' ? 'decimal' : undefined}
         defaultValue={defaultValue}
         required={required}
         aria-required={required || undefined}
