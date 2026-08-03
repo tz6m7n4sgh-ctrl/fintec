@@ -1714,6 +1714,36 @@ test.describe('accessibility', () => {
   }
 });
 
+test.describe('the first visit (HAD-122)', () => {
+  /*
+   * Every other test in this suite carries the doorway cookie from the shared
+   * storage state and browses as a returning visitor. This block clears it,
+   * because the redirect it specifies exists precisely for the person who has
+   * never been here.
+   */
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('a stranger landing on the dashboard is taken to the doorway', async ({ page }) => {
+    await page.goto(url('/'));
+    // The problem Phase 2 was opened on: the first screen must not be
+    // somebody else's finances and ten navigation items.
+    await expect(page.locator('h1')).toHaveText('Where are you right now?');
+    await expect(page).toHaveURL(/\/start\/?$/);
+  });
+
+  test('answering the doorway earns the browse', async ({ page }) => {
+    await page.goto(url('/start/'));
+    await page.locator('#door-planning').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.locator('h1')).toHaveText('Six things, then your figure');
+
+    // The reference dashboard is reachable again — honestly labelled, and by
+    // choice rather than by default.
+    await page.goto(url('/'));
+    await expect(page.locator('h1')).toHaveText('Home');
+  });
+});
+
 test.describe('navigation', () => {
   test('desktop top bar navigates between sections', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'top bar is hidden on mobile');
