@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ActualSpendChart, BudgetBars, ProjectionChart } from '@/components/charts';
 import { Card, Money, PageHead, RunwayStatusBadge, ScenarioBadge, StatTile } from '@/components/ui';
 import { formatDate, formatMonthShort } from '@/lib/engine/dates';
@@ -8,6 +9,14 @@ import { aed, money, months, percent } from '@/lib/format/money';
 
 export default async function DashboardPage() {
   const m = await getReadModel();
+
+  // The reference dataset is useful for development and as a safe fallback,
+  // but it must never be a stranger's introduction to the product. A seed
+  // model means there is not yet a computable user profile, whether the visitor
+  // is signed out or has only just created an account, so begin at the focused
+  // first-run route instead of presenting somebody else's example finances.
+  if (m.isSeedData) redirect('/start');
+
   const { readiness: r, projection, actuals } = m;
 
   // Insights are derived, never hardcoded — they must stay true if inputs change.
