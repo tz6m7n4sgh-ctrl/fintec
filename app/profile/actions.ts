@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { isBlank, numberError, parseFormNumber } from '@/lib/forms/numbers';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -24,13 +25,67 @@ export interface SaveResult {
   error?: string;
 }
 
-/** Form values arrive as strings; money and counts must become numbers. */
-function n(form: FormData, key: string): number {
-  const raw = String(form.get(key) ?? '').trim();
-  if (raw === '') return 0;
-  const v = Number(raw);
-  return Number.isFinite(v) ? v : 0;
+/**
+ * Reads every numeric field at once, or reports the first one that is not a
+ * number.
+ *
+ * This used to be a per-field helper that returned `0` when `Number()` gave
+ * `NaN` — so `32,000`, which is how people write salaries, was saved as zero
+ * and the form said it had worked. Gratuity, leave encashment, ILOE and the
+ * runway were then computed from a basic salary of nothing, every figure
+ * rendering confidently. The `gross >= basic` constraint could not catch it
+ * either, because zero satisfies it.
+ *
+ * Collected here rather than field-by-field so the action can refuse *before*
+ * writing anything, rather than writing a partly-invented row.
+ */
+function readNumbers(
+  form: FormData,
+  fields: Record<string, string>,
+): { ok: true; values: Record<string, number> } | { ok: false; error: string } {
+  const values: Record<string, number> = {};
+
+  for (const [key, label] of Object.entries(fields)) {
+    const raw = String(form.get(key) ?? '');
+
+    // Blank still means zero. Most of these are genuinely zero for most
+    // people, and forcing a 0 into every box would be worse than useless.
+    if (isBlank(raw)) {
+      values[key] = 0;
+      continue;
+    }
+
+    const parsed = parseFormNumber(raw);
+    if (!parsed.ok) return { ok: false, error: numberError(label, parsed.reason) };
+    values[key] = parsed.value;
+  }
+
+  return { ok: true, values };
 }
+
+/**
+ * Every numeric field, with the name the user sees on the label.
+ *
+ * The label matters: "is not a number" is useless on a form with sixteen
+ * boxes. The key is the form field name, so this list also serves as the
+ * check that no numeric field is read without validation.
+ */
+const NUMERIC_FIELDS: Record<string, string> = {
+  basicSalary: 'Basic salary',
+  grossSalary: 'Gross salary',
+  unpaidLeaveDays: 'Unpaid leave days',
+  unusedLeaveDays: 'Unused leave days',
+  noticePeriodDays: 'Notice period days',
+  noticeDaysPaidInLieu: 'Notice days paid in lieu',
+  otherOwedToEmployee: 'Other owed to you',
+  owedToEmployer: 'Owed to your employer',
+  iloeAvgBasic6m: 'Average basic over 6 months',
+  cashSavings: 'Cash savings',
+  otherLiquidAssets: 'Other liquid assets',
+  dependents: 'Dependents',
+  visaGraceDays: 'Visa grace days',
+  healthCoverMonthsAfterEnd: 'Health cover months after end',
+};
 
 function b(form: FormData, key: string): boolean {
   return form.get(key) === 'on' || form.get(key) === 'true';
@@ -90,30 +145,35 @@ export async function saveProfile(_prev: SaveResult, form: FormData): Promise<Sa
     };
   }
 
+  const numbers = readNumbers(form, NUMERIC_FIELDS);
+  if (!numbers.ok) return { ok: false, error: numbers.error };
+  const v = numbers.values;
+
   // user_id is set explicitly because it is the conflict target for the
   // upsert. RLS still enforces that it matches auth.uid() — a forged value
   // would be rejected by the policy, not merely by this line.
   const row = {
     user_id: user.id,
-    basic_salary: n(form, 'basicSalary'),
-    gross_salary: n(form, 'grossSalary'),
+    basic_salary: v.basicSalary,
+    gross_salary: v.grossSalary,
     employment_start: employmentStart,
     expected_last_day: expectedLastDay,
-    unpaid_leave_days: n(form, 'unpaidLeaveDays'),
-    unused_leave_days: n(form, 'unusedLeaveDays'),
-    notice_period_days: n(form, 'noticePeriodDays'),
-    notice_days_paid_in_lieu: n(form, 'noticeDaysPaidInLieu'),
-    other_owed_to_employee: n(form, 'otherOwedToEmployee'),
-    owed_to_employer: n(form, 'owedToEmployer'),
+    unpaid_leave_days: v.unpaidLeaveDays,
+    unused_leave_days: v.unusedLeaveDays,
+    notice_period_days: v.noticePeriodDays,
+    notice_days_paid_in_lieu: v.noticeDaysPaidInLieu,
+    other_owed_to_employee: v.otherOwedToEmployee,
+    owed_to_employer: v.owedToEmployer,
     iloe_subscribed_12m: b(form, 'iloeSubscribed12m'),
     iloe_involuntary: b(form, 'iloeInvoluntary'),
-    iloe_avg_basic_6m: n(form, 'iloeAvgBasic6m'),
-    cash_savings: n(form, 'cashSavings'),
-    other_liquid_assets: n(form, 'otherLiquidAssets'),
-    dependents: n(form, 'dependents'),
-    visa_grace_days: n(form, 'visaGraceDays'),
-    health_cover_months_after_end: n(form, 'healthCoverMonthsAfterEnd'),
+    iloe_avg_basic_6m: v.iloeAvgBasic6m,
+    cash_savings: v.cashSavings,
+    other_liquid_assets: v.otherLiquidAssets,
+    dependents: v.dependents,
+    visa_grace_days: v.visaGraceDays,
+    health_cover_months_after_end: v.healthCoverMonthsAfterEnd,
   };
+
 
   const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'user_id' });
   if (error) return { ok: false, error: explain(error.message) };
@@ -175,10 +235,20 @@ export async function saveIncomeStream(
   const frequency = String(form.get('frequency') ?? 'monthly') as Frequency;
   if (!FREQUENCIES.includes(frequency)) return fail('Pick monthly or one-off.');
 
+  /*
+   * Same rule as the profile: an unreadable amount refuses rather than
+   * becoming zero. A "5,000" typed into an income stream used to save a
+   * stream worth nothing — which is worse than rejecting it, because the row
+   * then appears in the list, looks real, and contributes nothing to the
+   * projection it was added to change.
+   */
+  const parsedAmount = parseFormNumber(String(form.get('amount') ?? ''));
+  if (!parsedAmount.ok) return fail(numberError('Amount', parsedAmount.reason));
+
   const row = {
     user_id: user.id,
     name,
-    amount: n(form, 'amount'),
+    amount: parsedAmount.value,
     frequency,
     start_date: d(form, 'startDate'),
     end_date: d(form, 'endDate'),
