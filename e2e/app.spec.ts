@@ -31,7 +31,7 @@ const ROUTES = [
   { path: '/loans/', name: 'Loans, mortgage, school fees & cheques' },
   { path: '/profile/', name: 'Income & profile' },
   { path: '/statements/', name: 'Bank statements & transactions' },
-  { path: '/report/', name: 'Termination report' },
+  { path: '/report/', name: 'Explain your numbers' },
   { path: '/plan/', name: 'Readiness & action plan' },
   { path: '/settings/', name: 'Settings' },
 ] as const;
@@ -184,7 +184,7 @@ test.describe('cross-screen consistency', () => {
   });
 });
 
-test.describe('termination report', () => {
+test.describe('deterministic explanation', () => {
   test('itemises the settlement without a negative zero', async ({ page }) => {
     await page.goto(url('/report/'));
     await expect(page.locator('body')).toContainText('93,479.47');
@@ -202,9 +202,11 @@ test.describe('termination report', () => {
     await expect(page.locator('.count').first()).toContainText('days');
   });
 
-  test('offers a PDF export', async ({ page }) => {
+  test('expands every settlement line into its arithmetic without an export', async ({ page }) => {
     await page.goto(url('/report/'));
-    await expect(page.getByRole('button', { name: /export to pdf/i })).toBeVisible();
+    await expect(page.locator('.working')).toHaveCount(11);
+    await expect(page.getByText(/174\.96 days × 500\.00 = AED 87,479 accrued/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /export to pdf/i })).toHaveCount(0);
   });
 });
 
@@ -1676,8 +1678,8 @@ test.describe('navigation', () => {
     await page.goto(url('/'));
     await page.locator('.nav a', { hasText: 'Calendar' }).click();
     await expect(page.locator('h1')).toHaveText('Payment calendar');
-    await page.locator('.nav a', { hasText: 'Report' }).click();
-    await expect(page.locator('h1')).toHaveText('Termination report');
+    await page.locator('.nav a', { hasText: 'Explain' }).click();
+    await expect(page.locator('h1')).toHaveText('Explain your numbers');
   });
 
   test('mobile shows bottom tabs instead of the sidebar', async ({ page }, testInfo) => {
