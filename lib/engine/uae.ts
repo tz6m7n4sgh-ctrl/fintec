@@ -158,9 +158,20 @@ export function gratuity(profile: Profile, service?: ServicePeriod): GratuityBre
     RULES.GRATUITY_DAYS_AFTER_5Y.value * Math.max(serviceYears - 5, 0);
 
   const ineligible = serviceYears < RULES.GRATUITY_MIN_YEARS.value;
-  const gratuityRaw = ineligible ? 0 : gratuityDays * dailyBasic;
+
+  /*
+   * The accrual is kept even when it is not payable.
+   *
+   * `gratuityRaw` used to become 0 the moment service fell under a year, which
+   * erased the very thing the explanation screen has to show: what you accrued,
+   * and why none of it is owed. A user who cannot see both figures cannot
+   * restate the rule, and restating it is the whole point of B3.
+   *
+   * Eligibility is applied to what is *paid*, not to what is counted.
+   */
+  const gratuityRaw = gratuityDays * dailyBasic;
   const gratuityCap = RULES.GRATUITY_CAP_MONTHS.value * profile.basicSalary;
-  const capped = Math.min(gratuityRaw, gratuityCap);
+  const capped = ineligible ? 0 : Math.min(gratuityRaw, gratuityCap);
 
   return {
     dailyBasic,

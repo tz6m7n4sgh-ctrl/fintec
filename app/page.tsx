@@ -120,7 +120,7 @@ export default async function DashboardPage() {
       {/* Stat tiles — each navigates to where its inputs live */}
       <div className="grid g5" style={{ marginTop: 14 }}>
         <StatTile label="Total resources" value={money(r.runway.totalResources)} foot="Profile & money" href="/profile" />
-        <StatTile label="Final settlement" value={money(r.settlement.finalSettlement)} foot="Termination report" href="/report" />
+        <StatTile label="Final settlement" value={money(r.settlement.finalSettlement)} foot="Explain this number" href="/report" />
         <StatTile
           label="ILOE total"
           value={money(r.iloe.iloeTotal)}

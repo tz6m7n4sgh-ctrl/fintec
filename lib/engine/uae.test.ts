@@ -181,6 +181,9 @@ describe('§11 edge cases', () => {
     expect(s.serviceYears).toBeCloseTo(0.9, 2);
     const g = gratuity(p);
     expect(g.ineligible).toBe(true);
+    // Accrual is retained so the explanation can show why the calculated
+    // amount and the legally payable amount differ.
+    expect(g.gratuityRaw).toBeGreaterThan(0);
     expect(g.gratuity).toBe(0);
     expect(finalSettlement(p).gratuity).toBe(0);
   });

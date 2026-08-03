@@ -33,7 +33,7 @@ const NAV = [
   { href: '/budget', label: 'Budget', icon: '◑', tab: true },
   { href: '/loans', label: 'Loans', icon: '◈', tab: true },
   { href: '/statements', label: 'Statements', icon: '↥', tab: false },
-  { href: '/report', label: 'Report', icon: '▦', tab: false },
+  { href: '/report', label: 'Explain', icon: '▦', tab: false },
   { href: '/plan', label: 'Plan', icon: '✓', tab: true },
   { href: '/profile', label: 'Profile', icon: '◔', tab: false },
   { href: '/settings', label: 'Settings', icon: '⚙', tab: false },
