@@ -173,3 +173,45 @@ ledgers that are each individually plausible.
 
 D1 remains accurate for **PDF** statements, which are not parsed at all today and are refused by
 name with an instruction to export CSV instead.
+
+---
+
+## 9. Carried over from Phase 1
+
+Phase 1 is **code-complete and closed**. Every roadmap feature is built, tested and merged. What
+follows is not unfinished engineering — it is work that was blocked on access or on a decision, and
+it moves here rather than holding Phase 1 open.
+
+The register exists because a **built-but-switched-off feature is the kind that gets forgotten and
+then rebuilt.** Two of Phase 1's highest-stakes features are in exactly that state.
+
+| # | Carried over | State | Why it is not code |
+|---|---|---|---|
+| C-1 | **Passkey sign-in** | Merged, returns 503 | Needs `PASSKEY_RP_ID` and `PASSKEY_ORIGINS` as Edge Function secrets. Two strings, no key to obtain |
+| C-2 | **Cheque and school-fee reminders** | Merged, computes nightly, sends nothing | Needs `RESEND_API_KEY` plus `reminder_job_url` / `reminder_job_token` in Vault |
+| C-3 | **SEC-1 cross-tenant isolation** | Gate passes by skipping | Needs `SUPABASE_DB_URL` as a repository secret. See the note below — this one is different in kind |
+| C-4 | **Manual test pass** (HAD-68) | Not started | Needs *Confirm email = OFF*. Largely superseded anyway: Phase 2 replaces the screens it would test |
+| C-5 | **`atRisk` rule** (HAD-83) | Undecided | A product decision. Phase 2 redesigns the dashboard, so the concept may not survive in its current form |
+| C-6 | **Scheduled parse sweep** (HAD-9) | Recommended for closure | Its only remaining job is retrying a failed parse, which a retry button does without introducing the one key this project holds nowhere |
+| C-7 | **Committed Supabase defaults** (HAD-75) | Undecided | Becomes mandatory in Phase 2: a product for strangers must not ship credentials that point every fork at one project |
+
+### C-3 is not like the others
+
+C-1, C-2 and C-4 are features waiting for a user. C-3 is **a check that reports green while proving
+nothing.**
+
+Cross-tenant isolation is the property this entire project is organised around — every table has RLS
+enabled *and* forced, and Phase 1's strongest claim is that no code path anywhere can bypass a
+policy. The gate that proves that currently completes in about seven seconds because it cannot
+reach a database, and a skipped check is indistinguishable from a passing one in the UI.
+
+Phase 2 makes the app multi-tenant for real strangers, which is precisely when that guarantee stops
+being theoretical. Carrying C-3 forward is reasonable; leaving it unset once Phase 2 has users is
+not.
+
+### C-5 ships an inconsistency, not just an open question
+
+The §11 seed contains two payments whose `atRisk` flags follow different rules. Deferring the
+*decision* is fine. What travels with it is that the app currently renders an at-risk figure derived
+from a rule nobody has chosen — so whatever Phase 2 does to the dashboard, this needs settling
+before that figure is put in front of a stranger.
