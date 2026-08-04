@@ -13,6 +13,7 @@
 import 'server-only';
 
 import { buildPrompt, type WordingInput } from './wording';
+import { buildAskPrompt, type AskInput } from './ask';
 
 /**
  * No key, no feature. The report page renders exactly as today when this is
@@ -82,6 +83,61 @@ export async function requestWording(input: WordingInput): Promise<string> {
    * off mid-sentence — possibly mid-caveat — and `refusal` means there is no
    * prose at all. Both fall back to the deterministic working.
    */
+  if (body.stop_reason !== 'end_turn') {
+    throw new Error(`Generation did not complete normally (stop_reason: ${body.stop_reason ?? 'missing'}).`);
+  }
+
+  const text = (body.content ?? [])
+    .filter((b) => b.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text)
+    .join('\n\n')
+    .trim();
+
+  if (!text) throw new Error('Generation contained no text.');
+  return text;
+}
+
+/**
+ * Requests an answer for the ask surface (HAD-119). Same transport, same
+ * failure stance as `requestWording`: anything short of a complete, normal
+ * reply throws, and the caller falls back to an honest refusal — never a
+ * partial answer.
+ *
+ * `max_tokens` is smaller still: the prompt asks for at most two short
+ * paragraphs, and the reply has to share a cookie with the question.
+ */
+export async function requestAnswer(input: AskInput, question: string): Promise<string> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set.');
+
+  const { system, user } = buildAskPrompt(input, question);
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-5',
+      max_tokens: 400,
+      thinking: { type: 'disabled' },
+      system,
+      messages: [{ role: 'user', content: user }],
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Anthropic API returned ${res.status}.`);
+  }
+
+  const body: {
+    stop_reason?: string;
+    content?: { type: string; text?: string }[];
+  } = await res.json();
+
   if (body.stop_reason !== 'end_turn') {
     throw new Error(`Generation did not complete normally (stop_reason: ${body.stop_reason ?? 'missing'}).`);
   }
