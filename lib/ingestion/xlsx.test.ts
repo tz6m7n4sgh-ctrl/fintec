@@ -48,6 +48,46 @@ describe('xlsxToDelimited', () => {
     })]);
   });
 
+  it('places cells without r references in successive columns instead of column A', () => {
+    const bytes = workbook({
+      'xl/workbook.xml': '<workbook><sheets><sheet name="Statement" r:id="rId1"/></sheets></workbook>',
+      'xl/_rels/workbook.xml.rels': '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+      'xl/sharedStrings.xml': '<sst><si><t>Date</t></si><si><t>Description</t></si><si><t>Amount</t></si></sst>',
+      'xl/styles.xml': '<styleSheet><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14"/></cellXfs></styleSheet>',
+      'xl/worksheets/sheet1.xml': `<worksheet><sheetData>
+        <row><c t="s"><v>0</v></c><c t="s"><v>1</v></c><c t="s"><v>2</v></c></row>
+        <row><c r="A2" s="1"><v>46237</v></c><c t="inlineStr"><is><t>COFFEE BAR</t></is></c><c><v>-4.20</v></c></row>
+      </sheetData></worksheet>`,
+    });
+
+    const text = xlsxToDelimited(bytes);
+    expect(text.split('\n')[0]).toBe('Date\tDescription\tAmount');
+    const result = parseStatement(text, 'account-1');
+    expect(result.error).toBeUndefined();
+    expect(result.rows).toEqual([expect.objectContaining({
+      date: '2026-08-03', description: 'COFFEE BAR', amount: 4.2, direction: 'debit',
+    })]);
+  });
+
+  it('offsets serial dates by 1462 days when the workbook declares the 1904 epoch', () => {
+    const bytes = workbook({
+      'xl/workbook.xml': '<workbook><workbookPr date1904="1"/><sheets><sheet name="Statement" r:id="rId1"/></sheets></workbook>',
+      'xl/_rels/workbook.xml.rels': '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+      'xl/sharedStrings.xml': '<sst><si><t>Date</t></si><si><t>Description</t></si><si><t>Amount</t></si></sst>',
+      'xl/styles.xml': '<styleSheet><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14"/></cellXfs></styleSheet>',
+      'xl/worksheets/sheet1.xml': `<worksheet><sheetData>
+        <row><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>
+        <row><c r="A2" s="1"><v>44775</v></c><c r="B2" t="inlineStr"><is><t>GROCERY</t></is></c><c r="C2"><v>-125.50</v></c></row>
+      </sheetData></worksheet>`,
+    });
+
+    const result = parseStatement(xlsxToDelimited(bytes), 'account-1');
+    expect(result.error).toBeUndefined();
+    expect(result.rows).toEqual([expect.objectContaining({
+      date: '2026-08-03', description: 'GROCERY', amount: 125.5, direction: 'debit',
+    })]);
+  });
+
   it('rejects a renamed non-workbook instead of parsing binary as text', () => {
     expect(() => xlsxToDelimited(encoder.encode('not a zip').buffer)).toThrow(/readable XLSX/);
   });

@@ -27,19 +27,24 @@ export function xlsxToDelimited(input: ArrayBuffer): string {
         .map((match) => textNodes(match[1]))
     : [];
   const dateStyles = dateStyleIndexes(files.get('xl/styles.xml'));
+  const date1904 = /<workbookPr\b[^>]*\bdate1904="(?:1|true)"/i.test(workbook);
 
   const rows: string[] = [];
   for (const rowMatch of sheet.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/gi)) {
     const cells: string[] = [];
+    // Cells may omit their r reference; such a cell occupies the column after
+    // the previous cell in the row (column A when it is the first cell).
+    let nextColumn = 0;
     for (const cellMatch of rowMatch[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/gi)) {
       const attrs = attributes(cellMatch[1]);
-      const column = columnIndex(attrs.r);
+      const column = attrs.r ? columnIndex(attrs.r) : nextColumn;
+      nextColumn = column + 1;
       while (cells.length <= column) cells.push('');
       const raw = /<v\b[^>]*>([\s\S]*?)<\/v>/i.exec(cellMatch[2])?.[1] ?? '';
       let value = attrs.t === 'inlineStr' ? textNodes(cellMatch[2]) : decodeXml(raw);
       if (attrs.t === 's') value = shared[Number(value)] ?? '';
       if (attrs.t !== 's' && attrs.t !== 'inlineStr' && dateStyles.has(Number(attrs.s))) {
-        value = excelDate(value);
+        value = excelDate(value, date1904);
       }
       cells[column] = value;
     }
@@ -109,8 +114,8 @@ function decodeXml(value: string): string {
   });
 }
 
-function columnIndex(reference?: string): number {
-  const letters = /^[A-Z]+/i.exec(reference ?? '')?.[0].toUpperCase() ?? 'A';
+function columnIndex(reference: string): number {
+  const letters = /^[A-Z]+/i.exec(reference)?.[0].toUpperCase() ?? 'A';
   return [...letters].reduce((value, letter) => value * 26 + letter.charCodeAt(0) - 64, 0) - 1;
 }
 
@@ -128,10 +133,12 @@ function dateStyleIndexes(styles?: string): Set<number> {
   return indexes;
 }
 
-function excelDate(raw: string): string {
+function excelDate(raw: string, date1904: boolean): string {
   const serial = Number(raw);
   if (!Number.isFinite(serial)) return raw;
-  const date = new Date(Date.UTC(1899, 11, 30) + Math.floor(serial) * 86400000);
+  // The Mac 1904 epoch starts 1462 days after the default 1900 epoch.
+  const days = Math.floor(serial) + (date1904 ? 1462 : 0);
+  const date = new Date(Date.UTC(1899, 11, 30) + days * 86400000);
   return date.toISOString().slice(0, 10);
 }
 
