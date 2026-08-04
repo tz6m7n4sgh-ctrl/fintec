@@ -1733,42 +1733,44 @@ test.describe('accessibility', () => {
   }
 });
 
-test.describe('the first visit (HAD-122)', () => {
+test.describe('the signed-out home (HAD-129)', () => {
   /*
-   * Every other test in this suite carries the doorway cookie from the shared
-   * storage state and browses as a returning visitor. This block clears it,
-   * because the redirect it specifies exists precisely for the person who has
-   * never been here.
+   * Every other test in this suite carries shared browser state. This block
+   * clears it so the public doorway is exercised as a stranger sees it.
    */
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("a stranger landing on '/' is taken to the doorway", async ({ page }) => {
+  test("a stranger landing on '/' sees an introduction, not reference finances", async ({ page }) => {
     await page.goto(url('/'));
-    // The problem Phase 2 was opened on: the first screen must not be
-    // somebody else's finances and ten navigation items.
-    await expect(page.locator('h1')).toHaveText('Where are you right now?');
-    await expect(page).toHaveURL(/\/start\/?$/);
+    await expect(page.locator('h1')).toContainText('If your job ends');
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('.top-bar')).toBeHidden();
+    await expect(page.getByText('AED 220,479')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Start — six questions/ })).toHaveAttribute('href', '/start');
   });
 
-  test('answering the doorway earns the browse', async ({ page }) => {
-    await page.goto(url('/start/'));
+  test('the reference figures require choosing the worked example', async ({ page }) => {
+    await page.goto(url('/'));
+    await page.getByRole('link', { name: /See the worked example/ }).click();
+    await expect(page).toHaveURL(/\/example\/?$/);
+    await expect(page.locator('h1')).toHaveText('Worked example');
+    await expect(page.getByText('none of these numbers are yours')).toBeVisible();
+  });
+
+  test('the primary action opens the existing doorway flow', async ({ page }) => {
+    await page.goto(url('/'));
+    await page.getByRole('link', { name: /Start — six questions/ }).click();
+    await expect(page.locator('h1')).toHaveText('Where are you right now?');
     await page.locator('#door-planning').check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.locator('h1')).toHaveText('Six things, then your figure');
-
-    // '/' is a door, not a screen (HAD-124): with the doorway answered it
-    // opens the Answer section, and the reference figures are browsable
-    // through the four sections rather than on a dashboard of their own.
-    await page.goto(url('/'));
-    await expect(page.locator('h1')).toHaveText('Your entitlement');
-    await expect(page).toHaveURL(/\/entitlement\/?$/);
   });
 });
 
 test.describe('navigation', () => {
   test('desktop top bar navigates between sections', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'top bar is hidden on mobile');
-    await page.goto(url('/'));
+    await page.goto(url('/entitlement/'));
     // The old per-screen items are gone, so this walks the four sections.
     await page.locator('.nav a', { hasText: 'Money' }).click();
     await expect(page.locator('h1')).toHaveText('Money');
@@ -1778,7 +1780,7 @@ test.describe('navigation', () => {
 
   test('mobile shows four bottom tabs instead of the top bar', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'bottom tabs are desktop-hidden');
-    await page.goto(url('/'));
+    await page.goto(url('/entitlement/'));
     await expect(page.locator('.bottom-tabs')).toBeVisible();
     await expect(page.locator('.top-bar')).toBeHidden();
     await expect(page.locator('.bottom-tabs a')).toHaveCount(4);
