@@ -1771,7 +1771,9 @@ test.describe('the signed-out home (HAD-129)', () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.locator('.top-bar')).toBeHidden();
     await expect(page.getByText('AED 220,479')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: /Start — six questions/ })).toHaveAttribute('href', '/start');
+    // trailingSlash in next.config.mjs rewrites every internal href, so the
+    // rendered attribute is "/start/" — assert the destination, not the slash.
+    await expect(page.getByRole('link', { name: /Start — six questions/ })).toHaveAttribute('href', /^\/start\/?$/);
   });
 
   test('the reference figures require choosing the worked example', async ({ page }) => {

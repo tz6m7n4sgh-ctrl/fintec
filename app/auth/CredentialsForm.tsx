@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { PASSWORD_MIN_LENGTH } from '@/lib/auth/credentials';
 import { signIn, signUp, type AuthResult } from './actions';
 
@@ -26,6 +26,36 @@ import { signIn, signUp, type AuthResult } from './actions';
  */
 
 const INITIAL: AuthResult = {};
+
+/**
+ * A password input with a Show/Hide toggle (HAD-127 — the frames specify it).
+ *
+ * In an app with no reset email, a typo in a hidden field is expensive, so
+ * letting the user see what they typed is a recovery feature, not a
+ * convenience. The toggle is a button, not a checkbox, and it never submits.
+ * `aria-pressed` carries the state; the input keeps its own id, name and
+ * autocomplete untouched so password managers behave exactly as before.
+ * Progressive enhancement holds: before hydration the button does nothing and
+ * the field is an ordinary password input.
+ */
+function PasswordInput(props: React.ComponentProps<'input'>) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input {...props} type={shown ? 'text' : 'password'} style={{ paddingRight: 56, width: '100%' }} />
+      <button
+        type="button"
+        className="text-button"
+        onClick={() => setShown(s => !s)}
+        aria-pressed={shown}
+        aria-label={shown ? 'Hide password' : 'Show password'}
+        style={{ position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)', fontSize: 12.5, textDecoration: 'none', padding: '10px 10px' }}
+      >
+        {shown ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  );
+}
 
 export function CredentialsForm({ mode }: { mode: 'signin' | 'signup' }) {
   const isSignUp = mode === 'signup';
@@ -84,10 +114,9 @@ export function CredentialsForm({ mode }: { mode: 'signin' | 'signup' }) {
 
       <div className="field" style={{ marginTop: 12 }}>
         <label htmlFor="password">Password</label>
-        <input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           /*
            * 'new-password' tells a password manager to offer a generated one and
            * to save what is typed; 'current-password' tells it to fill what it
@@ -116,10 +145,9 @@ export function CredentialsForm({ mode }: { mode: 'signin' | 'signup' }) {
       {isSignUp && (
         <div className="field" style={{ marginTop: 12 }}>
           <label htmlFor="confirm">Confirm password</label>
-          <input
+          <PasswordInput
             id="confirm"
             name="confirm"
-            type="password"
             autoComplete="new-password"
             required
             aria-required="true"
