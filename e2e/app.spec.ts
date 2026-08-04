@@ -138,7 +138,11 @@ test.describe('money — the headline figures (moved from the dashboard, HAD-124
     const svg = page.locator('svg.plot').first();
     const label = await svg.getAttribute('aria-label');
     expect(label, 'chart needs a text alternative').toBeTruthy();
-    expect(label).toContain('220,479');
+    // The chart's start is settlement-timing-aware since HAD-83: 127,000 is
+    // what the reference profile actually holds on the last working day —
+    // total resources (220,479) minus the settlement (93,479) that the
+    // employer has 14 more days to pay.
+    expect(label).toContain('127,000');
     // The projection must surface that the balance goes negative, which the
     // flat-burn runway figure alone does not reveal.
     await expect(svg).toContainText('runs out');
@@ -1006,12 +1010,17 @@ test.describe('statements — uploads', () => {
     await expect(card.locator('input[type="file"]')).toHaveCount(0);
   });
 
-  test('US-28 — the LLM warning is on the page that sends the file', async ({ page }) => {
+  test('US-28 — the parsing disclosure is on the page that takes the file', async ({ page }) => {
     // NFR-1 / the consent this screen owes the user. Statements are the most
-    // sensitive thing this app holds and parsing sends their contents out of
-    // the database; the warning must not be reachable only by scrolling past.
+    // sensitive thing this app holds, so this page must state what actually
+    // reads them. Nothing has gone to an LLM since the Cowork sweep closed —
+    // CSV/XLSX are parsed by local deterministic code — and the old pinned
+    // "read by an LLM" warning had outlived the pipeline it described. Pin
+    // the two claims that are true: parsing is local and immediate, and PDF
+    // is refused rather than guessed at.
     await page.goto(url('/statements/'));
-    await expect(page.locator('body')).toContainText('read by an LLM');
+    await expect(page.locator('body')).toContainText('Deterministic code reads it immediately');
+    await expect(page.locator('body')).toContainText('PDF transaction parsing is not supported');
   });
 });
 
@@ -1210,6 +1219,26 @@ test.describe('budget screen', () => {
     // least one category must show a real figure rather than an em dash.
     const actuals = await table.locator('tbody tr td:nth-child(5)').allInnerTexts();
     expect(actuals.filter((t) => t.trim() !== '' && t.trim() !== '—').length).toBeGreaterThan(0);
+  });
+
+  test('HAD-53 — variance is actual against the current plan, said in words', async ({ page }) => {
+    /*
+     * The "Difference" column this table always had (now "Planned cut") is
+     * plan vs plan — current against survival. The corrected US-25 criterion
+     * is the other comparison: actual against the current budget. The seed has
+     * confirmed statement months, so the column must render, and at least one
+     * category with actuals must carry a verdict in words — "over", "under" or
+     * "on plan" — rather than a bare signed number a reader can invert.
+     */
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+    await expect(table.locator('th', { hasText: 'Vs plan' })).toHaveCount(1);
+    await expect(table.locator('th', { hasText: 'Planned cut' })).toHaveCount(1);
+    const variances = await table.locator('tbody tr td:nth-child(6)').allInnerTexts();
+    expect(variances.filter((t) => /\b(over|under|on plan)\b/.test(t)).length).toBeGreaterThan(0);
+    // Categories with no confirmed spend stay an em dash — "no actuals" must
+    // never render as "on plan".
+    expect(variances.some((t) => t.trim() === '—')).toBe(true);
   });
 });
 
@@ -1733,42 +1762,46 @@ test.describe('accessibility', () => {
   }
 });
 
-test.describe('the first visit (HAD-122)', () => {
+test.describe('the signed-out home (HAD-129)', () => {
   /*
-   * Every other test in this suite carries the doorway cookie from the shared
-   * storage state and browses as a returning visitor. This block clears it,
-   * because the redirect it specifies exists precisely for the person who has
-   * never been here.
+   * Every other test in this suite carries shared browser state. This block
+   * clears it so the public doorway is exercised as a stranger sees it.
    */
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("a stranger landing on '/' is taken to the doorway", async ({ page }) => {
+  test("a stranger landing on '/' sees an introduction, not reference finances", async ({ page }) => {
     await page.goto(url('/'));
-    // The problem Phase 2 was opened on: the first screen must not be
-    // somebody else's finances and ten navigation items.
-    await expect(page.locator('h1')).toHaveText('Where are you right now?');
-    await expect(page).toHaveURL(/\/start\/?$/);
+    await expect(page.locator('h1')).toContainText('If your job ends');
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('.top-bar')).toBeHidden();
+    await expect(page.getByText('AED 220,479')).toHaveCount(0);
+    // trailingSlash in next.config.mjs rewrites every internal href, so the
+    // rendered attribute is "/start/" — assert the destination, not the slash.
+    await expect(page.getByRole('link', { name: /Start — six questions/ })).toHaveAttribute('href', /^\/start\/?$/);
   });
 
-  test('answering the doorway earns the browse', async ({ page }) => {
-    await page.goto(url('/start/'));
+  test('the reference figures require choosing the worked example', async ({ page }) => {
+    await page.goto(url('/'));
+    await page.getByRole('link', { name: /See the worked example/ }).click();
+    await expect(page).toHaveURL(/\/example\/?$/);
+    await expect(page.locator('h1')).toHaveText('Worked example');
+    await expect(page.getByText('none of these numbers are yours')).toBeVisible();
+  });
+
+  test('the primary action opens the existing doorway flow', async ({ page }) => {
+    await page.goto(url('/'));
+    await page.getByRole('link', { name: /Start — six questions/ }).click();
+    await expect(page.locator('h1')).toHaveText('Where are you right now?');
     await page.locator('#door-planning').check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.locator('h1')).toHaveText('Six things, then your figure');
-
-    // '/' is a door, not a screen (HAD-124): with the doorway answered it
-    // opens the Answer section, and the reference figures are browsable
-    // through the four sections rather than on a dashboard of their own.
-    await page.goto(url('/'));
-    await expect(page.locator('h1')).toHaveText('Your entitlement');
-    await expect(page).toHaveURL(/\/entitlement\/?$/);
   });
 });
 
 test.describe('navigation', () => {
   test('desktop top bar navigates between sections', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'top bar is hidden on mobile');
-    await page.goto(url('/'));
+    await page.goto(url('/entitlement/'));
     // The old per-screen items are gone, so this walks the four sections.
     await page.locator('.nav a', { hasText: 'Money' }).click();
     await expect(page.locator('h1')).toHaveText('Money');
@@ -1778,7 +1811,7 @@ test.describe('navigation', () => {
 
   test('mobile shows four bottom tabs instead of the top bar', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'bottom tabs are desktop-hidden');
-    await page.goto(url('/'));
+    await page.goto(url('/entitlement/'));
     await expect(page.locator('.bottom-tabs')).toBeVisible();
     await expect(page.locator('.top-bar')).toBeHidden();
     await expect(page.locator('.bottom-tabs a')).toHaveCount(4);

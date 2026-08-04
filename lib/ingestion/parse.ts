@@ -21,9 +21,8 @@ import { parseAmount, parseDate } from './values';
  *
  * ## What it refuses
  *
- * PDF and XLSX. Neither is delimited text: a PDF needs layout reconstruction or
- * a model, and a spreadsheet needs a decompressor and an XML parser. Both are
- * real work, and neither is served by this file pretending to try — a PDF read
+ * PDF. It needs layout reconstruction or a model, and is not served by this
+ * file pretending to try — a PDF read
  * as text produces a scattering of numbers that a lenient parser will happily
  * turn into transactions. So they are named and refused (US-34).
  */
@@ -49,8 +48,6 @@ export interface ParseResult {
 /** Extensions this parser handles, and what to say about the ones it does not. */
 const UNSUPPORTED: Record<string, string> = {
   pdf: 'PDF statements are not parsed yet. Reading one needs layout reconstruction, and a PDF read as plain text produces a scatter of numbers that would import as convincing, wrong transactions. Export CSV from your bank instead — every UAE bank offers it.',
-  xlsx: 'Excel statements are not parsed yet. Save it as CSV and upload that; the columns are read by name, so nothing else has to change.',
-  xls: 'Excel statements are not parsed yet. Save it as CSV and upload that; the columns are read by name, so nothing else has to change.',
 };
 
 export function unsupportedReason(filename: string): string | null {

@@ -25,25 +25,20 @@ These answers change the spec and are treated as binding unless you correct them
 
 | # | Topic | Your decision | Impact on the build |
 |---|---|---|---|
-| D1 | **Statement ingestion / scheduled job (§7)** | The parsing job will run **through Claude Cowork** (a scheduled Claude session), not a hand-written per-bank parser + separate LLM edge function. | §7 is re-architected (see §6 below). No deterministic per-bank parser templates are built up front; Claude reads the queued file and returns structured transactions. |
-| D2 | **Banks & formats** | Not pre-specified — "done through Claude Cowork." | Build a **bank-agnostic** upload + review flow. `BankAccount` still stores an optional saved column-mapping so repeat CSV/XLSX uploads from the same bank get faster/cheaper, but no bank is hard-coded. |
+| D1 | **Statement ingestion (§7), amended 3 Aug 2026** | CSV and XLSX are parsed immediately by deterministic application code. **PDF transaction parsing is out of Stage 1 scope**; uploaded PDFs are retained for download and marked failed with a plain explanation. | The closed Cowork sweep is not a parsing path. PDF may return only through a separate explicit per-file consent design; it must never be sent to an LLM silently. |
+| D2 | **Banks & formats** | Not pre-specified. | Build a **bank-agnostic** deterministic CSV/XLSX upload + review flow. `BankAccount` stores an optional saved column mapping, but no bank is hard-coded. |
 | D3 | **Alerts (§6.2)** | **Email + Web push (PWA).** | Both channels implemented. Reminders 7 & 2 days before cheque/school due dates; legal-deadline countdowns. Notification preferences in Settings. |
 | D4 | **Backend / deployment** | **Supabase, provisioned by me (the builder)** at Stage 4. | Supabase (Postgres + Auth + Storage + Edge Functions + pg_cron) confirmed. Provisioning happens **at Stage 4**, not now. Stages 2–3 stay backend-agnostic. |
 
-### 2.1 What "ingestion through Claude Cowork" means (D1 — please confirm my reading)
+### 2.1 What statement ingestion means (D1 — amended 3 Aug 2026)
 
-Because the parser is a scheduled Claude session rather than bundled code, the pipeline becomes:
+The Stage 1 pipeline is:
 
-1. I upload a statement (PDF/CSV/XLSX) → stored in a **private Supabase Storage bucket** → `StatementUpload` row, status `uploaded` → `queued`.
-2. A **scheduled Claude Cowork session** (a Routine, e.g. every 15 min + an on-upload trigger) lists `queued` uploads, downloads each file, extracts the transactions, and writes normalized `Transaction` rows back via the Supabase API — then sets the upload to `parsed` (or `failed` with a readable error).
-3. The same session does dedupe, auto-categorize, and auto-match (all still per §7.4–7.6), writing results as `pending` for my review.
-4. Nothing counts as "actual" in dashboards until I confirm it in the Review inbox.
+1. I upload a CSV or XLSX → it is stored in a **private Supabase Storage bucket** and parsed immediately by deterministic application code under my authenticated session.
+2. Normalized transactions are deduplicated and written as `pending`; no parsed row affects a dashboard until I confirm it.
+3. A PDF may be uploaded only for storage/download continuity. It is immediately marked `failed` with a readable explanation and is **not parsed or sent to an LLM**. PDF transaction extraction is formally out of Stage 1 scope pending an explicit per-file consent design.
 
-**Privacy consequence — DECIDED (30 Jul 2026, resolving OQ-1).** Statement contents are read by a Claude session (Claude Cowork). This *replaces* the "LLM fallback only for unparseable PDFs" model in §7: Claude is the primary parser for **every** file, and there is deliberately **no fully-local no-LLM mode**. The sponsor chose Cowork-for-everything over keeping a deterministic CSV/XLSX path, accepting that every uploaded statement is read by an LLM in exchange for format coverage.
-
-This makes the mitigations in R-2/R-3 load-bearing rather than optional: files stay in a private bucket, the Cowork session gets least-privilege access, the in-app Statements screen discloses the behaviour, and **every parsed row lands `pending` until a human confirms it** — so a mis-read amount cannot silently move a dashboard figure.
-
----
+This amendment replaces the 30 Jul Cowork-for-everything decision. The scheduled Cowork sweep was closed, so requirements must not describe it as a live delivery mechanism. Deterministic CSV/XLSX parsing narrows the privacy surface while retaining the review and dedupe guarantees.
 
 ## 3. Functional requirements
 
@@ -75,7 +70,7 @@ Grouped by the screens in §6. Each has a stable ID for traceability into Stage 
 - **FR-E1** Three CRUD sections — `Debt`, `SchoolFee`, `ScheduledPayment` — each with totals.
 
 ### FR-F Bank statements & transactions (§6.6)
-- **FR-F1** Upload statements (PDF/CSV/XLSX) per bank account; list of uploads with parsing status and a per-file processing log.
+- **FR-F1** Upload CSV/XLSX statements per bank account and parse them deterministically; list uploads with parsing status and a per-file processing log. PDF may be retained for download but is explicitly not parsed in Stage 1 and is marked failed immediately.
 - **FR-F2** Review inbox: newly parsed transactions land `pending`; bulk confirm/edit category + matches; only confirmed rows count in dashboards.
 - **FR-F3** Transactions ledger with filters (account, category, date range, direction) + search.
 
@@ -97,9 +92,9 @@ Grouped by the screens in §6. Each has a stable ID for traceability into Stage 
 - **FR-K2** WebAuthn **passkeys** (platform authenticator) registered after first login; multiple devices; management in Settings.
 - **FR-K3** Session policy: short-lived tokens + refresh; auto-lock after 15 min idle → biometric re-auth; "sign out everywhere."
 
-### FR-L Ingestion pipeline (§7, re-architected per D1)
+### FR-L Ingestion pipeline (§7, re-architected per amended D1)
 - **FR-L1** Upload → private bucket → `StatementUpload` queued.
-- **FR-L2** Scheduled Claude Cowork session parses queued files (15-min cadence + on-upload trigger); idempotent, safe to re-run.
+- **FR-L2** Authenticated on-upload application code parses CSV/XLSX immediately; the merge is idempotent and safe to re-run. PDF parsing is out of scope.
 - **FR-L3** Normalize → `Transaction` rows (date, description, amount, direction, balanceAfter).
 - **FR-L4** Dedupe on hash(account, date, amount, normalized description); re-uploading the same file yields **0 new transactions**.
 - **FR-L5** Auto-categorize via user-editable keyword rules (e.g. DEWA→Utilities, SALIK→Transport, school name→School fees).
@@ -152,7 +147,7 @@ Grouped by the screens in §6. Each has a stable ID for traceability into Stage 
 
 - **Frontend:** **Next.js (App Router) + React + TypeScript**, PWA-enabled (service worker for web push + installability). *Justification:* SSR/streaming for a fast first paint on mobile, first-class Supabase support, easy static export of the Termination Report to PDF, and a single deploy target (Vercel) that pairs cleanly with Supabase.
 - **Backend:** Supabase — Postgres (RLS), Auth (email/OTP + WebAuthn via SimpleWebAuthn on top if native passkeys insufficient), Storage (private statements bucket), Edge Functions (webhooks, PDF export helper, web-push sender), pg_cron (enqueue trigger).
-- **Ingestion:** **Claude Cowork Routine** (D1) as the parsing worker, invoked by an upload trigger and a 15-min cron sweep, reading Storage and writing `Transaction`/`StatementUpload` via the service role behind RLS-safe RPCs.
+- **Ingestion:** deterministic CSV/XLSX parsing in the authenticated upload request, writing `Transaction`/`StatementUpload` through ordinary RLS-enforced access. No service-role or scheduled parsing worker.
 - **Calc engine:** framework-free pure TS module, unit-tested, shared by dashboard, report, and scenario cards.
 
 *ERD and sequence diagrams are Stage 2 deliverables.*
@@ -171,14 +166,14 @@ I independently re-computed the entire §11 table; **all rows and all four edge 
 - **G-5 ILOE "avgBasic6m" data source.** It's a manual `Profile` field, but ingestion could estimate it from salary credits. Manual for now; note as a possible Stage 4 assist.
 
 **Contradictions / ambiguities**
-- **C-1 no-LLM mode vs. Claude Cowork — RESOLVED (30 Jul 2026).** §7 promised a "no-LLM fallback mode" while D1 made Claude the primary parser. The sponsor resolved this in favour of **Cowork-for-everything**, so §7's no-LLM fallback is formally withdrawn from scope. The spec text is superseded by decision D1 as amended above; no deterministic-only parsing path will be built.
+- **C-1 no-LLM mode vs. Claude Cowork — AMENDED (3 Aug 2026).** CSV/XLSX use deterministic application code. PDF parsing is formally out of Stage 1 scope; any future LLM-assisted PDF path requires explicit per-file consent.
 - **C-2 Status thresholds are half-open and undefined at the boundary.** "≥6 good / 3–6 warning / <3 critical" — is exactly 6.0 good or warning; is exactly 3.0 warning or critical? **Proposed:** `≥6 good`, `3 ≤ r < 6 warning`, `r < 3 critical` (6.0 good, 3.0 warning). See R-6.
 - **C-3 `serviceYears` divisor.** §5 uses 365.25; some UAE gratuity practice uses 365. The spec's own acceptance value (87,479) only reconciles with **365.25**, so we lock 365.25. Flagging because it differs from a common manual calc and a user might question it.
 
 **Risks**
 - **R-1 Legal accuracy drift.** Gratuity/ILOE/visa rules change; the app gives numbers people may act on. Mitigation: engine constants centralized + dated; legal footer (§10) always visible; "verify with MOHRE" prompts on the report.
-- **R-2 Claude Cowork parsing reliability & cost.** LLM parsing of arbitrary statements can mis-read amounts/signs. Mitigation: **everything lands `pending`** and is human-confirmed before counting; balance-continuity check (balanceAfter deltas must equal signed amounts) flags suspect rows; per-file log.
-- **R-3 Financial data reaching an LLM.** Inherent to D1 and now **accepted** rather than mitigated by avoidance (OQ-1 resolved: no deterministic-only path). Residual mitigations: private storage bucket, least-privilege access for the Cowork session, in-app disclosure on the Statements screen, and mandatory human confirmation before any parsed row counts. Accepted risk owner: the sponsor.
+- **R-2 Statement parsing reliability.** Deterministic parsing can still misread unusual columns, amounts, or signs. Mitigation: **everything lands `pending`** and is human-confirmed before counting; balance-continuity checks flag suspect rows; every skipped or parsed outcome appears in the per-file log.
+- **R-3 Financial data reaching an LLM.** Stage 1 statement ingestion does not send financial data to an LLM. CSV/XLSX parsing is deterministic; PDF parsing is out of scope. Any future PDF extraction requires explicit per-file consent, private storage, least privilege, and mandatory human confirmation.
 - **R-4 WebAuthn browser variance** (esp. iOS Safari / in-app browsers). Mitigation: SimpleWebAuthn, always keep email/OTP as a recoverable path, never make passkey the *only* factor.
 - **R-5 Cheque = legal jeopardy.** A missed reminder has civil/criminal consequences in the UAE. Mitigation: dual-channel reminders (email + push), 7- and 2-day lead, prominent styling, and a "cheque exposure" tile on the dashboard.
 - **R-6 Off-by-one on status boundaries** (C-2). Mitigation: the explicit half-open rule above, covered by unit tests at 2.99/3.00/5.99/6.00.
@@ -196,7 +191,7 @@ I independently re-computed the entire §11 table; **all rows and all four edge 
 - Payment calendar with cheque prominence + legal-deadline countdowns (FR-B1, B3).
 - Auth: email/OTP + passkeys (FR-K).
 - Supabase schema + RLS + audit timestamps (NFR-1).
-- Statement upload + Review inbox + dedupe + ledger via Claude Cowork (FR-F, FR-L).
+- Deterministic CSV/XLSX statement upload + Review inbox + dedupe + ledger (FR-F, FR-L); PDF parsing excluded.
 - Email + web-push cheque/school reminders (FR-B2, D3).
 - Legal footer; JSON export/import; delete-all-data (NFR-7, NFR-8).
 
@@ -223,7 +218,7 @@ I independently re-computed the entire §11 table; **all rows and all four edge 
 
 | ID | Question | My recommendation |
 |---|---|---|
-| ~~**OQ-1**~~ **CLOSED 30 Jul 2026** | Deterministic CSV/XLSX-only path for sensitive files, or Cowork-for-everything? | **Decided: Cowork-for-everything.** The sponsor accepted LLM parsing of every statement; no deterministic-only path will be built. My recommendation had been to keep a local CSV/XLSX path, so this is a deliberate trade of privacy surface for format coverage — recorded in R-3 as an accepted risk. |
+| ~~**OQ-1**~~ **AMENDED 3 Aug 2026** | Deterministic CSV/XLSX path or Cowork-for-everything? | **Deterministic CSV/XLSX. PDF parsing is out of Stage 1 scope.** A future LLM-assisted PDF path requires explicit per-file consent. |
 | **OQ-2** | Readiness /18 rubric — do you have a preferred point split, or should I propose one in Stage 2? | I propose the rubric in Stage 2 for approval. |
 | **OQ-3** | Status boundary convention (C-2) — accept `≥6 good, 3≤r<6 warning, r<3 critical`? | Accept as stated. |
 | **OQ-4** | Recurrence generation horizon (G-3) — 18 months forward (to match the projection chart) OK? | Yes, 18 months, with single-occurrence override support. |

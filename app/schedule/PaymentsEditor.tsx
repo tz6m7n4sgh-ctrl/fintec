@@ -42,6 +42,19 @@ const STATUS_LABEL: Record<string, string> = {
   atRisk: 'At risk',
 };
 
+/*
+ * What the FORM may set — a strict subset of what the table can show. `atRisk`
+ * is derived on every read from the settlement-aware projection (HAD-83), so
+ * offering it here would store a claim the read model immediately overrides:
+ * the user would pick "At risk", save, and watch the row say "Upcoming".
+ * The filter above the table still offers all three, because filtering is
+ * about what is displayed, and the derived flag is displayed.
+ */
+const STORABLE_STATUS_LABEL: Record<string, string> = {
+  upcoming: 'Upcoming',
+  paid: 'Paid',
+};
+
 const BLANK: ScheduledPayment = {
   id: '',
   dueDate: '',
@@ -175,9 +188,15 @@ function PaymentForm({
         <Row label="Account" htmlFor="f-accountLabel" help="However you refer to it — never a full account number.">
           <input id="f-accountLabel" name="accountLabel" defaultValue={payment.account} />
         </Row>
-        <Row label="Status" htmlFor="f-status">
-          <select id="f-status" name="status" defaultValue={payment.status}>
-            {Object.entries(STATUS_LABEL).map(([v, l]) => (
+        <Row label="Status" htmlFor="f-status" help="“At risk” is not set here — the projection derives it from whether the balance covers the payment on its due date.">
+          {/* A row currently showing a derived `atRisk` opens as Upcoming —
+              that is the only storable status it can honestly claim. */}
+          <select
+            id="f-status"
+            name="status"
+            defaultValue={payment.status === 'atRisk' ? 'upcoming' : payment.status}
+          >
+            {Object.entries(STORABLE_STATUS_LABEL).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
           </select>

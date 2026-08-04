@@ -12,12 +12,14 @@ import { todayInDubai } from '@/lib/engine/dates';
 import { signOut } from '@/app/auth/actions';
 import { getReadModel } from '@/lib/data/store';
 import { isSupabaseConfigured, supabaseProjectHost } from '@/lib/supabase/config';
+import { isAiWordingConfigured } from '@/lib/ai/anthropic';
 
 export default async function SettingsPage() {
   const m = await getReadModel();
   const configured = isSupabaseConfigured();
   const projectHost = supabaseProjectHost();
   const pushConfigured = isPushConfigured();
+  const aiConfigured = isAiWordingConfigured();
 
   return (
     <>
@@ -299,6 +301,19 @@ export default async function SettingsPage() {
                 </th>
                 <td className="r">
                   {pushConfigured
+                    ? <span className="pill ok"><span aria-hidden>✓</span> Configured</span>
+                    : <span className="pill cheque"><span aria-hidden>✕</span> Not configured</span>}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" className="rowhead">
+                  AI wording key
+                  <span className="sub" style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 400 }}>
+                    <code>ANTHROPIC_API_KEY</code> — words the report&rsquo;s working in plain language; never computes a figure
+                  </span>
+                </th>
+                <td className="r">
+                  {aiConfigured
                     ? <span className="pill ok"><span aria-hidden>✓</span> Configured</span>
                     : <span className="pill cheque"><span aria-hidden>✕</span> Not configured</span>}
                 </td>

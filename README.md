@@ -25,11 +25,13 @@ Built against UAE Federal Decree-Law 33/2021 and the ILOE scheme, as verified Ju
 | Database schema + RLS | **Done and applied** — 13 tables, RLS enabled *and* forced, 0 security advisories |
 | Private statements bucket | **Done** — namespaced per user id |
 | Authentication (email + password) | **Done** — sign-up and sign-in run entirely in-app, no email sent |
-| Passkeys / biometric sign-in | **Not built** — needs a stable HTTPS origin (US-40) |
+| Passkeys / biometric sign-in | **Built** (US-40) — returns 503 until `PASSKEY_RP_ID` / `PASSKEY_ORIGINS` are set (HAD-112) |
+| Phase 2 spine | **Done** — doorway → six fields → date-driven answer → deterministic working (`/start`, `/entitlement`, `/report`), four-section IA, signed-out landing with the reference data behind `/example` |
+| AI layer (D1 + D2) | **Built, key-gated** — plain-language wording of the working and grounded ask-anything; both degrade to the deterministic screens without `ANTHROPIC_API_KEY`, and a validator rejects any generated number the engine did not compute |
 | Password reset | **Operator-assisted by product decision** — there is no email path; see below |
 | Writing/reading live data | **Done** — a signed-in user with a saved profile sees their own figures |
-| Statement ingestion job | **Not built** — pipeline designed; OQ-1 decided (Claude Cowork parses every statement) |
-| Email / web-push reminders | **Not built** — schema and preferences table exist |
+| Statement ingestion | **Done** — CSV and XLSX parse deterministically on upload, on the user's own session; PDF is stored-and-refused pending a consent design (stage-1 amendment D1) |
+| Email / web-push reminders | **Built** — the nightly sender delivers both channels; each dry-runs honestly until its key is set (`RESEND_API_KEY`, VAPID pair — HAD-113) |
 
 The app is honest about this: the dashboard shows a **"Seeded data"** banner, and Settings reports
 exactly which pieces are live. Editing controls are visibly disabled rather than pretending to work.

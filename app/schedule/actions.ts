@@ -164,6 +164,9 @@ export async function savePayment(_prev: SaveResult, form: FormData): Promise<Sa
     // Null rather than '' — the column is a uuid foreign key, and an empty
     // string is not a uuid.
     budget_category_id: includedInBudget ? budgetCategoryId : null,
+    // The form offers only `upcoming` and `paid` — `atRisk` is derived at read
+    // time (HAD-83), so storing it would write a claim the read model
+    // immediately overrides. The column still accepts it; nothing reads it.
     status: s(form, 'status') || 'upcoming',
   };
 
@@ -219,11 +222,12 @@ export async function deletePayment(_prev: SaveResult, form: FormData): Promise<
  * see. That is a fact only they have, so it is stored, and stored `paid` wins
  * over the absence of a match.
  *
- * Un-marking writes `upcoming` rather than restoring a previous value, and
- * that is a real limitation rather than an oversight: nothing records what the
- * status was before, so a payment manually marked paid from `atRisk` comes
- * back as `upcoming`. The automatic path does not have this problem, which is
- * the argument for preferring it. Filed as HAD-83.
+ * Un-marking writes `upcoming`, and since HAD-83 that loses nothing: `atRisk`
+ * is derived on every read (`deriveAtRisk` in lib/engine/projection.ts), so a
+ * payment un-marked here comes back with whatever flag the settlement-aware
+ * projection computes for it — the round trip this comment used to document as
+ * lossy is now pinned lossless in projection.test.ts. The stored column only
+ * ever means `paid` / not-`paid`.
  */
 export async function setPaymentPaid(_prev: SaveResult, form: FormData): Promise<SaveResult> {
   const id = s(form, 'id');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isBlank, numberError, parseFormNumber } from './numbers';
+import { isBlank, numberError, parseFormNumber, readFormNumber } from './numbers';
 
 /**
  * The defect these tests exist for.
@@ -121,6 +121,46 @@ describe('isBlank', () => {
     expect(isBlank('   ')).toBe(true);
     expect(isBlank('0')).toBe(false);
     expect(isBlank('abc')).toBe(false);
+  });
+});
+
+describe('readFormNumber — the one reader the server action and the client form share (HAD-20)', () => {
+  /*
+   * The profile form now checks its numeric fields in the browser, on blur and
+   * on submit, with this exact function — the same one `readNumbers` in
+   * `app/profile/actions.ts` runs. These tests pin the composed behaviour so
+   * neither side can drift from it without a failure here.
+   */
+
+  it('reads a salary written with a thousands separator', () => {
+    expect(readFormNumber('32,000', 'Basic salary')).toEqual({ ok: true, value: 32000 });
+  });
+
+  it('reads blank as zero — left alone is not unreadable', () => {
+    expect(readFormNumber('', 'Cash savings')).toEqual({ ok: true, value: 0 });
+    expect(readFormNumber('   ', 'Cash savings')).toEqual({ ok: true, value: 0 });
+  });
+
+  it('refuses an unreadable value with a message naming the field', () => {
+    const result = readFormNumber('thirty two thousand', 'Basic salary');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/^Basic salary is not a number/);
+    // And never a substituted value — the project's signature defect.
+    expect(result).not.toHaveProperty('value');
+  });
+
+  it('refuses a negative by default, naming the field', () => {
+    expect(readFormNumber('-500', 'Dependents')).toEqual({
+      ok: false,
+      error: 'Dependents cannot be negative.',
+    });
+  });
+
+  it('allows a negative where the caller says one is meaningful', () => {
+    expect(readFormNumber('-500', 'Adjustment', { allowNegative: true })).toEqual({
+      ok: true,
+      value: -500,
+    });
   });
 });
 

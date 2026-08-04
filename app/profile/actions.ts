@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { isBlank, numberError, parseFormNumber } from '@/lib/forms/numbers';
+import { numberError, parseFormNumber, readFormNumber } from '@/lib/forms/numbers';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -46,18 +46,13 @@ function readNumbers(
   const values: Record<string, number> = {};
 
   for (const [key, label] of Object.entries(fields)) {
-    const raw = String(form.get(key) ?? '');
-
-    // Blank still means zero. Most of these are genuinely zero for most
-    // people, and forcing a 0 into every box would be worse than useless.
-    if (isBlank(raw)) {
-      values[key] = 0;
-      continue;
-    }
-
-    const parsed = parseFormNumber(raw);
-    if (!parsed.ok) return { ok: false, error: numberError(label, parsed.reason) };
-    values[key] = parsed.value;
+    // `readFormNumber` is the same function the form runs on blur and submit
+    // (HAD-20): blank still means zero — most of these are genuinely zero for
+    // most people — and unreadable refuses. One reader, so the client check
+    // and this one cannot drift apart.
+    const read = readFormNumber(String(form.get(key) ?? ''), label);
+    if (!read.ok) return { ok: false, error: read.error };
+    values[key] = read.value;
   }
 
   return { ok: true, values };

@@ -1,11 +1,16 @@
+import { cookies } from 'next/headers';
 import { UnverifiedBasis } from '@/components/Basis';
 import { Card, PageHead, ScenarioBadge } from '@/components/ui';
 import { daysUntil, formatDate } from '@/lib/engine/dates';
 import { getReadModel } from '@/lib/data/store';
 import { RULES } from '@/lib/engine/uae';
+import { isAiWordingConfigured } from '@/lib/ai/anthropic';
+import { buildWordingInput, wordingDigest } from '@/lib/ai/wording';
 import { aed, money, moneyPrecise, months } from '@/lib/format/money';
 import type { ReactNode } from 'react';
 import { PrintReportButton } from '@/components/PrintReportButton';
+import { wordInPlainLanguage } from './actions';
+import { parseWordingCookie, WORDING_COOKIE, type WordingCookie } from './wording-cookie';
 
 const preciseAed = (value: number) => `AED ${moneyPrecise(value)}`;
 
@@ -43,6 +48,25 @@ export default async function ReportPage() {
   const firstFiveYears = Math.min(r.service.serviceYears, 5);
   const laterYears = Math.max(r.service.serviceYears - 5, 0);
 
+  /*
+   * The plain-language wording (HAD-118). No key, no feature: when
+   * `ANTHROPIC_API_KEY` is unset this whole block resolves to null and the
+   * page renders exactly as before — no button, no dead UI.
+   *
+   * The stored wording is only shown while its digest matches the figures on
+   * screen. A profile edit between generating and reading would otherwise
+   * leave yesterday's prose above today's arithmetic, agreeing with nothing.
+   */
+  const aiConfigured = isAiWordingConfigured();
+  let wording: WordingCookie | null = null;
+  if (aiConfigured) {
+    const jar = await cookies();
+    const stored = parseWordingCookie(jar.get(WORDING_COOKIE)?.value);
+    if (stored && stored.digest === wordingDigest(buildWordingInput(m.profile, r, s))) {
+      wording = stored;
+    }
+  }
+
   return (
     <div className="report-page">
       <div className="report-heading">
@@ -55,8 +79,73 @@ export default async function ReportPage() {
 
       {/* Every figure below is computed from rules nobody has sourced. This is
           the screen most likely to be read as authoritative — it shows the
-          arithmetic in full — so it says so first rather than in a footer. */}
+          arithmetic in full — so it says so first rather than in a footer.
+
+          Deliberately ABOVE the AI wording block: the unverified-basis panel
+          does not depend on the model saying the caveat, and it stays visible
+          whether the wording rendered, failed, or was rejected. */}
       <UnverifiedBasis />
+
+      {aiConfigured ? (
+        <>
+          {wording && 'text' in wording ? (
+            <Card
+              title="In plain language"
+              sub="AI-worded from the working below — it calculated nothing"
+            >
+              {wording.text.split(/\n{2,}/).map((para, i) => (
+                <p key={i} style={{ fontSize: 13.5, color: 'var(--ink-1)', lineHeight: 1.6, marginTop: i === 0 ? 4 : 0 }}>
+                  {para}
+                </p>
+              ))}
+              <div className="legend">
+                <span className="key">
+                  Worded by an AI model from the deterministic figures below, and shown only after
+                  every number in it was checked against that working. The working below is the
+                  authority; this is a reading of it, on the same unverified basis.
+                </span>
+              </div>
+            </Card>
+          ) : null}
+          {wording && 'failure' in wording ? (
+            <Card title="In plain language" sub="No wording to show this time">
+              {/*
+                Said plainly rather than swallowed. A button that silently does
+                nothing is a control this app has shipped twice and regretted
+                twice — and the "invalid" case is a feature working, not
+                failing: a generation that mentioned a figure not in your
+                breakdown was discarded whole rather than shown.
+              */}
+              <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
+                {wording.failure === 'invalid' ? (
+                  <>
+                    The AI wording mentioned a number that is not in your breakdown, so it was
+                    discarded rather than shown. The working below is computed, not worded, and is
+                    unaffected — you can try again.
+                  </>
+                ) : (
+                  <>
+                    The wording service could not be reached. The working below is computed
+                    locally and is unaffected.
+                  </>
+                )}
+              </p>
+            </Card>
+          ) : null}
+          {/*
+            A plain form so the button works with JavaScript disabled: the POST
+            runs the server action, the action sets the cookie and redirects
+            back here, and this render shows the result. The API key stays on
+            the server for the whole round trip.
+          */}
+          <form action={wordInPlainLanguage} style={{ margin: '2px 0 14px' }}>
+            <button className="btn" type="submit">
+              {wording && 'text' in wording ? 'Word this again' : 'Word this in plain language'}
+            </button>
+          </form>
+        </>
+      ) : null}
+
       <Card title="Final settlement" sub="What your employer pays, line by line">
         <WorkingLine label="End-of-service gratuity" value={preciseAed(r.settlement.gratuity)} open>
           <div className="working-equation tnum">

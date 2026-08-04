@@ -73,8 +73,14 @@ function explain(message: string): string {
 
   /*
    * Deliberately does not say which half was wrong. "No account with that
-   * address" would let anyone test addresses against this app one at a time,
-   * and it helps a real user not at all — they retype both either way.
+   * address" helps a real user not at all — they retype both either way.
+   *
+   * What this is not: enumeration protection. Sign-up answers "an account
+   * already exists for that email" a few lines down, because telling a real
+   * user to sign in instead is worth more than hiding a fact the sign-up
+   * flow cannot help leaking. One screen being vague while the next is
+   * precise would be theatre, so this message is generic for the user's
+   * sake, not the attacker's. See HAD-77 §4.
    */
   if (m.includes('invalid login credentials')) {
     return 'That email and password do not match an account. If you have not signed up yet, create an account instead.';

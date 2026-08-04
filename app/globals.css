@@ -575,13 +575,54 @@ button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
  * Presentational and temporary: workstream C moves the shell into a nested
  * layout, at which point /start simply sits outside it and this block goes.
  */
-body:has(.first-run) .side,
+body:has(.first-run) .top-bar,
 body:has(.first-run) .bottom-tabs { display: none; }
 body:has(.first-run) .shell { display: block; }
 body:has(.first-run) main { max-width: 560px; margin: 0 auto; padding: 30px 20px 60px; }
 
 .first-run h1 { font-size: 25px; line-height: 1.25; }
 .first-run .lede { color: var(--ink-2); font-size: 14.5px; margin: 10px 0 26px; line-height: 1.5; }
+
+/* --- signed-out home (HAD-129) ------------------------------------------ */
+
+body:has(.public-home) .top-bar,
+body:has(.public-home) .bottom-tabs { display: none; }
+body:has(.public-home) .shell { display: block; max-width: none; padding: 0; }
+body:has(.public-home) main { width: 100%; }
+
+.public-home { width: min(100% - 40px, 1040px); min-height: calc(100vh - 96px); margin: 0 auto; }
+.public-home-head { min-height: 76px; display: flex; align-items: center; justify-content: space-between; }
+.public-sign-in { color: var(--ink-1); font-size: 14px; font-weight: 600; text-underline-offset: 3px; }
+.public-home-hero { max-width: 760px; padding: clamp(70px, 12vh, 130px) 0 62px; }
+.public-eyebrow { margin: 0 0 16px; color: var(--s1-ink); font-size: 12px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; }
+.public-home h1 { max-width: 740px; font-size: clamp(38px, 5.2vw, 62px); line-height: 1.06; letter-spacing: -.04em; }
+.public-lede { max-width: 600px; margin: 22px 0 30px; color: var(--ink-2); font-size: 18px; line-height: 1.55; }
+.public-start { display: inline-flex; min-height: 48px; align-items: center; text-decoration: none; }
+.public-trust { margin: 13px 0 0; color: var(--ink-3); font-size: 12.5px; }
+.public-example {
+  max-width: 620px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px;
+  padding: 18px; border: 1px solid var(--ring); border-radius: var(--radius); background: var(--surface-1);
+  box-shadow: var(--raise); color: var(--ink-1); text-decoration: none;
+}
+.public-example:hover { border-color: color-mix(in oklab, var(--s1) 45%, var(--ring)); }
+.public-example-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in oklab, var(--s1) 12%, var(--surface-2)); color: var(--s1-ink); }
+.public-example b, .public-example span span { display: block; }
+.public-example b { font-size: 14px; }
+.public-example span span { margin-top: 2px; color: var(--ink-2); font-size: 12.5px; }
+.public-example-arrow { color: var(--s1-ink); font-size: 20px; }
+.example-note { display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; }
+.example-actions { display: inline-flex; gap: 14px; margin-left: auto; }
+
+@media (max-width: 560px) {
+  .public-home { width: min(100% - 32px, 1040px); }
+  .public-home-head { min-height: 66px; }
+  .public-home-hero { padding: 54px 0 44px; }
+  .public-home h1 { font-size: 38px; }
+  .public-lede { font-size: 16px; }
+  .public-start { width: 100%; justify-content: center; text-align: center; }
+  .public-example { padding: 16px; }
+  .example-actions { width: 100%; margin: 7px 0 0; }
+}
 
 /* A doorway choice. A button, because it does something, not a link dressed up. */
 .door {

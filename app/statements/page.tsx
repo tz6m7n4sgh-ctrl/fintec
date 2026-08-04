@@ -35,15 +35,15 @@ export default async function StatementsPage() {
         sub="Upload a statement, review what was parsed, then it counts toward your dashboards"
       />
 
-      <Card title="How ingestion works" sub="Scheduled parsing job">
+      <Card title="How ingestion works" sub="Immediate, deterministic parsing">
         <ul className="insights">
           <li>
             <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>1</span>
-            <span>You upload a PDF, CSV or XLSX. It goes straight to a <b>private storage bucket</b> namespaced to your user id — never a public URL.</span>
+            <span>You upload CSV or XLSX. It goes to a <b>private storage bucket</b> namespaced to your user id — never a public URL.</span>
           </li>
           <li>
             <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>2</span>
-            <span>A <b>scheduled Claude Cowork session</b> picks up queued files, extracts the transactions, dedupes them and proposes categories and payment matches.</span>
+            <span><b>Deterministic code reads it immediately</b>, then dedupes transactions and proposes categories and payment matches.</span>
           </li>
           <li>
             <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>3</span>
@@ -52,10 +52,9 @@ export default async function StatementsPage() {
           <li>
             <span className="ic" style={{ color: 'var(--warning)' }} aria-hidden>▲</span>
             <span>
-              <b>Every statement you upload is read by an LLM</b> in step 2 — including PDFs, CSVs
-              and spreadsheets. There is deliberately no local-only parsing mode. Files stay in a
-              private bucket and nothing counts until you confirm it, but the contents do leave the
-              database to be parsed.
+              <b>PDF transaction parsing is not supported.</b> A PDF may be stored for download,
+              but is marked failed instead of being guessed at or silently left unread. Export CSV
+              or XLSX from your bank when you want transactions imported.
             </span>
           </li>
         </ul>

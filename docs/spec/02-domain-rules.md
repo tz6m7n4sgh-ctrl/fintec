@@ -117,7 +117,13 @@ Derived rather than stored so that correcting the rule, or the last day, reaches
 
 **Runway bands** are half-open by decision (OQ-3/C-2): **6.0 months is good, 3.0 is warning.** Exactly six is good, not borderline.
 
-> **Known modelling simplification, and it matters.** `projectCash()` starts from total resources, which already includes the final settlement — so the projection treats settlement money as present from day zero rather than arriving 14 days after the last working day. Any rule that depends on *when* money lands (for example, "is this cheque due before the settlement arrives") cannot currently be derived. This is the substance of the open `atRisk` question.
+> **Settlement arrival is modelled (HAD-83).** `projectCashWithSettlementArrival()` excludes the final settlement from the opening balance and credits it in the month containing `settlementDue` (last day + `SETTLEMENT_DUE_DAYS`). Because that arrival always precedes the first month-end, every month-end point and the zero-crossing match the day-zero `projectCash()` — which survives as the degenerate case (a settlement already arrived) and is what its tests pin. What the arrival model adds is day-scale timing: `projectedBalanceBefore()` answers "what does the balance hold the morning this payment is presented", counting the settlement only when it has arrived **strictly before** the due date — a cheque due the day the settlement is due cannot count on it having cleared.
+>
+> **What is still simplified, knowingly:** ILOE is counted from day zero although it is paid monthly after a claim, and the monthly burn lands in month-end steps rather than accruing daily. Both are recorded here rather than assumed silently.
+
+### At risk — one rule, derived
+
+**A payment is `atRisk` when the projected balance immediately before its due date cannot cover its amount**, with the settlement counted only from its arrival. `isPaymentAtRisk()` / `deriveAtRisk()` compute this on every read; nothing stores it. The two hand-set seed flags that used to imply two different rules (timing risk vs magnitude risk — HAD-83/HAD-110) both fall out of this one test: a cheque due before the settlement lands is judged against cash on hand, and a large cheque near the zero-crossing fails against the thinned-out balance. The database `status` column still accepts `'atRisk'` (no migration), but only `'paid'` is ever read back — a stored `atRisk` is overridden in both directions, which is also what makes the manual mark-paid/un-mark round trip lossless.
 
 ---
 
@@ -135,7 +141,7 @@ School fees are expanded into scheduled payments by `schoolFeeObligations()` rat
 
 A scheduled payment reads as **paid** when a confirmed transaction matches it. `effectiveStatus()` derives this; nothing writes `paid` onto the row.
 
-Derivation rather than storage is what makes un-matching revert cleanly and lose nothing — including an `atRisk` flag that a write would have destroyed.
+Derivation rather than storage is what makes un-matching revert cleanly and lose nothing. The same now goes for `atRisk` (see above): with both non-paid statuses derived, the stored column carries exactly one fact — a manual `paid`, the user asserting a payment the data cannot see.
 
 `isOutstanding()` is written as *"status is not paid"* rather than *"status is upcoming"*, deliberately: a status added later defaults to **counted** rather than silently dropping out of the exposure figures.
 

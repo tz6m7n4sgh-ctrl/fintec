@@ -37,6 +37,17 @@ Node IDs are stable and link directly: append `?node-id=<id with : replaced by -
 | **Doorway — a choice made** | `33:2` | 390 × 684 | B1 — selected state | after implementation |
 | **Six fields — saved** | `33:26` | 390 × 576 | B1 — the end of the first run | after implementation |
 | **Six fields — whole days** | `34:2` | 390 × 638 | B1 — integer validation | after implementation |
+| Sign in — mobile 390 | `46:2` | 390 × 695 | DESIGN-4 (HAD-127) | auth pass |
+| Sign up — mobile 390 | `47:2` | 390 × 615 | DESIGN-4 | auth pass |
+| Recovery codes — shown once | `47:28` | 390 × 609 | DESIGN-4 + HAD-128 | auth pass |
+| Landing — signed out mobile 390 | `48:2` | 390 × 619 | DESIGN-5 (HAD-129) | auth pass |
+| Sign in — desktop 1280 | `49:2` | 1280 × 730 | DESIGN-4 | auth pass |
+| **Sign in — error** | `54:2` | 390 × 783 | DESIGN-4 — the real failed-credentials copy | board completion |
+| **Sign in — session ended** | `54:36` | 390 × 843 | DESIGN-4 — the `?idle=1` state, worded as the feature | board completion |
+| **Sign in — dark (mobile 390)** | `54:71` | 390 × 695 | DESIGN-4 — dark preview | board completion |
+| **Landing — dark (mobile 390)** | `54:103` | 390 × 619 | DESIGN-5 — dark preview | board completion |
+| **Sign up — desktop 1280** | `54:121` | 1280 × 730 | DESIGN-4 | board completion |
+| **Landing — signed out desktop 1280** | `55:2` | 1280 × 760 | DESIGN-5 — the centred column the build shipped | board completion |
 
 Five of the nine workstreams in the discovery plan now have drawings: A (as a visible UI state),
 B1, B2, B3 and C. D (the AI surfaces) and E (visual design proper) have none, by design.
@@ -93,9 +104,14 @@ exist and are conformance-tested. The build is new routes and components, not ne
 
 ## 4. Tokens
 
-Collection **`Fintec tokens`**, 24 variables, two modes — **Light** and **Dark**. Colour values below
-are the Light values; spacing and radius values live in the file and are not duplicated here to
-avoid drift.
+Collection **`Fintec tokens`**, two modes — **Light** and **Dark**. Colour values below are the
+Light values; spacing and radius values live in the file and are not duplicated here to avoid
+drift.
+
+Since the original 24: an **interactive accent** was added following the code's `--s1` palette
+(HAD-125) — `accent/ink` `#276ec5`, `accent/fill` `#2976d2`, `ink/on-accent` white in both modes —
+and `money/ink` now appears **only on figures**; every button, selection and brand mark is bound to
+`accent/*`. Blue is *interactive*, green is *money*, amber is *unverified*, red is *deadline*.
 
 | Token | Value | Used for |
 |---|---|---|
@@ -113,16 +129,23 @@ avoid drift.
 | `flag/unverified-bg` | `#fbf3e2` | Unverified-basis panel |
 | `critical/ink` | `#a32b2b` | Hard deadlines, blocking validation |
 | `critical/wash` | `#f7e9e7` | Blocking validation panel |
-| `space/2xs` … `space/2xl` | in file | Seven-step spacing scale |
-| `radius/sm` `radius/md` `radius/lg` | in file | Corner radii |
+| `accent/ink` | `#276ec5` | Links, active tab, selection text |
+| `accent/fill` | `#2976d2` | Primary buttons, selected borders, brand mark |
+| `ink/on-accent` | `#ffffff` | Label on an `accent/fill` button |
+| `space/2` … `space/120` | in file | Numeric spacing inventory (see below) |
+| `radius/8` `10` `12` `14` `16` `20` `24` | in file | Corner radii |
 
 **Type:** Inter, three weights — Regular, Medium, Semi Bold. Observed ramp: 12 / 12.5 / 13 / 14 / 15
 / 17 / 20 / 26 / 38, each with an explicit pixel line height. No text styles are defined; sizes are
 set per node.
 
 Two things an implementer should know. The colour tokens are bound to fills on every frame, so they
-port cleanly to a Tailwind theme. The `space/*` and `radius/*` tokens exist but are **not bound** —
-frames set raw numbers — so porting spacing means reading the intent, not the bindings.
+port cleanly to a Tailwind theme. And since the HAD-105 resolution, **spacing and radius are fully
+bound too**: the deciding evidence was that `globals.css` shares the frames' fine-grained rhythm
+(3/4/6/8/9/10/12/14/20px…), so the scale was replaced with a numeric inventory that describes
+reality — `space/2` through `space/120` on the observed steps, `radius/8`–`radius/24` — and every
+gap, padding and corner across all frames is bound (≤1px snapping, e.g. 13→12, nothing further).
+The token names are the values, so porting spacing is now reading the bindings, not the intent.
 
 ## 5. States drawn in this pass
 
@@ -161,7 +184,7 @@ the number rather than beneath the fold, which is what §7 of the discovery reco
 
 ## 7. What is still missing
 
-Tracked under **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)**, one sub-issue each, all labelled `Figma`. Five of six are done; every screen in workstream C now exists.
+Tracked under **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-fill-the-missing-frames-before-implementation-starts)**, one sub-issue each, all labelled `Figma`. **All six are done** and HAD-99 is closed; every screen in workstream C exists, and the auth/landing surfaces that were never designed (HAD-127/HAD-129) now have frames too.
 
 | | Item | State |
 |---|---|---|
@@ -170,7 +193,7 @@ Tracked under **[HAD-99](https://linear.app/haddad/issue/HAD-99/phase-2-design-f
 | [HAD-102](https://linear.app/haddad/issue/HAD-102/figma-draw-the-you-section) | You | Done — `26:52` |
 | [HAD-103](https://linear.app/haddad/issue/HAD-103/figma-draw-the-gratuity-cap-applied-state) | Cap applied | Done — `28:2` |
 | [HAD-104](https://linear.app/haddad/issue/HAD-104/figma-add-a-dark-mode-to-the-fintec-tokens-collection) | Dark mode | Done — Light + Dark, preview `29:3` |
-| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | Spacing tokens | **Open** — 450 bound, 486 need a decision |
+| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | Spacing tokens | Done — scale follows the code's rhythm; everything bound (§4) |
 
 ### What dark mode found
 
@@ -184,17 +207,18 @@ were invisible in light mode, which is the argument for doing it early rather th
    than cards, so they are now transparent and inherit the page surface. The cards themselves were
    already bound correctly.
 
-### Why HAD-105 is still open
+### How HAD-105 was resolved
 
 450 bindings were applied wherever a value already matched the scale — 373 spacing, 77 radius. The
-remaining 486 do not match, and the shape of the mismatch is the finding: `13` appears 102 times,
-`14` 82 times, `20` 54 times, `6` 47 times, `10` 46 times.
+remaining 486 did not match, and the shape of the mismatch was the finding: the frames use a
+roughly 2px rhythm that a 4 / 8 / 12 / 16 / 24 / 32 / 48 scale does not describe.
 
-The frames use a roughly 2px rhythm that a 4 / 8 / 12 / 16 / 24 / 32 / 48 scale does not describe.
-Snapping 486 values to the nearest step would silently redesign every screen; adding a token per
-observed value would produce a fourteen-step "scale" that is not one. Either redraw against the
-existing scale, or replace the scale to match the design's actual rhythm — both are defensible, and
-neither should happen by inference.
+The decision, taken with evidence rather than by inference: **the code shares the frames' rhythm**
+(`globals.css` spaces with 3/4/5/6/8/9/10/11/12/14/20px), so the scale was the fiction, not the
+values. The tokens were renamed to numeric (`space/4`…`space/48`, preserving the 450 existing
+bindings), the observed steps added, and everything bound with a ≤1px snapping tolerance — an
+imperceptible drift for spacing, and far short of the silent redesign the nearest-step option
+risked. See the issue for the full accounting: ~1,200 bindings in the final pass, zero left raw.
 
 ## 8. The Phase 2 backlog
 
@@ -230,12 +254,12 @@ deletion — a bookmark from the old architecture still lands somewhere true.
 
 | | Workstream | Blocked by |
 |---|---|---|
-| [HAD-118](https://linear.app/haddad/issue/HAD-118/d1-ai-wording-layer-over-the-deterministic-working) | D1 · AI wording layer | An API key |
-| [HAD-119](https://linear.app/haddad/issue/HAD-119/d2-ask-anything-grounded-in-the-users-own-figures) | D2 · Ask anything, grounded | An API key |
-| [HAD-120](https://linear.app/haddad/issue/HAD-120/d3-read-my-documents-needs-a-consent-design-first) | D3 · Read my documents | A consent design |
-| [HAD-121](https://linear.app/haddad/issue/HAD-121/e-visual-design-pass-last-deliberately) | E · Visual design pass | Nothing since HAD-124 landed — it was waiting on C |
-| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | Spacing tokens | A scale decision |
-| [HAD-125](https://linear.app/haddad/issue/HAD-125/figma-the-token-collection-has-no-interactive-accent) | Figma has no interactive accent | Adding it, following the code |
+| [HAD-118](https://linear.app/haddad/issue/HAD-118/d1-ai-wording-layer-over-the-deterministic-working) | D1 · AI wording layer | **Built, key-gated** — `lib/ai/wording.ts`; degrades to the deterministic working without `ANTHROPIC_API_KEY` |
+| [HAD-119](https://linear.app/haddad/issue/HAD-119/d2-ask-anything-grounded-in-the-users-own-figures) | D2 · Ask anything, grounded | **Built, key-gated** — `lib/ai/ask.ts`; every answer must cite the screen that proves it |
+| [HAD-120](https://linear.app/haddad/issue/HAD-120/d3-read-my-documents-needs-a-consent-design-first) | D3 · Read my documents | Still open — a consent design, deliberately, and it now also carries the PDF-parsing decision |
+| [HAD-121](https://linear.app/haddad/issue/HAD-121/e-visual-design-pass-last-deliberately) | E · Visual design pass | Open — gated on the HAD-97 frame approval, then unblocked |
+| [HAD-105](https://linear.app/haddad/issue/HAD-105/figma-bind-the-space-and-radius-tokens-instead-of-raw-numbers) | Spacing tokens | **Done** — scale follows the code's rhythm, everything bound |
+| [HAD-125](https://linear.app/haddad/issue/HAD-125/figma-the-token-collection-has-no-interactive-accent) | Interactive accent | **Done** — `accent/*` added from `--s1`; `money/ink` means money only |
 
 Carried over from Phase 1:
 
@@ -281,7 +305,8 @@ rather than hidden: the app marks a selected doorway with `--s1` (blue, its inte
 the Figma frame uses `money/ink` (green), because the token collection has no interactive hue at all.
 Using the money colour for interaction erodes what it means — a green figure is *what you are owed*,
 a green card is *the one you picked*, and once one hue carries both, neither is a signal. Here the
-code holds the better-reasoned palette and the file should follow it.
+code held the better-reasoned palette and the file now follows it: HAD-125 is closed, `accent/*`
+exists in both modes, and a file-wide audit rebound every interactive fill.
 
 ## 10. Sequencing note
 

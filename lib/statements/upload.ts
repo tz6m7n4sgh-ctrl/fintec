@@ -27,7 +27,6 @@ export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const FILE_TYPES: Record<string, 'pdf' | 'csv' | 'xlsx'> = {
   pdf: 'pdf',
   csv: 'csv',
-  xls: 'xlsx',
   xlsx: 'xlsx',
 };
 
@@ -86,4 +85,3 @@ export function checkUpload(file: unknown, bankAccountId: string): UploadCheck {
   // place for the two to disagree about what counts as a file.
   return { ok: true, file, fileType, ext };
 }
-

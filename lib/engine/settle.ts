@@ -11,17 +11,21 @@ import type { Transaction } from '@/lib/data/seed';
  * acceptance criterion — *"un-matching reverts the status"* — and fails it
  * silently.
  *
- * `PaymentStatus` is `'upcoming' | 'paid' | 'atRisk'`, and `atRisk` is
- * **stored, not derived**: nothing in the engine computes it, it exists only
- * where the seed set it by hand. So overwriting a payment's status with `paid`
- * destroys the only record that it was at risk. Un-matching later can revert to
- * `upcoming` — and a cheque the user had flagged as a problem quietly stops
- * being flagged. On the screen that stands between them and a bounced cheque.
+ * When this was written, `atRisk` was **stored, not derived** — it existed
+ * only where the seed set it by hand, so overwriting a status with `paid`
+ * destroyed the only record of it, and un-matching could revert no further
+ * than `upcoming`. That hazard is what forced this module to derive. HAD-83
+ * has since made `atRisk` derived too (`deriveAtRisk` in projection.ts,
+ * recomputed on every read from settlement-arrival timing), so there is no
+ * stored flag left to destroy — but the argument here never depended on it:
+ * a write still fails "un-matching reverts the status", derivation still
+ * cannot.
  *
- * Deriving instead means there is nothing to revert. Remove the match and the
+ * Deriving means there is nothing to revert. Remove the match and the
  * derivation stops finding one; the stored status was never touched, so
  * whatever it was is still there. The same "one source per fact" rule the
- * budget's auto rows and the school-fee obligations already follow.
+ * budget's auto rows, the school-fee obligations and now the at-risk flag all
+ * follow.
  *
  * A **manual** mark-paid is different: that is the user asserting something the
  * data does not show, so it is stored, and stored `paid` wins.
@@ -62,8 +66,10 @@ export function settledPaymentIds(transactions: Settling[]): Set<string> {
  *    the app cannot see. Letting a missing match override it would delete their
  *    statement.
  * 2. **A settled match reads as paid.** This is the auto-mark.
- * 3. **Otherwise the stored status stands**, `atRisk` included, unchanged and
- *    unlost.
+ * 3. **Otherwise the stored status stands.** Since HAD-83 the only stored
+ *    statuses that matter are `paid` and not-`paid` — at-risk is re-derived
+ *    downstream of this function (`deriveAtRisk`), which is why passing a
+ *    non-paid status through unchanged here loses nothing.
  */
 export function effectiveStatus(
   payment: ScheduledPayment,
@@ -85,11 +91,11 @@ export function effectiveStatus(
  * this project's most-repeated defect.
  *
  * **Only `paid` is excluded, and that is deliberate.** `atRisk` is still
- * exposure — more so, not less. A cheque the user has flagged as a problem is
- * the single thing this app exists to keep in view (R-5), and a predicate that
- * quietly dropped it would remove the warning at exactly the moment it matters.
- * So this tests for `paid` rather than testing for `upcoming`: a status added
- * later defaults to *counted*, which is the safe direction.
+ * exposure — more so, not less. A cheque the projection says cannot be covered
+ * is the single thing this app exists to keep in view (R-5), and a predicate
+ * that quietly dropped it would remove the warning at exactly the moment it
+ * matters. So this tests for `paid` rather than testing for `upcoming`: a
+ * status added later defaults to *counted*, which is the safe direction.
  *
  * ## Why cleared money must stop being projected
  *

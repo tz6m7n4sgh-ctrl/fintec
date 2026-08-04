@@ -96,3 +96,29 @@ export function numberError(label: string, reason: 'not-a-number' | 'negative'):
     ? `${label} cannot be negative.`
     : `${label} is not a number. Digits, and a decimal point if you need one — commas and spaces are fine, but letters are not.`;
 }
+
+export type FormNumberReading = { ok: true; value: number } | { ok: false; error: string };
+
+/**
+ * The whole rule for one optional numeric field: blank means zero, unreadable
+ * refuses with a sentence naming the field, negative refuses unless the caller
+ * says a minus is meaningful.
+ *
+ * Extracted so the profile's server action and its client-side check are the
+ * same function rather than two compositions of the same parts. Two copies of
+ * "blank means zero, everything else must parse" would agree today and drift
+ * the first time one of them is edited — and the drift would surface as the
+ * client passing a value the server refuses, or worse, the reverse.
+ */
+export function readFormNumber(
+  raw: string,
+  label: string,
+  opts?: { allowNegative?: boolean },
+): FormNumberReading {
+  if (isBlank(raw)) return { ok: true, value: 0 };
+
+  const parsed = parseFormNumber(raw, opts);
+  if (!parsed.ok) return { ok: false, error: numberError(label, parsed.reason) };
+
+  return { ok: true, value: parsed.value };
+}

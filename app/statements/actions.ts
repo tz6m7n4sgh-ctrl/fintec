@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { MAX_UPLOAD_BYTES, checkUpload } from '@/lib/statements/upload';
 import { hashesOf, planMerge, prepare, runOutcome, type MergePlan } from '@/lib/ingestion/dedupe';
 import { parseStatement, unsupportedReason, type LogEntry } from '@/lib/ingestion/parse';
+import { xlsxToDelimited } from '@/lib/ingestion/xlsx';
 import { isParserConfig, type ParserConfig } from '@/lib/ingestion/columns';
 import { noticeFor, periodOf, withMergeLog } from '@/lib/ingestion/report';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -207,9 +208,13 @@ async function parseUpload(
 
   let text: string;
   try {
-    text = await file.text();
+    text = file.name.toLowerCase().endsWith('.xlsx')
+      ? xlsxToDelimited(await file.arrayBuffer())
+      : await file.text();
   } catch {
-    const message = 'That file could not be read as text.';
+    const message = file.name.toLowerCase().endsWith('.xlsx')
+      ? 'That XLSX workbook could not be read. Export it again from your bank, or save it as CSV.'
+      : 'That file could not be read as text.';
     await finish(supabase, uploadId, { error: message, log: [{ level: 'error', message }] });
     return message;
   }
