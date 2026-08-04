@@ -1006,12 +1006,17 @@ test.describe('statements — uploads', () => {
     await expect(card.locator('input[type="file"]')).toHaveCount(0);
   });
 
-  test('US-28 — the LLM warning is on the page that sends the file', async ({ page }) => {
+  test('US-28 — the parsing disclosure is on the page that takes the file', async ({ page }) => {
     // NFR-1 / the consent this screen owes the user. Statements are the most
-    // sensitive thing this app holds and parsing sends their contents out of
-    // the database; the warning must not be reachable only by scrolling past.
+    // sensitive thing this app holds, so this page must state what actually
+    // reads them. Nothing has gone to an LLM since the Cowork sweep closed —
+    // CSV/XLSX are parsed by local deterministic code — and the old pinned
+    // "read by an LLM" warning had outlived the pipeline it described. Pin
+    // the two claims that are true: parsing is local and immediate, and PDF
+    // is refused rather than guessed at.
     await page.goto(url('/statements/'));
-    await expect(page.locator('body')).toContainText('read by an LLM');
+    await expect(page.locator('body')).toContainText('Deterministic code reads it immediately');
+    await expect(page.locator('body')).toContainText('PDF transaction parsing is not supported');
   });
 });
 
