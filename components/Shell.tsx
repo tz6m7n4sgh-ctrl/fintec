@@ -13,7 +13,7 @@ const NAV = [
    * directions. It is the answer — the figure, the date that drives it — so
    * Answer is where it belongs and where its `aria-current` should light up.
    */
-  { href: '/entitlement', label: 'Answer', icon: '◧', routes: ['/', '/answer', '/entitlement', '/report', '/plan'] },
+  { href: '/entitlement', label: 'Answer', icon: '◧', routes: ['/answer', '/entitlement', '/report', '/plan'] },
   { href: '/money', label: 'Money', icon: '◑', routes: ['/money', '/budget', '/calendar', '/schedule', '/loans'] },
   { href: '/documents', label: 'Documents', icon: '↥', routes: ['/documents', '/statements'] },
   { href: '/you', label: 'You', icon: '◔', routes: ['/you', '/profile', '/settings'] },
