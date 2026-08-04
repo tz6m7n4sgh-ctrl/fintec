@@ -195,7 +195,7 @@ test.describe('deterministic explanation', () => {
     await expect(page.locator('.count').first()).toContainText('days');
   });
 
-  test('expands every settlement line into its arithmetic without an export', async ({ page }) => {
+  test('expands every settlement line and offers a private browser PDF export', async ({ page }) => {
     await page.goto(url('/report/'));
     await expect(page.locator('.working')).toHaveCount(11);
 
@@ -213,7 +213,24 @@ test.describe('deterministic explanation', () => {
     await expect(gratuityWorking).toContainText('174.96 days');
     await expect(gratuityWorking).toContainText('87,479.47');
 
-    await expect(page.getByRole('button', { name: /export to pdf/i })).toHaveCount(0);
+    const printCalls = await page.evaluate(() => {
+      let calls = 0;
+      window.print = () => { calls += 1; };
+      document.querySelector<HTMLButtonElement>('.print-report')?.click();
+      return calls;
+    });
+    expect(printCalls).toBe(1);
+    await expect(page.getByRole('button', { name: /export to pdf/i })).toBeVisible();
+  });
+
+  test('print output cannot omit the basis warning or legal caveat', async ({ page }) => {
+    await page.goto(url('/report/'));
+    await page.emulateMedia({ media: 'print' });
+
+    await expect(page.locator('.basis')).toBeVisible();
+    await expect(page.locator('footer.legal')).toBeVisible();
+    await expect(page.locator('.working-body').first()).toBeVisible();
+    await expect(page.locator('.print-report')).toBeHidden();
   });
 });
 

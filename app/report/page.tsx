@@ -5,6 +5,7 @@ import { getReadModel } from '@/lib/data/store';
 import { RULES } from '@/lib/engine/uae';
 import { aed, money, moneyPrecise, months } from '@/lib/format/money';
 import type { ReactNode } from 'react';
+import { PrintReportButton } from '@/components/PrintReportButton';
 
 const preciseAed = (value: number) => `AED ${moneyPrecise(value)}`;
 
@@ -32,8 +33,8 @@ function WorkingLine({
 }
 
 /**
- * An on-screen explanation, not a document. Every sentence and equation is
- * derived from the same read model as its displayed result.
+ * A printable explanation. Every sentence and equation is derived from the
+ * same read model as its displayed result.
  */
 export default async function ReportPage() {
   const m = await getReadModel();
@@ -43,11 +44,14 @@ export default async function ReportPage() {
   const laterYears = Math.max(r.service.serviceYears - 5, 0);
 
   return (
-    <>
-      <PageHead
-        title="Explain your numbers"
-        sub={`Based on a last working day of ${formatDate(m.profile.expectedLastDay)} · open any line to see its arithmetic`}
-      />
+    <div className="report-page">
+      <div className="report-heading">
+        <PageHead
+          title="Explain your numbers"
+          sub={`Based on a last working day of ${formatDate(m.profile.expectedLastDay)} · open any line to see its arithmetic`}
+        />
+        <PrintReportButton />
+      </div>
 
       {/* Every figure below is computed from rules nobody has sourced. This is
           the screen most likely to be read as authoritative — it shows the
@@ -152,6 +156,6 @@ export default async function ReportPage() {
       <Card title="Readiness" sub={`${s.total} of ${s.max} — ${s.band}`}>
         <div className="tbl-wrap" tabIndex={0}><table><tbody>{s.criteria.map((c) => <tr key={c.key}><th scope="row" className="rowhead payee">{c.label}<span className="sub">{c.detail}</span></th><td className="r tnum amt">{c.score} / {c.max}</td></tr>)}</tbody></table></div>
       </Card>
-    </>
+    </div>
   );
 }
