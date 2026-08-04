@@ -58,12 +58,17 @@ than returning quietly — a scheduled job that silently does nothing is worse
 than one that fails, because `cron.job_run_details` records the exception where
 a no-op looks identical to "no reminders were due".
 
-## What it does not do
+## Web push
 
-**Web push.** It needs a VAPID pair and a service worker (HAD-30), and on iOS an
-installed PWA. `push_enabled` is read and reported, never acted on. Email
-carries the whole load, which is the design rather than a stopgap — see the
-"email cannot be turned off" reasoning in `lib/settings/notifications.ts`.
+Built (HAD-30 supplied the worker and the stored subscription; HAD-113's code
+half wired the sending). Each due reminder goes to the user's stored
+subscription with the same copy the email carries, logged under
+`channel: 'push'` with the same send-once semantics, and a 404/410 prunes the
+dead subscription the way Settings maintains the flag. Without the VAPID pair
+(`NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`) the push path dry-runs
+exactly as the email path does without `RESEND_API_KEY`. Email remains the
+guaranteed channel — the "email cannot be turned off" reasoning in
+`lib/settings/notifications.ts` stands.
 
 ## Verified against the live database
 
