@@ -8,9 +8,13 @@ import type { Transaction } from '@/lib/data/seed';
  * one — *"un-matching reverts the status"* — because the obvious
  * implementation gets it wrong in a way nothing would surface.
  *
- * `atRisk` is stored and nothing derives it. Write `paid` over a payment's
- * status and that flag is gone; un-matching can only restore `upcoming`, and a
- * cheque the user had marked as a problem silently stops being one.
+ * When these tests were written, `atRisk` was stored and nothing derived it —
+ * writing `paid` over it destroyed the flag, which is the hazard the tests
+ * below pin. HAD-83 has since made `atRisk` derived as well (`deriveAtRisk`
+ * in projection.ts), so no stored flag remains to destroy; the tests keep
+ * their stored-`atRisk` fixtures because `effectiveStatus` must still pass an
+ * unknown non-paid status through untouched — that pass-through is what lets
+ * the downstream derivation, not this module, own the flag.
  */
 
 const payment = (over: Partial<ScheduledPayment> = {}): ScheduledPayment => ({

@@ -198,6 +198,10 @@ export async function loadLiveData(supabase: SupabaseClient): Promise<LiveData |
       budgetCategoryId: r.budget_category_id ?? undefined,
       seriesId: r.series_id ?? undefined,
       detachedDate: r.detached_date ?? undefined,
+      // Only `paid` means anything here now. An `atRisk` written by an older
+      // build passes through but never reaches a screen — `deriveAtRisk` in
+      // store.ts recomputes non-paid statuses on every read (HAD-83). The
+      // column keeps accepting the value so no migration is needed.
       status: r.status,
     })),
     income: (income.data ?? []).map((r) => ({

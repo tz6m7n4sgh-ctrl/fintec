@@ -138,7 +138,11 @@ test.describe('money — the headline figures (moved from the dashboard, HAD-124
     const svg = page.locator('svg.plot').first();
     const label = await svg.getAttribute('aria-label');
     expect(label, 'chart needs a text alternative').toBeTruthy();
-    expect(label).toContain('220,479');
+    // The chart's start is settlement-timing-aware since HAD-83: 127,000 is
+    // what the reference profile actually holds on the last working day —
+    // total resources (220,479) minus the settlement (93,479) that the
+    // employer has 14 more days to pay.
+    expect(label).toContain('127,000');
     // The projection must surface that the balance goes negative, which the
     // flat-burn runway figure alone does not reveal.
     await expect(svg).toContainText('runs out');

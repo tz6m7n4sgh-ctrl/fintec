@@ -147,17 +147,29 @@ export const SEED_BUDGET: BudgetCategory[] = applyAutoRows(
  * The family loan and the car-loan balloon are the only items NOT inside a
  * monthly budget line, so they are the only ones the projection subtracts as
  * lump sums (G-1).
+ *
+ * Every status here is `upcoming` or `paid` — never `atRisk`. Two rows
+ * (`pay-rent-q4`, `pay-balloon`) used to carry a hand-set `atRisk`, and the
+ * two of them implied two different rules that nothing computed (HAD-83 /
+ * HAD-110). At-risk is now DERIVED at read time from the settlement-aware
+ * projection (`deriveAtRisk` in lib/engine/projection.ts), which overrides
+ * any stored non-paid status — so a value written here would be dead weight
+ * pretending to be data. For the record, the derivation flags the Q2 and Q3
+ * rent cheques (the ones straddling the projected zero-crossing), and clears
+ * the two formerly-flagged rows: Q4 rent is covered by cash on hand even
+ * before the settlement lands, and the balloon by the projected balance on its
+ * date. `projection.test.ts` pins exactly that.
  */
 export const SEED_PAYMENTS: ScheduledPayment[] = [
   { id: 'pay-dewa', dueDate: '2026-10-01', payee: 'DEWA', purpose: 'Utilities', amount: 700, account: 'ENBD ··4821', type: 'autoDebit', recurrence: 'monthly', includedInBudget: true, status: 'upcoming' },
-  { id: 'pay-rent-q4', dueDate: '2026-10-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q4 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'atRisk' },
+  { id: 'pay-rent-q4', dueDate: '2026-10-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q4 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-car', dueDate: '2026-10-06', payee: 'ADCB — car loan', purpose: 'Debt service', amount: 2_400, account: 'ADCB ··9013', type: 'autoDebit', recurrence: 'monthly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-mortgage', dueDate: '2026-10-08', payee: 'FAB — mortgage', purpose: 'Debt service', amount: 3_600, account: 'FAB ··2277', type: 'autoDebit', recurrence: 'monthly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-etisalat', dueDate: '2026-10-10', payee: 'Etisalat', purpose: 'Phone & internet', amount: 300, account: 'ENBD ··4821', type: 'autoDebit', recurrence: 'monthly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-daman', dueDate: '2026-10-20', payee: 'Daman — health cover', purpose: 'Insurance', amount: 600, account: 'ENBD ··4821', type: 'transfer', recurrence: 'monthly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-family', dueDate: '2026-12-10', payee: 'Family loan repayment', purpose: 'Personal obligation', amount: 20_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'none', includedInBudget: false, status: 'upcoming' },
   { id: 'pay-rent-q1', dueDate: '2027-01-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q1 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'upcoming' },
-  { id: 'pay-balloon', dueDate: '2027-03-15', payee: 'ADCB — car loan balloon', purpose: 'Final settlement instalment', amount: 45_000, account: 'ADCB ··9013', type: 'cheque', recurrence: 'none', includedInBudget: false, status: 'atRisk' },
+  { id: 'pay-balloon', dueDate: '2027-03-15', payee: 'ADCB — car loan balloon', purpose: 'Final settlement instalment', amount: 45_000, account: 'ADCB ··9013', type: 'cheque', recurrence: 'none', includedInBudget: false, status: 'upcoming' },
   { id: 'pay-rent-q2', dueDate: '2027-04-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q2 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'upcoming' },
   { id: 'pay-rent-q3', dueDate: '2027-07-05', payee: 'Landlord — Al Barsha villa', purpose: 'Rent — Q3 cheque', amount: 18_000, account: 'ENBD ··4821', type: 'cheque', recurrence: 'quarterly', includedInBudget: true, status: 'upcoming' },
 ];

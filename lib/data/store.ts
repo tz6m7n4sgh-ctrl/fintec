@@ -13,7 +13,12 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { loadLiveData } from './repository';
 import type { LiveData } from './repository';
 import { computeReadiness, currentSpend, schoolFeeObligations, survivalSpend } from '@/lib/engine/uae';
-import { monthlyActuals, projectCash } from '@/lib/engine/projection';
+import {
+  deriveAtRisk,
+  monthlyActuals,
+  projectCashWithSettlementArrival,
+} from '@/lib/engine/projection';
+import type { SettlementArrival } from '@/lib/engine/projection';
 import { applySettlement } from '@/lib/engine/settle';
 import { remindersWithin, type Reminder } from '@/lib/engine/reminders';
 import { todayInDubai } from '@/lib/engine/dates';
@@ -169,18 +174,61 @@ export async function getReadModel(): Promise<ReadModel> {
    * calendar, the cheque exposure tiles and the projection all see one source.
    */
   /*
-   * Settlement is applied last, over the composed list (US-18 / HAD-14). A
-   * confirmed transaction that names a payment marks it paid by *derivation* —
-   * nothing writes `status`, so removing the match reverts it for free and a
-   * stored `atRisk` is never destroyed. See `lib/engine/settle.ts`.
+   * Settlement is applied over the composed list (US-18 / HAD-14). A confirmed
+   * transaction that names a payment marks it paid by *derivation* — nothing
+   * writes `status`, so removing the match reverts it for free. See
+   * `lib/engine/settle.ts`. At-risk derivation follows below, after readiness.
    */
-  const payments = applySettlement(
+  const settled = applySettlement(
     [...data.payments, ...schoolFeeObligations(schoolFees)],
     data.transactions,
   );
 
-  const readiness = computeReadiness(profile, budget, payments, data.income);
-  const projection = projectCash(readiness.runway, payments, profile.expectedLastDay);
+  /*
+   * Readiness is computed BEFORE at-risk derivation, and that ordering is not
+   * circular: everything in `computeReadiness` reads statuses only through
+   * `isOutstanding` (paid / not-paid), and the derivation below only ever
+   * flips `upcoming` ↔ `atRisk` — never `paid`. So the runway that feeds the
+   * derivation is the same runway either way.
+   */
+  const readiness = computeReadiness(profile, budget, settled, data.income);
+
+  /*
+   * At-risk is DERIVED here, on every read, from when money actually arrives
+   * (HAD-83, option A). The `status` column still exists and `paid` is still
+   * read from it, but a stored `atRisk` — the seed's hand-set rows, or one an
+   * older build wrote — never reaches a screen: the derivation overrides
+   * non-paid statuses in both directions. That is what makes the manual
+   * mark-paid/un-mark round trip lossless — there is no stored flag to lose.
+   */
+  const settlementArrival: SettlementArrival = {
+    amount: readiness.settlement.finalSettlement,
+    arrivesOn: readiness.deadlines.settlementDue,
+  };
+  const payments = deriveAtRisk(
+    settled,
+    readiness.runway,
+    profile.expectedLastDay,
+    settlementArrival,
+  );
+
+  /*
+   * The chart consumer's decision (HAD-83): the projection on /money is
+   * settlement-timing-aware. For any real profile the arrival (last day + 14)
+   * precedes the first month-end, so every month-end point and the
+   * zero-crossing are IDENTICAL to the old day-zero figures — what changes is
+   * `start`, which now shows what the user actually holds on their last
+   * working day instead of counting money the employer still owes. The
+   * flat-burn `runwayMonths` headline deliberately stays resources-based: it
+   * answers "how many months of average spending do my total resources cover",
+   * a sizing question, not a timing one — the timing story is this chart's job.
+   */
+  const projection = projectCashWithSettlementArrival(
+    readiness.runway,
+    payments,
+    profile.expectedLastDay,
+    settlementArrival,
+  );
   const actuals = monthlyActuals(data.transactions);
   const score = scoreReadiness(readiness, data.debts, budget);
 

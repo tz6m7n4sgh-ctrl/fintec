@@ -83,6 +83,13 @@ export interface SchoolFee {
 
 export type PaymentType = 'cheque' | 'transfer' | 'autoDebit';
 export type Recurrence = 'none' | 'monthly' | 'quarterly' | 'termly' | 'yearly';
+/**
+ * `atRisk` is DERIVED, never stored (HAD-83): `deriveAtRisk` in projection.ts
+ * recomputes it on every read from settlement-arrival timing, overriding any
+ * stored non-`paid` value in both directions. Only `paid` is a stored fact —
+ * the user asserting a payment the data cannot see. The database column still
+ * accepts `atRisk` (no migration), but nothing reads it back.
+ */
 export type PaymentStatus = 'upcoming' | 'paid' | 'atRisk';
 
 /** §4.6 ScheduledPayment, including post-dated cheques. */
