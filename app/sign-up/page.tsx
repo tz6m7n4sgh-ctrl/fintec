@@ -43,8 +43,9 @@ export default async function SignUpPage() {
         <Card title="Before you choose a password" sub="The one thing that cannot be undone here">
           <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, marginTop: 4 }}>
             This app sends no email at all — which also means there is <b>no password reset link</b>.
-            If the password is lost, the only way back in is to clear it from the Supabase dashboard.
-            Use a password manager, or write it down somewhere you trust.
+            If the password is lost and you do not have a passkey, contact the person who operates
+            this app for help regaining access. Use a password manager, or write it down somewhere
+            you trust.
           </p>
           <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
             Already have an account?{' '}

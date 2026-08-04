@@ -23,7 +23,12 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const url = (path: string) => `${BASE_PATH}${path}`;
 
 const ROUTES = [
-  '/',
+  // '/' is not listed: it is a redirect, not a screen (HAD-124), and its
+  // destination — the Answer section — is audited below by name.
+  '/entitlement/',
+  '/money/',
+  '/documents/',
+  '/you/',
   '/calendar/',
   '/schedule/',
   '/budget/',

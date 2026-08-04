@@ -196,6 +196,16 @@ main { min-width: 0; }
 .page-head h1 { font-size: 23px; }
 .page-head .sub { color: var(--ink-2); font-size: 13.5px; margin-top: 4px; }
 
+.report-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.print-report {
+  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  border: 1px solid var(--s1-fill); border-radius: 9px; padding: 9px 12px;
+  background: var(--s1-fill); color: #fff; font: inherit; font-size: 13px;
+  font-weight: 600; cursor: pointer;
+}
+.print-report:hover { filter: brightness(0.94); }
+.print-report:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+
 /* --- cards & grids ------------------------------------------------------- */
 
 .card {
@@ -244,7 +254,7 @@ main { min-width: 0; }
 .answer-breakdown .answer-breakdown-total { border: 0; font-weight: 650; }
 .answer-breakdown .answer-breakdown-total dt { color: var(--ink-1); }
 .answer-deadlines { margin-top: 16px; border-top: 1px solid var(--grid); padding-top: 18px; }
-.answer-deadlines h3 { font-size: 15px; margin-bottom: 8px; }
+.answer-deadlines h2 { font-size: 15px; margin-bottom: 8px; }
 .answer-deadlines > div { display: grid; grid-template-columns: 112px 1fr; gap: 12px; padding: 9px 0; }
 .answer-deadlines time { font-weight: 650; font-size: 13px; }
 .answer-deadlines span { color: var(--ink-2); font-size: 12.5px; }
@@ -524,6 +534,35 @@ button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .basis p { margin: 0; font-size: 12.5px; line-height: 1.5; }
 .basis .basis-count { margin-top: 5px; font-size: 11.5px; opacity: 0.85; }
 .basis-line { font-size: 11.5px; color: var(--ink-3); }
+
+/* The report exports through the browser, so no financial data is uploaded.
+   These rules also make its caveats part of the same inseparable print job. */
+@media print {
+  @page { size: A4; margin: 14mm; }
+
+  body:has(.report-page) { background: #fff; color: #000; }
+  body:has(.report-page) .top-bar,
+  body:has(.report-page) .bottom-tabs,
+  body:has(.report-page) .print-report,
+  body:has(.report-page) .ServiceWorkerRegistration { display: none !important; }
+  body:has(.report-page) .shell { display: block; max-width: none; padding: 0; }
+  body:has(.report-page) main { width: 100%; }
+  body:has(.report-page) .card {
+    background: #fff; color: #000; border-color: #bbb; box-shadow: none;
+    break-inside: avoid-page;
+  }
+  body:has(.report-page) .working-body { display: block !important; }
+  body:has(.report-page) .working { break-inside: avoid; }
+  body:has(.report-page) .basis {
+    display: block !important; color: #3f3000; background: #fff4d6;
+    border-color: #806b2a; break-inside: avoid;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  body:has(.report-page) .legal {
+    display: block !important; max-width: none; color: #333; border-color: #999;
+    break-inside: avoid; padding: 12px 0 0; margin: 16px 0 0;
+  }
+}
 
 /* --- first run (workstream B1) -------------------------------------------- */
 

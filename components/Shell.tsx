@@ -50,7 +50,7 @@ function Navigation({ className }: { className: string }) {
 export function Sidebar() {
   return (
     <header className="top-bar">
-      <Link className="brand" href="/answer" prefetch={false} aria-label="Readiness — Answer">
+      <Link className="brand" href="/entitlement" prefetch={false} aria-label="Readiness — Answer">
         <span className="brand-mark" aria-hidden>₯</span>
         <span className="brand-name">Readiness</span>
       </Link>
