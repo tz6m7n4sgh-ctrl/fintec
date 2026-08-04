@@ -94,3 +94,30 @@ A reimplementation can undo this model without touching a policy. These are the 
 **Session minting is unverified end to end.** `generateLink` → `verifyOtp` rests on documented behaviour rather than on a check anyone has run, because it needs the service-role key that by design exists only inside the function.
 
 All five are tracked. None is a code change — they are configuration, or a decision, or access nobody has yet granted.
+
+---
+
+## The AI boundary (D1 + D2, added with the board-completion pass)
+
+Two key-gated surfaces send data to the Anthropic API when `ANTHROPIC_API_KEY`
+is configured: the report's plain-language wording (HAD-118) and the
+entitlement screen's ask-anything card (HAD-119). The boundary is precise and
+worth stating:
+
+**What is sent:** the flattened fact sheet of figures the engine has already
+computed — the same numbers rendered on the screens — plus, for the ask
+surface, the user's typed question. **What is never sent:** uploaded
+statements, transactions, or any raw document. The statements pipeline's
+"parsed on the server and never sent anywhere" claim is unchanged; extending
+AI to documents is HAD-120, which is deliberately gated on a consent design.
+
+**What comes back is validated, not trusted:** a generated text containing one
+number the fact sheet does not carry is discarded whole, and an ask answer
+must cite a screen of this app or it is replaced by a refusal. The key is
+read only inside a `server-only` module with no `NEXT_PUBLIC_` twin, so it
+cannot reach the client bundle. Unset — the default — neither surface renders
+and no request leaves the server.
+
+The enumeration-posture item above is also now a decision on record rather
+than an accident: the comment on `signIn` states the trade explicitly
+(HAD-77 §4).
