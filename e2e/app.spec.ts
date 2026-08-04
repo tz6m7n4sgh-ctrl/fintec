@@ -1216,6 +1216,26 @@ test.describe('budget screen', () => {
     const actuals = await table.locator('tbody tr td:nth-child(5)').allInnerTexts();
     expect(actuals.filter((t) => t.trim() !== '' && t.trim() !== '—').length).toBeGreaterThan(0);
   });
+
+  test('HAD-53 — variance is actual against the current plan, said in words', async ({ page }) => {
+    /*
+     * The "Difference" column this table always had (now "Planned cut") is
+     * plan vs plan — current against survival. The corrected US-25 criterion
+     * is the other comparison: actual against the current budget. The seed has
+     * confirmed statement months, so the column must render, and at least one
+     * category with actuals must carry a verdict in words — "over", "under" or
+     * "on plan" — rather than a bare signed number a reader can invert.
+     */
+    await page.goto(url('/budget/'));
+    const table = page.locator('section.card', { hasText: 'Categories' }).locator('table');
+    await expect(table.locator('th', { hasText: 'Vs plan' })).toHaveCount(1);
+    await expect(table.locator('th', { hasText: 'Planned cut' })).toHaveCount(1);
+    const variances = await table.locator('tbody tr td:nth-child(6)').allInnerTexts();
+    expect(variances.filter((t) => /\b(over|under|on plan)\b/.test(t)).length).toBeGreaterThan(0);
+    // Categories with no confirmed spend stay an em dash — "no actuals" must
+    // never render as "on plan".
+    expect(variances.some((t) => t.trim() === '—')).toBe(true);
+  });
 });
 
 test.describe('readiness and action plan', () => {

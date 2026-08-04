@@ -5,6 +5,7 @@ import type { BudgetCategory } from '@/lib/engine/types';
 import { runwayFrom } from '@/lib/engine/uae';
 import { aed, money } from '@/lib/format/money';
 import { addCategory, deleteCategory, saveBudget, type BudgetResult } from './actions';
+import { varianceInk, varianceLabel, varianceVsPlan } from './variance';
 
 /**
  * The editable budget (US-23).
@@ -98,6 +99,7 @@ export function BudgetEditor({
   monthlySideIncome,
   savedRunwayMonths,
   actualPerMonth,
+  hasActuals,
 }: {
   categories: BudgetCategory[];
   totalResources: number;
@@ -105,6 +107,12 @@ export function BudgetEditor({
   savedRunwayMonths: number;
   /** Average confirmed spend per category per month (US-25). Read-only. */
   actualPerMonth: Record<string, number>;
+  /**
+   * Whether any confirmed statement month exists at all. The "Vs plan"
+   * variance column renders only when it does — a verdict computed from no
+   * actuals would be a plausible figure from nothing.
+   */
+  hasActuals: boolean;
 }) {
   const [state, action, pending] = useActionState(saveBudget, INITIAL);
   const [adding, setAdding] = useState(false);
@@ -223,8 +231,11 @@ export function BudgetEditor({
                 <th>Category</th>
                 <th className="r">Current</th>
                 <th className="r">Survival</th>
-                <th className="r">Difference</th>
+                {/* Plan vs plan: what switching to survival would save. */}
+                <th className="r">Planned cut</th>
                 <th className="r">Actual / mo</th>
+                {/* Plan vs actual (US-25): only once actuals exist. */}
+                {hasActuals ? <th className="r">Vs plan</th> : null}
                 <th>Source</th>
                 <th>Actions</th>
               </tr>
@@ -283,6 +294,13 @@ export function BudgetEditor({
                     <td className="r tnum" style={{ color: 'var(--ink-2)' }}>
                       {actualPerMonth[c.id] === undefined ? '—' : money(actualPerMonth[c.id])}
                     </td>
+                    {hasActuals ? (
+                      // Compared against the draft, like every other live figure
+                      // here: editing a current amount moves its variance too.
+                      <td className="r tnum" style={{ color: varianceInk(varianceVsPlan(actualPerMonth[c.id], cur)) }}>
+                        {varianceLabel(varianceVsPlan(actualPerMonth[c.id], cur))}
+                      </td>
+                    ) : null}
                     <td>
                       {c.autoSource === 'debts' ? (
                         <a className="pill" href="/loans">Loans →</a>
@@ -301,7 +319,7 @@ export function BudgetEditor({
                 <td className="r tnum">{money(currentTotal)}</td>
                 <td className="r tnum">{money(survivalTotal)}</td>
                 <td className="r tnum">{cut > 0 ? `−${money(cut)}` : '—'}</td>
-                <td colSpan={3} />
+                <td colSpan={hasActuals ? 4 : 3} />
               </tr>
             </tbody>
           </table>

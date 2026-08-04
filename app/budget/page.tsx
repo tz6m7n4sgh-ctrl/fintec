@@ -4,6 +4,7 @@ import { monthlyActuals } from '@/lib/engine/projection';
 import { aed, money, percent } from '@/lib/format/money';
 import { BudgetEditor } from './BudgetEditor';
 import { RulesEditor } from './RulesEditor';
+import { varianceInk, varianceLabel, varianceVsPlan } from './variance';
 import type { CategoryRule } from '@/lib/engine/categorise';
 
 export default async function BudgetPage() {
@@ -16,7 +17,13 @@ export default async function BudgetPage() {
     if (!t.categoryId) continue;
     actualByCategory.set(t.categoryId, (actualByCategory.get(t.categoryId) ?? 0) + t.amount);
   }
-  const monthsOfActuals = monthlyActuals(m.transactions).length || 1;
+  const actualMonths = monthlyActuals(m.transactions).length;
+  // The variance column only exists once at least one statement month is
+  // confirmed — an "on plan / over plan" verdict computed from no actuals at
+  // all would be this project's signature defect, a plausible figure from
+  // nothing.
+  const hasActuals = actualMonths > 0;
+  const monthsOfActuals = actualMonths || 1;
   const actualPerMonth = Object.fromEntries(
     [...actualByCategory].map(([id, total]) => [id, total / monthsOfActuals]),
   );
@@ -71,14 +78,18 @@ export default async function BudgetPage() {
                     <th>Category</th>
                     <th className="r">Current</th>
                     <th className="r">Survival</th>
-                    <th className="r">Difference</th>
+                    {/* Plan vs plan: what switching to survival would save. */}
+                    <th className="r">Planned cut</th>
                     <th className="r">Actual / mo</th>
+                    {/* Plan vs actual (US-25): only once actuals exist. */}
+                    {hasActuals ? <th className="r">Vs plan</th> : null}
                     <th>Source</th>
                   </tr>
                 </thead>
                 <tbody>
                   {m.budget.map((c) => {
                     const diff = c.currentAmount - c.survivalAmount;
+                    const variance = varianceVsPlan(actualPerMonth[c.id], c.currentAmount);
                     return (
                       <tr key={c.id}>
                         <td className="payee">
@@ -96,6 +107,11 @@ export default async function BudgetPage() {
                         <td className="r tnum" style={{ color: 'var(--ink-2)' }}>
                           {actualPerMonth[c.id] === undefined ? '—' : money(actualPerMonth[c.id])}
                         </td>
+                        {hasActuals ? (
+                          <td className="r tnum" style={{ color: varianceInk(variance) }}>
+                            {varianceLabel(variance)}
+                          </td>
+                        ) : null}
                         <td>
                           {c.autoSource === 'debts' ? (
                             <a className="pill" href="/loans">Loans →</a>
@@ -113,7 +129,7 @@ export default async function BudgetPage() {
                     <td className="r tnum">{money(m.currentTotal)}</td>
                     <td className="r tnum">{money(m.survivalTotal)}</td>
                     <td className="r tnum">−{money(cut)}</td>
-                    <td colSpan={2} />
+                    <td colSpan={hasActuals ? 3 : 2} />
                   </tr>
                 </tbody>
               </table>
@@ -127,6 +143,7 @@ export default async function BudgetPage() {
           monthlySideIncome={m.readiness.runway.monthlySideIncome}
           savedRunwayMonths={m.readiness.runway.runwayMonths}
           actualPerMonth={actualPerMonth}
+          hasActuals={hasActuals}
         />
       )}
 
@@ -148,6 +165,16 @@ export default async function BudgetPage() {
               are excluded — nothing counts as actual until you confirm it.
             </span>
           </li>
+          {hasActuals ? (
+            <li>
+              <span className="ic" style={{ color: 'var(--s1-ink)' }} aria-hidden>→</span>
+              <span>
+                &quot;Vs plan&quot; is actual spend minus the <b>current</b> budget for that
+                category — <b>over</b> means spending above plan. &quot;Planned cut&quot; is the
+                other comparison: current against survival, what switching would save.
+              </span>
+            </li>
+          ) : null}
         </ul>
       </Card>
 
